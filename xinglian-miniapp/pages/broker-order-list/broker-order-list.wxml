@@ -1,0 +1,73 @@
+<view class="page broker-page">
+  <view class="broker-dash-hero">
+    <view class="broker-hero-blob broker-hero-blob-1"></view>
+    <view class="broker-hero-blob broker-hero-blob-2"></view>
+    <view class="broker-hero-grid"></view>
+    <view class="broker-dash-hero-inner">
+      <view class="broker-dash-hero-main">
+        <text class="broker-dash-eyebrow">常用功能</text>
+        <text class="broker-dash-title">关联订单</text>
+        <text class="broker-dash-desc">仅展示您有推广佣金的订单</text>
+      </view>
+      <view class="broker-dash-stat">
+        <text class="broker-dash-stat-num">{{total}}</text>
+        <text class="broker-dash-stat-unit">笔</text>
+      </view>
+    </view>
+  </view>
+
+  <scroll-view
+    scroll-y
+    class="scroll"
+    enhanced
+    show-scrollbar="{{false}}"
+    bindscrolltolower="onReachBottom"
+    lower-threshold="120"
+  >
+    <view class="tabs-bar">
+      <view class="tabs-row">
+        <view
+          wx:for="{{tabs}}"
+          wx:key="key"
+          class="tab {{statusFilter === item.key ? 'tab-on' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="onTabTap"
+        >
+          <text class="tab-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading && list.length === 0}}" class="hint">加载中…</view>
+    <view wx:elif="{{!loading && list.length === 0}}" class="hint empty">暂无关联订单</view>
+
+    <view
+      wx:for="{{list}}"
+      wx:key="orderId"
+      class="card order-card"
+      data-id="{{item.orderId}}"
+      bindtap="goDetail"
+    >
+      <view class="order-card-header">
+        <text class="order-no">{{item.orderNo}}</text>
+        <view class="tag-row">
+          <text class="tag tag--rel">{{item.relationText}}</text>
+          <text class="tag tag--os{{item.orderStatus}}">{{item.orderStatusText}}</text>
+        </view>
+      </view>
+      <text class="line">服务日期 {{item.bookingDate}} · {{item.durationKindText}}{{item.hourCount ? ' · ' + item.hourCount + '小时' : ''}}</text>
+      <text class="line counterpart">商家 {{item.merchant.nickname || '—'}} · 模特 {{item.model.nickname || '—'}}</text>
+      <view class="row-bottom">
+        <view class="amount-col">
+          <text class="amount">¥{{item.payableAmount}}</text>
+          <text class="commission">我的佣金 {{item.commissionText}}</text>
+        </view>
+        <text class="more">查看详情 ›</text>
+      </view>
+    </view>
+
+    <view wx:if="{{loadingMore}}" class="hint foot">加载更多…</view>
+    <view wx:elif="{{list.length > 0 && list.length >= total}}" class="hint foot">没有更多了</view>
+    <view class="bottom-space"></view>
+  </scroll-view>
+</view>

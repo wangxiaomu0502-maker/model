@@ -1,0 +1,37 @@
+星链 · 分账实现说明（v2）
+
+================================================================================
+一、业务框架
+================================================================================
+1. 商家支付总额 P（payable_amount）。
+2. P = 模特收入 + 服务费。
+3. 模特收入占比：model_share_bp（占 P 的万分比）。
+4. 服务费 = P − 模特收入；platform_fee_rate_bp 与 model_share_bp 之和 = 10000。
+5. 服务费在「平台 / 代理人 / 经纪人」三方按万分比分配（三者之和 = 10000）：
+   · platform_share_of_fee_bp
+   · agent_share_of_fee_bp
+   · broker_share_of_fee_bp
+6. 模特所属代理人：users.agent_user_id（role=4）；订单完成时写入 orders.agent_user_id。
+7. 商户绑定经纪人：users.referrer_id（role=3）；订单完成时写入 orders.broker_user_id。
+8. 分账落库时：未绑定经纪人/代理人的对应服务费份额计入 platform_fee，不再使用「无推荐人」策略或 orphan 标记。
+9. 经纪人不再绑定模特（已清空模特 referrer_id，小程序移除「我的模特」）。
+
+================================================================================
+二、数据库
+================================================================================
+· platform_split_rules：model_share_bp、platform_fee_rate_bp、platform_share_of_fee_bp、
+  agent_share_of_fee_bp、broker_share_of_fee_bp
+· users.agent_user_id：模特所属代理人
+· orders：broker_user_id、agent_user_id、broker_income、agent_income、model_income、platform_fee
+· 迁移：npm run migrate:split-v2（xinglian-server 目录）
+
+================================================================================
+三、计算（settlement-calculator.ts）
+================================================================================
+整数分运算；服务费内舍入余数并入平台。
+
+================================================================================
+四、触发
+================================================================================
+商家确认服务完成 → 锁定 broker_user_id / agent_user_id + split_rules_snapshot → order_status=4
+后台手动分账 → 写 orders 分项 + user_account_ledger（biz: order_split_model / broker / agent）

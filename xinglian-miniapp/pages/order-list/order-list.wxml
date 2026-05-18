@@ -1,0 +1,50 @@
+<view class="page page-themed-root">
+  <scroll-view scroll-y class="scroll" enhanced show-scrollbar="{{false}}" bindscrolltolower="onReachBottom" lower-threshold="120">
+    <view class="tabs-bar">
+      <view class="tabs-row">
+        <view
+          wx:for="{{tabs}}"
+          wx:key="key"
+          class="tab {{statusFilter === item.key ? 'tab-on' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="onTabTap"
+        >
+          <text class="tab-label">{{item.label}}</text>
+          <view
+            wx:if="{{(viewerRole === 1 || viewerRole === 2) && item.key === '1' && pendingAcceptCount > 0}}"
+            class="tab-badge-dot"
+          ></view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading && list.length === 0}}" class="hint">加载中…</view>
+    <view wx:elif="{{!loading && list.length === 0}}" class="hint empty">暂无订单</view>
+
+    <view
+      wx:for="{{list}}"
+      wx:key="orderId"
+      class="card order-card"
+      data-id="{{item.orderId}}"
+      bindtap="goDetail"
+    >
+      <view class="order-card-header">
+        <text class="order-no">{{item.orderNo}}</text>
+        <view class="tag-row">
+          <text class="tag tag--os{{item.orderStatus}}">{{item.orderStatusText}}</text>
+          <text class="tag tag--ps{{item.paymentStatus}}">{{item.paymentStatusText}}</text>
+        </view>
+      </view>
+      <text class="line">服务日期 {{item.bookingDate}} · {{item.durationKindText}}{{item.hourCount ? ' · ' + item.hourCount + '小时' : ''}}</text>
+      <text class="line counterpart">{{item.counterpart.roleLabel}} {{item.counterpart.nickname || '—'}}</text>
+      <view class="row-bottom">
+        <text class="amount">¥{{item.payableAmount}}</text>
+        <text class="more">查看详情 ›</text>
+      </view>
+    </view>
+
+    <view wx:if="{{loadingMore}}" class="hint foot">加载更多…</view>
+    <view wx:elif="{{list.length > 0 && list.length >= total}}" class="hint foot">没有更多了</view>
+    <view class="bottom-space"></view>
+  </scroll-view>
+</view>

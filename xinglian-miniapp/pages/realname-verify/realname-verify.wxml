@@ -1,0 +1,164 @@
+<view class="page-root">
+  <view class="scroll-body">
+    <view class="hero">
+      <view class="hero-blob hero-blob-1"></view>
+      <view class="hero-blob hero-blob-2"></view>
+      <view class="hero-grid"></view>
+      <view class="hero-inner">
+        <text class="hero-kicker">账户安全</text>
+        <text class="hero-title">实名认证</text>
+        <text class="hero-subtitle" wx:if="{{skipIdCardOcr}}">完成昵称、头像与手机号授权后即可提交注册。</text>
+        <text class="hero-subtitle" wx:else>完成昵称、头像、手机号与身份证识别后即可提交注册。</text>
+        <text class="hero-tip" wx:if="{{skipIdCardOcr}}">请按顺序完成以下 3 步</text>
+        <text class="hero-tip" wx:else>请按顺序完成以下 4 步</text>
+      </view>
+    </view>
+
+    <!-- 1 昵称 -->
+    <view class="card">
+      <view class="step-head">
+        <view class="step-num-wrap"><text class="step-num">1</text></view>
+        <text class="step-title">填写昵称</text>
+      </view>
+      <text class="step-tip">使用微信昵称填写能力，便于展示与联系。</text>
+      <input
+        class="nickname-input"
+        type="nickname"
+        value="{{nickname}}"
+        placeholder="请输入昵称"
+        maxlength="50"
+        placeholder-class="input-ph"
+        bind:input="onNicknameInput"
+      />
+    </view>
+
+    <!-- 2 头像 -->
+    <view class="card">
+      <view class="step-head">
+        <view class="step-num-wrap"><text class="step-num">2</text></view>
+        <text class="step-title">设置头像</text>
+      </view>
+      <text class="step-tip">选择头像后将自动上传并保存。</text>
+      <view class="step-visual-center">
+        <button
+          class="avatar-btn"
+          open-type="chooseAvatar"
+          bind:chooseavatar="onChooseAvatar"
+          hover-class="avatar-btn-hover"
+        >
+          <view class="avatar-circle">
+            <image
+              wx:if="{{avatarPreviewUrl}}"
+              class="avatar-img"
+              src="{{avatarPreviewUrl}}"
+              mode="aspectFill"
+            />
+            <view wx:else class="avatar-placeholder">
+              <text class="avatar-ph-main">点击选择头像</text>
+            </view>
+          </view>
+        </button>
+      </view>
+      <text wx:if="{{avatarStoredUrl}}" class="mini-success">头像已上传</text>
+    </view>
+
+    <!-- 3 手机号 -->
+    <view class="card {{skipIdCardOcr ? 'card-last' : ''}}">
+      <view class="step-head">
+        <view class="step-num-wrap"><text class="step-num">3</text></view>
+        <text class="step-title">手机号授权</text>
+      </view>
+      <text class="step-tip">用于账号安全校验与后续联系。</text>
+      <view wx:if="{{!phoneAuthorized}}" class="step-inline-actions">
+        <button
+          class="primary-btn primary-btn-compact"
+          hover-class="primary-btn-hover"
+          hover-stay-time="70"
+          open-type="getPhoneNumber"
+          bind:getphonenumber="onGetPhoneNumber"
+          loading="{{phoneLoading}}"
+          disabled="{{phoneLoading}}"
+        >
+          授权手机号
+        </button>
+      </view>
+      <view wx:else class="phone-auth-success">
+        <text class="phone-success-title">已完成手机号授权</text>
+        <text class="phone-success-line">手机号：{{phoneNumber}}</text>
+      </view>
+    </view>
+
+    <!-- 4 OCR（商家不展示） -->
+    <view wx:if="{{!skipIdCardOcr}}" class="card card-last">
+      <view class="step-head">
+        <view class="step-num-wrap"><text class="step-num">4</text></view>
+        <text class="step-title">身份证 OCR 识别{{skipIdCardOcr ? '（选填）' : ''}}</text>
+      </view>
+      <text class="step-tip" wx:if="{{skipIdCardOcr}}">选填：需要时可上传人像面与国徽面并识别；不上传可直接点底部「完成注册」。</text>
+      <text class="step-tip" wx:else>请分别上传人像面与国徽面，两张就绪后点击「开始识别」。</text>
+      <view class="upload-grid">
+        <view class="upload-item" bindtap="onChooseIdCardFrontImage" hover-class="upload-item-hover">
+          <image
+            wx:if="{{idCardFrontImageLocalPath}}"
+            class="preview"
+            src="{{idCardFrontImageLocalPath}}"
+            mode="aspectFill"
+          />
+          <view wx:else class="placeholder-wrap">
+            <text class="placeholder-title">人像面</text>
+            <text class="placeholder-subtitle">拍照或相册</text>
+          </view>
+        </view>
+        <view class="upload-item" bindtap="onChooseIdCardBackImage" hover-class="upload-item-hover">
+          <image
+            wx:if="{{idCardBackImageLocalPath}}"
+            class="preview"
+            src="{{idCardBackImageLocalPath}}"
+            mode="aspectFill"
+          />
+          <view wx:else class="placeholder-wrap">
+            <text class="placeholder-title">国徽面</text>
+            <text class="placeholder-subtitle">拍照或相册</text>
+          </view>
+        </view>
+      </view>
+      <view wx:if="{{idCardFrontImageLocalPath && idCardBackImageLocalPath}}" class="step-inline-actions">
+        <button
+          class="primary-btn primary-btn-compact"
+          hover-class="primary-btn-hover"
+          hover-stay-time="70"
+          bindtap="onRunOcr"
+          loading="{{ocrFrontLoading || ocrBackLoading}}"
+          disabled="{{ocrFrontLoading || ocrBackLoading}}"
+        >
+          开始识别
+        </button>
+      </view>
+      <view wx:if="{{ocrFrontDone}}" class="result-box">
+        <text class="result-title">人像面识别结果</text>
+        <text class="result-line">姓名：{{realName}}</text>
+        <text class="result-line">身份证号：{{idCardNo}}</text>
+      </view>
+      <view wx:if="{{ocrBackDone}}" class="result-box">
+        <text class="result-title">国徽面识别结果</text>
+        <text class="result-line">签发机关：{{issueAuthority}}</text>
+        <text class="result-line">有效期：{{validDate}}</text>
+      </view>
+    </view>
+
+    <view class="scroll-spacer"></view>
+  </view>
+
+  <view class="bottom-bar">
+    <button
+      class="next-btn"
+      hover-class="next-btn-hover"
+      hover-stay-time="70"
+      bindtap="goNext"
+      loading="{{submitLoading}}"
+      disabled="{{submitLoading}}"
+    >
+      完成注册
+    </button>
+  </view>
+</view>

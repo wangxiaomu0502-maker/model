@@ -1,0 +1,11 @@
+<svg width="81" height="81" viewBox="0 0 81 81" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" fill-rule="evenodd">
+    <rect width="81" height="81" />
+    <path
+      d="M40.5 17L15 37.5V62a4 4 0 0 0 4 4h15V48h13v18h15a4 4 0 0 0 4-4V37.5L40.5 17z"
+      stroke="#222222"
+      stroke-width="4"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>

@@ -1,0 +1,50 @@
+合同模块实现说明（模板配置 + 用户端展示）
+
+一、目标
+- 运营后台维护三类合同正文：富文本 HTML，按固定类型存储；用户端（小程序等）按类型只读拉取并渲染。
+- 首期仅「模板」层面，不包含电子签章流水、签署 PDF、多方实名意愿认证等业务表（可后续扩展）。
+- 三类固定（不可在后管增删类型，仅可编辑内容与标题）：
+  1. platform_broker — 平台与经纪人订立，由经纪人签署。
+  2. platform_merchant — 平台与商家订立，由商家签署。
+  3. broker_model — 经纪人与模特订立，由模特签署。
+
+二、数据库
+- DDL + 种子：`sql/create-contract-templates-table.sql`
+- 表名：`contract_templates`
+- 字段摘要：
+  - `contract_kind` VARCHAR(32)，NOT NULL，UNIQUE：`platform_broker` | `platform_merchant` | `broker_model`
+  - `title` VARCHAR(200)，合同标题（对内/对用户展示标题，后台可改）
+  - `content_html` MEDIUMTEXT，富文本 HTML；入库前服务端做基础净化（strip script/iframe/on* 等）
+  - `created_at` / `updated_at`
+- 迁移：在业务库执行上述 SQL；脚本内 `INSERT IGNORE` 会保证三种 `contract_kind` 各一行默认记录。
+
+三、后端（xinglian-server）
+1. 管理端（须后台 JWT，`scope: admin`）
+   - `GET /api/admin/contract-templates` — 返回固定顺序数组 `list`（3 条），含展示用 `label`、`partiesLine` 及 `title`、`contentHtml`、`updatedAt`。
+   - `PUT /api/admin/contract-templates/:contractKind` — Body：`title`、`contentHtml`；Path：`contractKind` 为三者之一。
+2. 用户端只读（无需登录，供小程序拉正文）
+   - `GET /api/contracts/templates/:contractKind` — 返回该项 `title`、`contentHtml`、`label`、`partiesLine`、`updatedAt` 等。
+3. 模块路径
+   - `src/modules/admin/contract-templates.types.ts` — Zod：`contractKindParamSchema`、`contractTemplateUpdateBodySchema`；种类常量。
+   - `src/modules/admin/contract-templates.metadata.ts` — 三类中文 `label` / `partiesLine`（与 DB `title` 分离）。
+   - `src/modules/admin/contract-templates.repository.ts` — 查询、更新、`INSERT IGNORE` 种子。
+   - `src/modules/admin/contract-templates.service.ts` — `ensureContractTemplatesSeed`、`sanitizeContractHtml`、列表/更新/公开读取。
+   - `src/modules/admin/contract-templates.controller.ts` — 管理端 + 公开 GET 控制器。
+   - `src/modules/admin/admin.routes.ts` — 注册管理端两条路由。
+   - `src/modules/contract/contract.routes.ts` — 注册用户端 `GET .../templates/:contractKind`。
+   - `src/app.ts` — `app.use("/api/contracts", contractRouter)`。
+
+四、运营后台（xinglian-admin）
+- 路由：`/contract-templates`（侧栏「合同管理」）。
+- 页面：`src/views/ContractTemplatesView.vue` — 三类切换、标题输入、Quill 富文本编辑、保存调用 `PUT /api/admin/contract-templates/:contractKind`。
+- 依赖：`@vueup/vue-quill`、`quill@1.3.7`（与 vue-quill 兼容）。
+- API 封装：`src/api/admin.ts` — `fetchAdminContractTemplates`、`updateAdminContractTemplate`。
+
+五、接口文档
+- 详见项目根目录 `接口文档.txt` 小节：**1-2e**（列表）、**1-2e-PUT**（更新）、**1-2f**（用户端只读）。
+
+六、运维注意
+- 未执行迁移则管理端列表/保存与用户端 GET 会在查表时报错；部署新环境务必先跑 `sql/create-contract-templates-table.sql` 并重启服务。
+- 富文本安全：当前为轻量字符串净化；若对外开放编辑权限增多，建议引入专用 HTML sanitize 库并收紧标签白名单。
+
+（文档版本：与仓库实现同步；签署流程与法务归档不在本文范围。）

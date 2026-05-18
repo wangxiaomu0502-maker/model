@@ -1,0 +1,76 @@
+<view class="page page-themed-root">
+  <view class="top-bar">
+    <view class="top-bar-text">
+      <text class="top-title">作品集</text>
+      <text class="top-sub">按文件夹分类展示；在对应文件夹里添加照片。</text>
+    </view>
+    <view class="top-add-folder" bindtap="addFolder">+ 文件夹</view>
+  </view>
+
+  <view wx:if="{{!folders.length}}" class="empty-card">
+    <text class="empty-title">还没有文件夹</text>
+    <text class="empty-desc">请先新建文件夹，再在文件夹内上传照片（最多 10 个文件夹、100 张照片）。</text>
+    <button class="empty-btn" bindtap="addFolder">新建第一个文件夹</button>
+  </view>
+
+  <block wx:for="{{folderBlocks}}" wx:key="id" wx:for-item="block">
+    <view class="folder-card">
+      <view class="folder-head">
+        <image
+          wx:if="{{block.coverThumbUrl}}"
+          class="folder-cover-thumb"
+          src="{{block.coverThumbUrl}}"
+          mode="aspectFill"
+        />
+        <view class="folder-head-left">
+          <text class="folder-name">{{block.name}}</text>
+          <text class="folder-meta">{{block.photos.length}} 张 · 封面用于列表展示</text>
+        </view>
+        <view class="folder-head-actions">
+          <text class="link" data-id="{{block.id}}" bindtap="renameFolder">重命名</text>
+          <text class="link danger" data-id="{{block.id}}" bindtap="deleteFolder">删除</text>
+        </view>
+      </view>
+
+      <view class="photo-grid">
+        <view
+          class="photo-tile"
+          wx:for="{{block.photos}}"
+          wx:for-item="photo"
+          wx:key="id"
+        >
+          <image
+            class="photo-thumb"
+            src="{{photo.url}}"
+            mode="aspectFill"
+            data-photo-id="{{photo.id}}"
+            data-folder-id="{{block.id}}"
+            bindtap="previewInFolder"
+          />
+          <view wx:if="{{photo.isFolderCover}}" class="cover-ribbon">封面</view>
+          <view
+            class="more-hit"
+            catchtap="onPhotoMore"
+            data-photo-id="{{photo.id}}"
+            data-folder-id="{{block.id}}"
+          >
+            <text class="more-dots">···</text>
+          </view>
+        </view>
+
+        <view
+          class="photo-tile add-tile"
+          data-folder-id="{{block.id}}"
+          bindtap="choosePhotosForFolder"
+        >
+          <text class="add-plus">+</text>
+          <text class="add-label">添加照片</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{folders.length}}" class="bottom-tip">
+    共 {{totalPhotos}} / 100 张 · 每个文件夹可单独设封面（「···」），首页等列表优先展示文件夹封面
+  </view>
+</view>

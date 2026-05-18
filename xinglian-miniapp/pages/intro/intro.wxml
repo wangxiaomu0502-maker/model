@@ -1,0 +1,80 @@
+<view class="page-root">
+  <view class="nav" style="padding-top: {{navPaddingTop}}px;">
+    <text class="nav-badge">星链模库</text>
+  </view>
+
+  <view class="scroll-inner">
+    <view class="hero">
+      <view class="hero-blob hero-blob-1"></view>
+      <view class="hero-blob hero-blob-2"></view>
+      <view class="hero-grid"></view>
+      <view class="hero-inner">
+        <text class="hero-label">模特经纪服务平台</text>
+        <text class="title">星链模库</text>
+        <text class="subtitle">透明撮合 · 合规履约 · 高效协作</text>
+        <text class="hero-desc">连接模特、商家、经纪人与代理人，覆盖筛选、下单、履约与结算，让合作可追溯、规则可查看。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-head">
+        <view class="section-accent"></view>
+        <text class="section-title">平台介绍</text>
+      </view>
+      <text class="item">聚焦模特服务撮合，覆盖线上筛选、下单支付、服务履约与评价结算全流程。</text>
+      <text class="item item-gap">坚持不强制消费、不捆绑拍摄、不虚假承诺；交易可追溯，规则与资金可核对。</text>
+    </view>
+
+    <view class="section">
+      <view class="section-head">
+        <view class="section-accent"></view>
+        <text class="section-title">角色介绍</text>
+      </view>
+      <view class="role-grid">
+        <view class="role-card role-tone-0">
+          <text class="role-name">模特</text>
+          <text class="role-desc">免费入驻，完善资料后接单，管理档期与服务价格，查看收入与评价。</text>
+        </view>
+        <view class="role-card role-tone-1">
+          <text class="role-name">商家入驻</text>
+          <text class="role-desc">按类型、城市、档期筛选模特，在线下单支付，服务完成后确认并评价。</text>
+        </view>
+        <view class="role-card role-tone-2">
+          <text class="role-name">经纪人</text>
+          <text class="role-desc">推广平台并建立推荐关系，跟踪团队数据，获得规则内的推荐收益。</text>
+        </view>
+        <view class="role-card role-tone-3">
+          <text class="role-name">代理人</text>
+          <text class="role-desc">管理经纪团队与业务拓展，协同审核与运营，查看团队整体业绩。</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section section-last">
+      <view class="section-head">
+        <view class="section-accent"></view>
+        <text class="section-title">平台优势</text>
+      </view>
+      <view class="feature-row">
+        <view class="feature-icon-wrap"><text class="feature-num">1</text></view>
+        <text class="feature-text">流程标准化：注册、认证、下单、履约、结算一体化。</text>
+      </view>
+      <view class="feature-row">
+        <view class="feature-icon-wrap"><text class="feature-num">2</text></view>
+        <text class="feature-text">数据透明化：订单、分账、提现记录可查询可追踪。</text>
+      </view>
+      <view class="feature-row">
+        <view class="feature-icon-wrap"><text class="feature-num">3</text></view>
+        <text class="feature-text">风控合规化：审核机制明确，争议与投诉处理有闭环。</text>
+      </view>
+    </view>
+
+    <view class="scroll-bottom-spacer"></view>
+  </view>
+
+  <view class="bottom-bar">
+    <button class="action-btn action-btn-bar" hover-class="action-btn-hover" bindtap="goIdentity">
+      立即选择身份
+    </button>
+  </view>
+</view>

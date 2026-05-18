@@ -1,0 +1,20 @@
+<view class="page page-themed-root">
+  <view class="section">
+    <view class="section-title">商家基本信息</view>
+    <view class="field">
+      <text class="label">所在城市</text>
+      <picker
+        mode="multiSelector"
+        range="{{cityColumns}}"
+        value="{{cityIndex}}"
+        bindcolumnchange="onCityColumnChange"
+        bindchange="onCityChange"
+      >
+        <view class="input picker-text {{city ? '' : 'picker-placeholder'}}">{{city || "请选择省市"}}</view>
+      </picker>
+    </view>
+
+    <button class="save-btn" loading="{{saving}}" disabled="{{saving}}" bindtap="saveBasicInfo">保存</button>
+  </view>
+</view>
+

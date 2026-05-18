@@ -1,0 +1,113 @@
+<page-meta wx:if="{{signatureModalVisible}}" page-style="overflow: hidden;"></page-meta>
+<view class="page page-themed-root page-themed-root--no-pad contract-page {{signatureModalVisible ? 'contract-page--sig-lock' : ''}}">
+  <view wx:if="{{loading}}" class="contract-state">
+    <text class="contract-state-text">加载中…</text>
+  </view>
+
+  <block wx:else>
+    <scroll-view scroll-y class="contract-scroll" enhanced show-scrollbar="{{false}}">
+      <!-- 合同概览 -->
+      <view class="contract-hero">
+        <view class="contract-hero-top">
+          <view class="contract-doc-icon">
+            <text class="contract-doc-icon-text">PDF</text>
+          </view>
+          <view class="contract-hero-main">
+            <text class="contract-type-tag">{{contractTypeLabel}}</text>
+            <text class="contract-title">{{title}}</text>
+          </view>
+          <view class="contract-status {{isSigned ? 'contract-status--signed' : 'contract-status--pending'}}">
+            <text>{{isSigned ? '已签署' : '待签署'}}</text>
+          </view>
+        </view>
+        <view wx:if="{{partiesLine}}" class="contract-parties">
+          <text class="contract-parties-label">缔约说明</text>
+          <text class="contract-parties-text">{{partiesLine}}</text>
+        </view>
+        <view wx:if="{{isSigned && signedAtDisplay}}" class="contract-signed-meta">
+          <text class="contract-signed-meta-label">签署时间</text>
+          <text class="contract-signed-meta-val">{{signedAtDisplay}}</text>
+        </view>
+      </view>
+
+      <!-- 正文 -->
+      <view class="contract-doc">
+        <view class="contract-doc-head">
+          <view class="contract-panel-mark"></view>
+          <text class="contract-doc-head-title">合同正文</text>
+          <text class="contract-doc-head-tip">请仔细阅读全部条款</text>
+        </view>
+        <view class="contract-doc-body">
+          <rich-text class="contract-rich" nodes="{{contentHtml}}" />
+        </view>
+      </view>
+
+      <view class="contract-legal">
+        <text class="contract-legal-text">电子签署与纸质签署具有同等法律效力。签署前请确认已阅读并理解合同全部内容。</text>
+      </view>
+
+      <view class="contract-scroll-pad"></view>
+    </scroll-view>
+
+    <view class="contract-footer safe-bottom">
+      <view wx:if="{{isSigned}}" class="contract-signed-bar">
+        <view class="contract-signed-bar-icon">✓</view>
+        <view class="contract-signed-bar-text">
+          <text class="contract-signed-bar-title">您已完成签署</text>
+          <text wx:if="{{signedAtDisplay}}" class="contract-signed-bar-time">{{signedAtDisplay}}</text>
+        </view>
+      </view>
+      <button
+        wx:else
+        class="contract-sign-btn"
+        loading="{{signing}}"
+        disabled="{{signing}}"
+        bindtap="openSignatureModal"
+      >
+        阅读完毕，去签署
+      </button>
+    </view>
+  </block>
+
+  <view
+    wx:if="{{signatureModalVisible}}"
+    class="sig-mask"
+    catchtouchmove="preventSigBubble"
+    bindtap="closeSignatureModal"
+  >
+    <view class="sig-sheet" catchtap="preventSigBubble">
+      <view class="sig-sheet-head">
+        <view class="sig-sheet-head-text">
+          <text class="sig-sheet-title">手写签名</text>
+          <text class="sig-sheet-tip">请签署：{{signerRealName || '本人实名姓名'}}</text>
+        </view>
+        <text class="sig-close" bindtap="closeSignatureModal">关闭</text>
+      </view>
+      <view class="sig-canvas-wrap">
+        <canvas
+          type="2d"
+          id="signatureCanvas"
+          class="sig-canvas"
+          bindtouchstart="onSigTouchStart"
+          bindtouchmove="onSigTouchMove"
+          bindtouchend="onSigTouchEnd"
+          bindtouchcancel="onSigTouchEnd"
+          disable-scroll="{{true}}"
+        />
+      </view>
+      <text class="sig-canvas-hint">请在上方签名区书写，清除后可重新签名</text>
+      <view class="sig-actions">
+        <button class="sig-btn sig-btn-ghost" hover-class="sig-btn-hover" bindtap="clearSignature">清除</button>
+        <button
+          class="sig-btn sig-btn-primary"
+          hover-class="sig-btn-primary-hover"
+          disabled="{{signing}}"
+          loading="{{signing}}"
+          bindtap="confirmSignatureAndSign"
+        >
+          确认签署
+        </button>
+      </view>
+    </view>
+  </view>
+</view>

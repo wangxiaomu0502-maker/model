@@ -1,0 +1,173 @@
+<view class="page page-themed-root page-themed-root--bottombar">
+  <view class="section">
+    <view class="section-title">模卡照片（建议上传 6–8 张）</view>
+    <text class="hint">建议上传 6–8 张；纯色背景、光线均匀，不戴墨镜，无过度修图。点击格子可上传/更新，不支持删除。</text>
+    <view class="photo-grid">
+      <view
+        class="photo-item"
+        wx:for="{{photoAngles}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="choosePhoto"
+      >
+        <image wx:if="{{item.url}}" class="photo" src="{{item.url}}" mode="aspectFill"></image>
+        <view wx:else class="photo-placeholder">+</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">身材数据（必填）</view>
+    <view class="field-row">
+      <view class="field half">
+        <text class="label">身高</text>
+        <picker
+          mode="selector"
+          range="{{measureOptions.height}}"
+          value="{{measureIndexes.height}}"
+          data-field="height"
+          bindchange="onMeasurePick"
+        >
+          <view class="picker-value">{{measurements.height}} cm</view>
+        </picker>
+      </view>
+      <view class="field half">
+        <text class="label">体重</text>
+        <picker
+          mode="selector"
+          range="{{measureOptions.weight}}"
+          value="{{measureIndexes.weight}}"
+          data-field="weight"
+          bindchange="onMeasurePick"
+        >
+          <view class="picker-value">{{measurements.weight}} kg</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="field-row">
+      <view class="field half">
+        <text class="label">胸围</text>
+        <picker
+          mode="selector"
+          range="{{measureOptions.bust}}"
+          value="{{measureIndexes.bust}}"
+          data-field="bust"
+          bindchange="onMeasurePick"
+        >
+          <view class="picker-value">{{measurements.bust}} cm</view>
+        </picker>
+      </view>
+      <view class="field half">
+        <text class="label">腰围</text>
+        <picker
+          mode="selector"
+          range="{{measureOptions.waist}}"
+          value="{{measureIndexes.waist}}"
+          data-field="waist"
+          bindchange="onMeasurePick"
+        >
+          <view class="picker-value">{{measurements.waist}} cm</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="field-row">
+      <view class="field half">
+        <text class="label">臀围</text>
+        <picker
+          mode="selector"
+          range="{{measureOptions.hip}}"
+          value="{{measureIndexes.hip}}"
+          data-field="hip"
+          bindchange="onMeasurePick"
+        >
+          <view class="picker-value">{{measurements.hip}} cm</view>
+        </picker>
+      </view>
+      <view class="field half">
+        <text class="label">鞋码</text>
+        <picker
+          mode="selector"
+          range="{{measureOptions.shoeSize}}"
+          value="{{measureIndexes.shoeSize}}"
+          data-field="shoeSize"
+          bindchange="onMeasurePick"
+        >
+          <view class="picker-value">{{measurements.shoeSize}} 码</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="field-row">
+      <view class="field half">
+        <text class="label">肩宽</text>
+        <picker
+          mode="selector"
+          range="{{measureOptions.shoulder}}"
+          value="{{measureIndexes.shoulder}}"
+          data-field="shoulder"
+          bindchange="onMeasurePick"
+        >
+          <view class="picker-value">{{measurements.shoulder}} cm</view>
+        </picker>
+      </view>
+      <view class="field half">
+        <text class="label">臂展</text>
+        <picker
+          mode="selector"
+          range="{{measureOptions.armSpan}}"
+          value="{{measureIndexes.armSpan}}"
+          data-field="armSpan"
+          bindchange="onMeasurePick"
+        >
+          <view class="picker-value">{{measurements.armSpan}} cm</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="field-row">
+      <view class="field half">
+        <text class="label">腿长</text>
+        <picker
+          mode="selector"
+          range="{{measureOptions.legLength}}"
+          value="{{measureIndexes.legLength}}"
+          data-field="legLength"
+          bindchange="onMeasurePick"
+        >
+          <view class="picker-value">{{measurements.legLength}} cm</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="field-row">
+      <view class="field half">
+        <text class="label">发色</text>
+        <picker
+          mode="selector"
+          range="{{hairColorOptions}}"
+          value="{{hairColorIndex}}"
+          bindchange="onHairColorPick"
+        >
+          <view class="picker-value">{{hairColor}}</view>
+        </picker>
+      </view>
+      <view class="field half">
+        <text class="label">肤色</text>
+        <picker
+          mode="selector"
+          range="{{skinColorOptions}}"
+          value="{{skinColorIndex}}"
+          bindchange="onSkinColorPick"
+        >
+          <view class="picker-value">{{skinColor}}</view>
+        </picker>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-bar">
+    <button class="save-btn" bindtap="saveModelCard">保存模卡</button>
+  </view>
+</view>

@@ -1,0 +1,45 @@
+订单模块实现说明（商家预约模特）
+
+一、目标
+- 仅在实际支付完成后产生订单（首期：`POST /api/orders` 内联模拟支付成功并写库）。
+- 订单首态：**待模特确认接单**；模特确认后 **进行中**；模特点「服务完成」→ **模特已完成**；商家点「确认服务完成」→ **已完成**。商家可在归档前取消 → **已取消**。
+- 金额一律由服务端根据模特后台报价重算，不信任前端展示金额。
+
+二、数据库
+- DDL：`sql/create-orders-table.sql`（与《数据库表设计》订单表一致）。
+- 存量库从旧状态迁移：`sql/migrate-order-status-v4.sql`（上线新后端前执行一次）。
+- 主键：`orders.id`；对外：`order_no`（唯一）。
+
+三、后端（xinglian-server）
+1. 路由
+   - `POST /api/orders` — 创建订单（首期即 mock 支付成功 + 首态待接单）。
+   - `POST /api/orders/quote` — 报价模板（可选）。
+   - `POST /api/orders/:orderId/confirm-accept` — 模特确认接单：`1 → 2`。
+   - `POST /api/orders/:orderId/confirm-service` — 模特确认服务完成：`2 → 3`。
+   - `POST /api/orders/:orderId/confirm-complete` — 商家确认服务完成：`3 → 4`。
+   - `POST /api/orders/:orderId/cancel` — 商家取消：`1|2|3 → 9`。
+
+2. 模块路径
+   - `order.routes.ts`、`order.controller.ts`、`order.service.ts`、`order-status.ts`、`order.repository.ts`、`order.types.ts`。
+
+3. 创建订单请求体：同前（`modelUserNo`、`bookingDate`、`durationKind`、`hourCount`）。
+
+4. 创建订单写入（首期）
+   - `payment_status = 1`，`payment_channel = 'mock'`，`paid_at = 下单时间`
+   - `order_status = 1`（待模特确认接单）
+
+5. `order_status` 枚举（库内数值）
+   - `1` 待模特确认接单
+   - `2` 进行中（模特已接单）
+   - `3` 模特已完成（待商家确认服务完成）
+   - `4` 已完成
+   - `9` 已取消
+
+6. 小程序要点
+   - 下单成功跳转订单详情；模特在状态 1 显示「确认接单」，状态 2 显示「确认服务完成」；商家在状态 3 显示「确认服务完成」。
+
+四、后续接微信支付（预留）
+- 改为支付网关回调成功后再 `INSERT` 订单（或先占位单再更新为有效单，产品定）；成功后同样 `payment_status=1`、`order_status=1`。
+
+五、相关文档
+- 《数据库表设计.txt》订单表、《接口文档.txt》订单章节、`sql/migrate-order-status-v4.sql`。

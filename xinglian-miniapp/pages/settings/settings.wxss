@@ -1,0 +1,148 @@
+/* 与 Intro / 实名认证统一的 Indigo → Violet 主题 */
+
+.page-root {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24rpx 28rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, #eef4ff 0%, #f7f9fd 32%, #f3f6fc 100%);
+}
+
+.hero-mini {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26rpx;
+  padding: 32rpx 28rpx 34rpx;
+  margin-bottom: 28rpx;
+  background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 48%, #7c3aed 100%);
+  box-shadow: 0 16rpx 40rpx rgba(67, 56, 202, 0.28), 0 6rpx 14rpx rgba(15, 23, 42, 0.06);
+}
+
+.hero-mini-blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.hero-mini-blob-1 {
+  width: 200rpx;
+  height: 200rpx;
+  top: -90rpx;
+  right: -48rpx;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, transparent 68%);
+}
+
+.hero-mini-blob-2 {
+  width: 140rpx;
+  height: 140rpx;
+  bottom: -50rpx;
+  left: -36rpx;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 72%);
+}
+
+.hero-mini-inner {
+  position: relative;
+  z-index: 2;
+}
+
+.hero-mini-kicker {
+  display: inline-block;
+  font-size: 22rpx;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.92);
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1rpx solid rgba(255, 255, 255, 0.28);
+}
+
+.hero-mini-title {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 38rpx;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.hero-mini-desc {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 24rpx;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.section-card {
+  padding: 28rpx 26rpx 30rpx;
+  border-radius: 26rpx;
+  background: #ffffff;
+  border: 1rpx solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 12rpx 36rpx rgba(15, 23, 42, 0.06), 0 2rpx 10rpx rgba(15, 23, 42, 0.03);
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-bottom: 18rpx;
+}
+
+.section-accent {
+  width: 8rpx;
+  height: 34rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(180deg, #f87171 0%, #ef4444 50%, #dc2626 100%);
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.03em;
+}
+
+.section-desc {
+  display: block;
+  font-size: 26rpx;
+  line-height: 1.65;
+  color: #64748b;
+}
+
+.danger-zone {
+  margin-top: 28rpx;
+  padding: 24rpx 22rpx;
+  border-radius: 20rpx;
+  background: linear-gradient(180deg, #fff5f5 0%, #fef2f2 100%);
+  border: 1rpx solid rgba(254, 202, 202, 0.95);
+}
+
+.danger-btn {
+  width: 100%;
+  min-height: 88rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid rgba(248, 113, 113, 0.65);
+  background: #ffffff;
+  color: #b91c1c;
+  font-size: 29rpx;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  box-shadow: 0 8rpx 22rpx rgba(185, 28, 28, 0.12);
+}
+
+.danger-btn-hover {
+  opacity: 0.92;
+  background: #fef2f2;
+}
+
+.danger-btn::after {
+  border: none;
+}

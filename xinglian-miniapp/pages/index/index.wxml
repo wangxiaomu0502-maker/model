@@ -1,0 +1,4 @@
+<view class="container">
+  <text class="title">{{title}}</text>
+  <text class="subtitle">项目已初始化成功</text>
+</view>

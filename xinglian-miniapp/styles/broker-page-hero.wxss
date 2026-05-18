@@ -1,0 +1,126 @@
+/* 经纪人「我的模特 / 我的商家 / 关联订单」统一顶栏（对齐首页 dash-hero / 我的顶卡） */
+
+.broker-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(165deg, #f7fbff 0%, #eef3ff 55%, #f4f5fb 100%);
+}
+
+.broker-dash-hero {
+  position: relative;
+  flex-shrink: 0;
+  margin-bottom: 20rpx;
+  border-radius: 28rpx;
+  overflow: hidden;
+  padding: 32rpx 28rpx 30rpx;
+  background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 52%, #7c3aed 100%);
+  box-shadow: 0 18rpx 48rpx rgba(37, 99, 235, 0.28), 0 4rpx 12rpx rgba(15, 23, 42, 0.06);
+}
+
+.broker-hero-blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.broker-hero-blob-1 {
+  width: 240rpx;
+  height: 240rpx;
+  top: -100rpx;
+  right: -60rpx;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, transparent 68%);
+}
+
+.broker-hero-blob-2 {
+  width: 180rpx;
+  height: 180rpx;
+  bottom: -50rpx;
+  left: -40rpx;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0%, transparent 70%);
+}
+
+.broker-hero-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.9) 1rpx, transparent 1rpx),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.9) 1rpx, transparent 1rpx);
+  background-size: 48rpx 48rpx;
+  pointer-events: none;
+}
+
+.broker-dash-hero-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.broker-dash-hero-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.broker-dash-eyebrow {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+  letter-spacing: 0.12em;
+}
+
+.broker-dash-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.broker-dash-desc {
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.broker-dash-stat {
+  flex-shrink: 0;
+  min-width: 112rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1rpx solid rgba(255, 255, 255, 0.32);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+}
+
+.broker-dash-stat-num {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.broker-dash-stat-unit {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1;
+}
+
+.broker-toolbar {
+  flex-shrink: 0;
+  margin-bottom: 20rpx;
+}

@@ -1,0 +1,12 @@
+<view class="page">
+  <view class="bg-blob bg-blob-1"></view>
+  <view class="bg-blob bg-blob-2"></view>
+  <view class="bg-grid"></view>
+  <view class="center">
+    <view class="spinner-wrap">
+      <view class="spinner"></view>
+    </view>
+    <text class="text">{{text}}</text>
+    <text class="brand-mark">星链模库</text>
+  </view>
+</view>

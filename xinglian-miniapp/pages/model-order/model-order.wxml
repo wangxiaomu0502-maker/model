@@ -1,0 +1,53 @@
+<view class="page page-themed-root">
+  <view class="section">
+    <view class="section-title">接单开关</view>
+
+    <view class="row">
+      <text class="row-text">开启接单状态</text>
+      <view class="switch-shrink">
+        <switch
+          checked="{{settings.orderEnabled}}"
+          data-key="orderEnabled"
+          bindchange="onSwitchChange"
+        ></switch>
+      </view>
+    </view>
+
+    <text class="hint">
+      关闭后，商家无法搜索到该模特，无法下单（进行中的订单不受影响）。
+    </text>
+  </view>
+
+  <view class="section">
+    <view class="section-title">接单偏好</view>
+
+    <view class="row">
+      <text class="row-text">只接本地单</text>
+      <view class="switch-shrink">
+        <switch
+          checked="{{settings.onlyLocal}}"
+          data-key="onlyLocal"
+          bindchange="onSwitchChange"
+        ></switch>
+      </view>
+    </view>
+    <text class="hint">基于城市一致的订单（当前仅做本地保存，后续对接城市匹配）。</text>
+
+    <view class="row">
+      <text class="row-text">只接女性客户</text>
+      <view class="switch-shrink">
+        <switch
+          checked="{{settings.onlyFemale}}"
+          data-key="onlyFemale"
+          bindchange="onSwitchChange"
+        ></switch>
+      </view>
+    </view>
+
+  </view>
+
+  <view class="btn-wrap">
+    <button class="save-btn" bindtap="saveSettings">保存设置</button>
+  </view>
+</view>
+

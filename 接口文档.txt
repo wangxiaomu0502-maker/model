@@ -1,0 +1,611 @@
+星链后端接口文档（简版）
+
+基础地址：
+- 本地开发：http://localhost:3000
+
+路径前缀（用户端 vs 管理端）：
+- **用户端**（小程序等）：`/api/*`，例如 `/api/auth`、`/api/models`、`/api/orders`、`/api/users`、`/api/merchant`。下文未特别标注的均属用户端。用户数据表为 **`users`**。
+- **运营后台**：`/api/admin/*`。后台账号存 **`admin_users`** 表，与用户表 **`users`** 分离；登录 **`POST /api/admin/login`** 获取的 JWT 载荷含 **`scope: "admin"`**，与小程序 JWT 不可混用。
+
+公共前缀示例：`http://localhost:3000` + 上述路径。
+
+1) 健康检查（用户端网关探活）
+- 方法：GET
+- 路径：/api/health
+- 入参：可选 query `verbose=true|false`
+- 返回示例：
+{
+  "ok": true,
+  "service": "xinglian-server",
+  "timestamp": "2026-04-30T12:29:00.301Z"
+}
+- 说明：失败结构统一为 `{ ok, code, message, traceId }`
+
+1-1s) 管理端 — 工作台汇总统计（订单 + 用户角色）
+- 方法：GET
+- 路径：**`/api/admin/stats/dashboard`**（兼容旧路径 **`/api/admin/stats/users`**，返回字段相同）
+- 请求头：`Authorization: Bearer <后台 JWT>`
+- 说明：
+  - **`orderCount`**：`orders` 表全表行数。
+  - **`orderPayableTotal`**：`orders` 表 **`payable_amount`** 合计（元，与列表「应付」一致）。
+  - **`orderCountLast30Days`**：`orders` 表中 **`created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`** 的订单数（滚动近30天，按数据库服务器当前时间）。
+  - **`ordersDailyLast30Days`**：数组，长度 30；每项 **`date`** 为 `YYYY-MM-DD`（从今日回溯共30个日历日）、**`count`** 为该日 **`DATE(created_at)`** 对应的订单数（无则 0）。供工作台 ECharts 趋势图使用。
+  - **`modelCount` / `merchantCount` / `brokerCount`**：`users` 表 **`deleted_at IS NULL`** 且 **`role` 分别为 1 / 2 / 3** 的人数。
+- 返回示例：
+{
+  "ok": true,
+  "orderCount": 48,
+  "orderPayableTotal": 125680.5,
+  "orderCountLast30Days": 16,
+  "ordersDailyLast30Days": [
+    { "date": "2026-05-01", "count": 2 },
+    { "date": "2026-05-02", "count": 0 }
+  ],
+  "modelCount": 12,
+  "merchantCount": 5,
+  "brokerCount": 3
+}
+
+1-1) 管理端探活
+- 方法：GET
+- 路径：/api/admin/health
+- 请求头：无特殊要求
+- 返回示例：
+{
+  "ok": true,
+  "scope": "admin",
+  "message": "admin api ok"
+}
+
+1-1a) 管理端 — 登录（admin_users）
+- 方法：POST
+- 路径：/api/admin/login
+- 请求头：Content-Type: application/json
+- 请求体：`{ "username": "admin", "password": "……" }`
+- 返回：`token`（JWT，`payload` 含 `scope: "admin"`、`adminUserId`）、`admin`（`id`、`username`、`displayName`）
+- 说明：与用户端微信登录无关；默认种子账号见 `sql/create-admin-users-table.sql`。
+
+1-2u) 管理端 — 用户分页列表（按角色，**前台与运营后台推荐**）
+- 方法：GET
+- 路径：**`/api/admin/users`**
+- 请求头：`Authorization: Bearer <后台 JWT>`
+- Query：**`role`（必填）**：`1` 模特、`2` 商家、`3` 经纪人；另含 `page`、`pageSize`（同上默认与上限）
+- 说明：仅 **`users`** 表、`deleted_at IS NULL` 且 **`role` 与参数一致**；不含 openid；返回结构与下列分路径接口相同。
+
+1-2) 管理端 — 模特分页列表（users 表 role=1）
+- 方法：GET
+- 路径：/api/admin/models
+- 请求头：`Authorization: Bearer <后台 JWT>`（须为 `/api/admin/login` 颁发的 token）
+- 权限：`scope` 必须为 **`admin`**，否则 401。
+- Query：`page`（默认 1）、`pageSize`（默认 20，最大 100）
+- 说明：仅 **`users`** 表、`deleted_at IS NULL` 且 **`role = 1`**（模特）；不含 openid。（与 **`GET /api/admin/users?role=1`** 等价）
+- 列表项字段：**`profileAuditStatus`**（0–3）、**`profileAuditRejectReason`**（驳回说明，未驳回时为 `null`；依赖库表 **`users.profile_audit_reject_reason`**，须执行 **`sql/alter-users-profile-audit-reject-reason.sql`**）
+
+1-2m) 管理端 — 模特详情（资料聚合）
+- 方法：GET
+- 路径：**`/api/admin/models/:userId/detail`**
+- 请求头：`Authorization: Bearer <后台 JWT>`
+- 返回：**`basicInfo`**，内含 **`profileAuditStatus`、`profileAuditRejectReason`** 及模卡/作品等（与实现保持一致）。
+- 说明：**`:userId`** 为 **`users.id`**（与列表 **`userId`** 一致）。
+
+1-2m-POST) 管理端 — 模特资料审核（通过 / 驳回）
+- 方法：POST
+- 路径：**`/api/admin/models/:userId/profile-audit`**
+- 请求头：`Authorization`、`Content-Type: application/json`
+- 请求体：
+  - **`decision`**：`approve` | `reject`
+  - **`rejectReason`**：`reject` 时必填（≤500 字）；`approve` 时忽略
+- 规则：仅当 **`profile_audit_status = 1`（审核中）** 可操作 → **`approve`** 置 **`2`（通过）** 并清空驳回说明；**`reject`** 置 **`3`（审核失败）** 并写入 **`profile_audit_reject_reason`**。
+- 返回：`ok`、`profileAuditStatus`（2 或 3）
+
+1-2b) 管理端 — 商家分页列表（users 表 role=2）
+- 方法：GET
+- 路径：/api/admin/merchants
+- 请求头：同上
+- Query：同上
+- 说明：仅 **`users`** 表、`deleted_at IS NULL` 且 **`role = 2`**（商家）；不含 openid。
+
+1-2bb) 管理端 — 经纪人分页列表（users 表 role=3）
+- 方法：GET
+- 路径：**必须与运营后台前端一致：`GET /api/admin/users?role=3&page=&pageSize=`**（见 1-2u）。  
+  说明：服务端仍可响应旧路径 **`/api/admin/brokers`**、**`/api/admin/agents`**（仅供手工/旧脚本）；**`xinglian-admin` 源码不会请求上述旧路径**。
+- 请求头：同上
+- Query：`page`、`pageSize`（同上）；**`role=3`**
+- 说明：仅 **`users`** 表、`deleted_at IS NULL` 且 **`role = 3`**（经纪人）；不含 openid；返回字段与模特/商家列表一致。
+
+1-2c) 管理端 — 订单分页列表（orders + users 关联）
+- 方法：GET
+- 路径：/api/admin/orders
+- 请求头：同上（后台 JWT，`scope: admin`）
+- Query：`page`、`pageSize`（同上）
+- 说明：全表 `orders`，按 `id` 倒序；关联商家/模特 `users.user_no`、昵称。
+- 返回：`list` 单项除原有字段外，尚包含 **`merchantReferrerUserId`、`modelReferrerUserId`**（推荐人 users.id，可 null）、**`modelIncome`、`merchantReferrerIncome`、`modelReferrerIncome`**（分账完成后写入，元）、**`splitCalculatedAt`**（ISO8601，未完成分账为 null）、**`splitStatusLabel`**（字符串 **`"-"`**、`"待分账"`、`"已分账"`：`order_status≠4` 为 **"-"**；**已完成** 且无分账时间为 **"待分账"**，已有 `split_calculated_at` 为 **"已分账"**）；**`platformFee`/`payableAmount`/`serviceAmount`/`unitPriceSnapshot`** 等详见数据库注释。**须先执行 **`sql/split-rules-and-order-split.sql`** 迁移脚本**，否则查询可能报错。
+
+1-2c-GET) 管理端 — 订单详情（单笔）
+- 方法：GET
+- 路径：**`/api/admin/orders/item/:orderId`**（与模特详情 **`GET /api/admin/models/:userId/detail`** 同属 admin 子路由，中间为字面量 **`item`**，避免与列表 **`GET /api/admin/orders`**、用户端 **`/api/orders/...`** 混淆）
+- 请求头：同上（后台 JWT）
+- 返回：`ok`、`order`（字段在列表项基础上含 **`remark`、`updatedAt`、`splitConfigSnapshot`** 等；**`splitStatusLabel`** 与列表同源规则）
+
+1-2c-GET-preview) 管理端 — 订单分账预览（不落库）
+- 方法：GET
+- 路径：**`/api/admin/orders/item/:orderId/split-preview`**（须注册在 **`/orders/item/:orderId`** 详情路由之前或并行匹配更长路径，避免被 `:orderId` 误吞）
+- 请求头：同上（后台 JWT）
+- 条件：与手动分账 POST 相同——**已完成、已支付、未分账**；否则返回对应 **400 / 409**。
+- 返回：`ok`、`preview`，含 **`payableAmountYuan`**、当前规则 **`platformFeeRateBp` / M/S/T**、**`amountsYuan`**（平台费/模特/两推荐人分项）、**`modelUserId` / `merchantReferrerUserId` / `modelReferrerUserId`**、**`snapshotFlags`**、**`remainderToModelCents`**（与 **`computeOrderSplit`** 一致，供后台确认框展示）。
+
+1-2c-POST) 管理端 — 订单手动分账（已完成 + 已支付 + 未分账）
+- 方法：POST
+- 路径：**`/api/admin/orders/item/:orderId/split`**
+- 请求头：`Authorization: Bearer <后台 JWT>`（可无请求体）
+- 前置：**须已执行** **`sql/split-rules-and-order-split.sql`**（订单分账列）、**`sql/create-user-account-ledger.sql`**（`user_account_ledger`、`user_account_balance`）。也可在 **`xinglian-server`** 目录运行 **`npm run migrate:user-account-ledger`**（读取 `.env` 自动导入上述 ledger SQL）。
+- 条件：`order_status = 4`（已完成）、`payment_status = 1`（已支付）、`split_calculated_at IS NULL`。
+- 行为：读取当前 **`platform_split_rules` id=1**，按 **`computeOrderSplit`** 写入 **`orders`** 的 **`model_income` / `merchant_referrer_income` / `model_referrer_income` / `platform_fee` / `split_config_snapshot` / `split_calculated_at`**；对金额大于 0 的受益方写入 **`user_account_ledger`** 并累加 **`user_account_balance.available_yuan`**（同事务；幂等键 **`ORDER_SPLIT:{orderId}:MODEL`** 等）。
+- 返回：与订单详情相同结构 **`ok`、`order`**（为分账后的最新数据）。
+- 错误示例：已分账 **409**；状态/支付不符 **400**；未建流水表 **400**（提示执行 ledger SQL）。
+
+1-2d) 管理端 — 分账全局比例配置（对应 **`platform_split_rules` 单行 id=1**）
+- 方法：GET
+- 路径：**`/api/admin/split-rules`**
+- 请求头：`Authorization: Bearer <后台 JWT>`
+- 返回：`ok`、`id`、`platformFeeRateBp`（技术服务费 r，万分比）、`modelShareBp`、`merchantReferrerShareBp`、`modelReferrerShareBp`（M/S/T，万分比，三者之和为 10000）、`orphanMerchantReferrerPolicy`（`to_platform` \| `to_model`）、`remark`、`updatedAt`。
+- 说明：若无记录会先 **`INSERT IGNORE`** 默认（15%/70%/15%/15%，orphan=`to_platform`）。
+
+1-2d-PUT) 管理端 — 更新分账比例
+- 方法：PUT
+- 路径：**`/api/admin/split-rules`**
+- 请求头：`Authorization`、`Content-Type: application/json`
+- 请求体 JSON：`platformFeeRateBp`（0–9999）、`modelShareBp`、`merchantReferrerShareBp`、`modelReferrerShareBp`（三者之和必须等于 **10000**）、`orphanMerchantReferrerPolicy`
+- 返回：与 GET 相同结构。
+- 业务校验：`platformFeeRateBp + …` 由服务端校验；细粒度公式见 **`分账实现.txt`**。
+
+1-2e) 管理端 — 合同模板列表（三类固定合同）
+- 方法：GET
+- 路径：**`/api/admin/contract-templates`**
+- 请求头：`Authorization: Bearer <后台 JWT>`
+- 说明：对应表 **`contract_templates`**；首次访问会自动 **`INSERT IGNORE`** 三种 **`contract_kind`**。须先执行 **`sql/create-contract-templates-table.sql`**。
+- 返回：`ok`、`list`（数组，长度 3，顺序固定）每项含 **`contractKind`**（`platform_broker` \| `platform_merchant` \| `broker_model`）、**`label`**、**`partiesLine`**（签署关系说明）、**`title`**（可编辑标题）、**`contentHtml`**（富文本 HTML）、**`updatedAt`**（ISO8601）。
+- 语义约定：**`platform_broker`**：平台与经纪人（经纪人签署）；**`platform_merchant`**：平台与商家（商家签署）；**`broker_model`**：经纪人与模特（模特签署）。
+
+1-2e-PUT) 管理端 — 更新某一类合同模板
+- 方法：PUT
+- 路径：**`/api/admin/contract-templates/:contractKind`**
+- Path：**`contractKind`** 同上三者之一。
+- 请求头：`Authorization`、`Content-Type: application/json`
+- 请求体 JSON：**`title`**（字符串，最长 200）、**`contentHtml`**（字符串，富文本 HTML，最长约 60 万字符；服务端会做基础净化）。
+- 返回：单项完整对象（含 `label`、`partiesLine`、`title`、`contentHtml`、`updatedAt` 等）。
+
+1-2f) 用户端 — 按类型获取合同正文（只读，无需登录）
+- 方法：GET
+- 路径：**`/api/contracts/templates/:contractKind`**
+- Path：**`contractKind`**：`platform_broker` \| `platform_merchant` \| `broker_model`
+- 返回：`ok`、`contractKind`、`label`、`partiesLine`、`title`、`contentHtml`、`updatedAt`。小程序 / H5 可用富文本组件渲染 **`contentHtml`**。
+
+- 返回示例（用户列表字段，模特/商家接口）：
+{
+  "ok": true,
+  "list": [
+    {
+      "userId": 1,
+      "userNo": "MK0000000001",
+      "nickname": "昵称",
+      "role": 2,
+      "phone": "13800138000",
+      "status": 1,
+      "verifiedStatus": 2,
+      "profileAuditStatus": 1,
+      "createdAt": "2026-05-01T08:00:00.000Z"
+    }
+  ],
+  "total": 100,
+  "page": 1,
+  "pageSize": 20
+}
+
+2) 微信登录（创建/登录用户）
+- 方法：POST
+- 路径：/api/auth/wechat/login
+- 请求头：Content-Type: application/json
+- 请求体：
+{
+  "code": "wx.login 返回的 code"
+}
+- 返回示例：
+{
+  "ok": true,
+  "user": {
+    "id": 1,
+    "userNo": "A7k2mP9xQ1bC",
+    "openid": "omDtG3Q-rY7XKvZAjZz-YsVScrZs",
+    "role": 0
+  },
+  "token": "jwt_token_string"
+}
+- 说明：
+  - role：0游客 1模特 2商家 3经纪人 4代理人 5管理员
+  - token 默认有效期 7 天（JWT_EXPIRES_IN=7d）
+
+3) 注销账号（回退为游客）
+- 方法：DELETE
+- 路径：/api/auth/account
+- 请求头：
+  - Content-Type: application/json
+  - Authorization: Bearer <token>
+- 请求体：无
+- 返回示例：
+{
+  "ok": true,
+  "reverted": true
+}
+- 失败示例（未登录/无token）：
+{
+  "ok": false,
+  "code": "UNAUTHORIZED",
+  "message": "unauthorized",
+  "traceId": "xxxx"
+}
+
+4) 绑定手机号（实名认证流程）
+- 方法：POST
+- 路径：/api/auth/bind-phone
+- 请求头：
+  - Content-Type: application/json
+  - Authorization: Bearer <token>
+- 请求体：
+{
+  "code": "getPhoneNumber 回调里的 code"
+}
+- 返回示例：
+{
+  "ok": true,
+  "phone": "13800138000"
+}
+
+4b) 上传头像（可选，接入 COS 前可不使用）
+- 方法：POST
+- 路径：/api/users/me/avatar
+- 说明：本地磁盘临时方案；**接入腾讯云 COS 后建议改为直传 COS**，完成注册时提交 COS 返回的 **https** 地址即可。
+- 请求头：`Authorization: Bearer <token>`，multipart 字段名 **`file`**（≤2MB，jpeg/png/webp）
+- 返回示例：`{ "ok": true, "avatarUrl": "/uploads/avatars/12-xxx.jpg" }`
+
+5) 完成注册（提交角色+手机号+人脸结果）
+- 方法：POST
+- 路径：/api/auth/complete-registration
+- 请求头：
+  - Content-Type: application/json
+  - Authorization: Bearer <token>
+- 请求体：
+{
+  "role": 1,
+  "phone": "13800138000",
+  "faceVerified": true,
+  "nickname": "展示昵称",
+  "avatarUrl": "cos:pending",
+  "realName": "待OCR核验",
+  "idCardNo": "000000000000000000"
+}
+- 返回示例：
+{
+  "ok": true,
+  "role": 1,
+  "verifiedStatus": 2,
+  "profileAuditStatus": 1,
+  "token": "jwt_token_string（与微信登录一致；载荷内 role 已更新，客户端须替换本地存储的原 token）"
+}
+- 说明：
+  - role：1模特 2商家 3经纪人 4代理人
+  - nickname / avatarUrl / realName / idCardNo：必填并写入 users 表
+  - avatarUrl：接入 COS 前可传 **`cos:pending`**；接入后改为 COS **https** 或约定路径
+  - realName / idCardNo：**未接 OCR 前**可与小程序一致使用占位（如 `待OCR核验`、`000000000000000000`）；接入 OCR 后改为真实识别结果
+  - 当前阶段人脸识别由前端先默认传 true（后续接入腾讯云后再改为真实结果）
+  - **token**：注册完成后必须改用返回的新 JWT；旧 token 内 role 仍为游客，会导致下单等接口权限错误
+
+6) 当前登录用户信息
+- 方法：GET
+- 路径：/api/users/me
+- 请求头：
+  - Authorization: Bearer <token>
+- 请求体：无
+- 返回示例：
+{
+  "ok": true,
+  "user": {
+    "id": 1,
+    "userNo": "A7k2mP9xQ1bC",
+    "openid": "omDtG3Q-rY7XKvZAjZz-YsVScrZs",
+    "role": 1,
+    "phone": "13800138000",
+    "nickname": "展示昵称",
+    "avatarUrl": "cos:pending",
+    "verifiedStatus": 2,
+    "profileAuditStatus": 1,
+    "profileAuditRejectReason": null,
+    "contractPlatformBrokerSignedAt": null,
+    "contractPlatformMerchantSignedAt": null,
+    "contractBrokerModelSignedAt": null
+  }
+}
+- 说明：`contract*SignedAt` 为 ISO8601 字符串或 `null`（未签署）；分别对应 `contract_templates` 三类合同。
+- **`profileAuditRejectReason`**：资料被后台驳回时的说明（字符串或 `null`）；依赖 **`users.profile_audit_reject_reason`** 字段。
+
+6-1) 签署本人对应角色合同（小程序合同页）
+- 方法：POST
+- 路径（推荐，与拉模板同前缀）：/api/contracts/:contractKind/sign
+- 兼容路径：POST /api/users/me/contracts/:contractKind/sign（同上控制器）
+- 路径参数：`contractKind` = `platform_broker` | `platform_merchant` | `broker_model`
+- 请求头：Authorization: Bearer <token>
+- 权限：当前用户 `role` 须与合同类型匹配（1模特→broker_model，2商家→platform_merchant，3经纪人→platform_broker）；否则 403。
+- 请求体：无
+- 返回示例：`{ "ok": true, "contractKind": "broker_model", "signedAt": "2026-05-04T12:00:00.000Z" }`
+
+7) 创建订单（商家预约模特；首期支付成功后立即落库，首态待模特确认接单）
+- 方法：POST
+- 路径：/api/orders
+- 请求头：
+  - Content-Type: application/json
+  - Authorization: Bearer <token>
+- 说明：仅 role=商家；服务端再次校验档期 `available`、报价与预约窗口；金额以后台模特报价快照为准。
+- 请求体：
+{
+  "modelUserNo": "MK0000000001",
+  "bookingDate": "2026-05-10",
+  "durationKind": "hourly",
+  "hourCount": 3
+}
+- durationKind：fullDay | halfDay | hourly；hourly 时必填 hourCount（1–8）；全天/半天勿传 hourCount。
+- 返回示例：
+{
+  "ok": true,
+  "order": {
+    "orderId": 1,
+    "orderNo": "XOXXXX",
+    "payableAmount": 900,
+    "paymentStatus": 1,
+    "paymentChannel": "mock",
+    "orderStatus": 1
+  }
+}
+- paymentStatus：首期创建即为 1（mock）；接微信支付后仍为支付成功后落库。
+- order_status（响应字段 orderStatus）：1待模特确认接单 2进行中 3模特已完成 4已完成 9已取消。
+
+6-9) 我的订单列表（小程序：商家 / 模特）
+- 方法：GET
+- 路径：/api/orders/my
+- 请求头：Authorization: Bearer <token>
+- 权限：role 须为 1（模特）或 2（商家）；分别列出「我作为模特」「我作为商家」的订单。
+- Query：`page`（默认 1）、`pageSize`（默认 20，最大 50）、`status`（可选，按 order_status 精确筛选，如 1/2/3/4/9）。
+- 返回：`{ ok, list, total, page, pageSize }`。list 项含 orderId、orderNo、bookingDate、durationKindText、hourCount、payableAmount、orderStatus、orderStatusText、counterpart（userNo、nickname、roleLabel）等。
+
+6-10) 我的订单详情
+- 方法：GET
+- 路径：/api/orders/my/:orderId
+- 请求头：Authorization: Bearer <token>
+- 权限：当前用户须为该单的 merchant_user_id 或 model_user_id。
+- 返回：`{ ok, order }`。order 含金额拆分、商家/模特摘要、`actions`（modelConfirmAccept / modelConfirmService / merchantConfirmComplete / merchantCancel）供前端展示操作按钮。
+
+7-0) 模特确认接单
+- 方法：POST
+- 路径：/api/orders/:orderId/confirm-accept
+- 请求头：Authorization: Bearer <token>
+- 说明：须为该单的 `model_user_id`；仅当 `order_status=1` 时可转为 `2`。
+
+7-1) 模特确认服务完成
+- 方法：POST
+- 路径：/api/orders/:orderId/confirm-service
+- 请求头：Authorization: Bearer <token>
+- 说明：须为该单的 `model_user_id`；仅当当前 `order_status=2` 时可转为 `3`。
+
+7-2) 商家确认服务完成
+- 方法：POST
+- 路径：/api/orders/:orderId/confirm-complete
+- 说明：须为该单的 `merchant_user_id`；仅当当前 `order_status=3` 时可转为 `4`。
+
+7-3) 商家取消订单
+- 方法：POST
+- 路径：/api/orders/:orderId/cancel
+- 说明：须为商家；仅当 `order_status` 为 `1`、`2` 或 `3` 时可转为 `9`。
+
+8) 订单报价（模板）
+- 方法：POST
+- 路径：/api/orders/quote
+- 请求头：
+  - Content-Type: application/json
+  - Authorization: Bearer <token>
+- 请求体：
+{
+  "durationHours": 4,
+  "unitPrice": 300,
+  "platformFeeRate": 0.15
+}
+
+9) 商家基本信息读取
+- 方法：GET
+- 路径：/api/merchant/me
+- 请求头：Authorization: Bearer <token>
+- 返回示例：
+{
+  "ok": true,
+  "merchant": {
+    "city": "北京"
+  }
+}
+
+10) 商家基本信息保存
+- 方法：PUT
+- 路径：/api/merchant/basic-info
+- 请求头：Authorization: Bearer <token>
+- 请求体：
+{
+  "city": "北京"
+}
+
+11) 模特工作台数据（聚合读取）
+- 方法：GET
+- 路径：/api/models/me
+- 请求头：Authorization: Bearer <token>
+- 返回：`basicInfo`、`categories`、`card`、`portfolio`、`pricing`、`schedule`、`orderSettings`
+- 说明：`categories` 当前为 `{ categoryIds: number[] }`
+
+11-a) 模特资料审核 — 完成度（小程序「提交审核」弹窗）
+- 方法：GET
+- 路径：**`/api/models/profile-audit-readiness`**
+- 请求头：`Authorization: Bearer <token>`
+- 权限：**仅 `role=1` 模特**；否则 403。
+- 返回：`items`（`key` / `label` / `done`）、`allDone`、`completedCount`、`totalCount`、`percent`。
+- 规则：与 **`POST /api/models/profile-audit-submit`** 服务端校验一致（基本信息 schema、分类≥1、模卡 schema、三项价格>0、模特 **`broker_model`** 合同已签署）。
+
+11-b) 模特资料审核 — 提交平台审核
+- 方法：POST
+- 路径：**`/api/models/profile-audit-submit`**
+- 请求头：`Authorization`、`Content-Type: application/json`（body 可为 `{}`）
+- 权限：**仅模特**；仅当当前 **`profile_audit_status ∈ {0,3}`**（待提交或审核失败）。
+- 行为：校验资料齐全后设为 **`1`（审核中）**，并清空 **`profile_audit_reject_reason`**（依赖数据库列，见上）。
+- 冲突：已在审核中 / 已通过时返回 400；并发更新失败时可能 409。
+
+12) 商家首页模特列表
+- 方法：GET
+- 路径：/api/models/list
+- 请求头：Authorization: Bearer <token>
+- 过滤：**仅返回** `role=1`、`status=1`、`deleted_at IS NULL`、**`profile_audit_status = 2`（资料审核已通过）** 且 **`model_profiles.is_available = 1`**（接单中）的模特。
+- 返回示例：
+{
+  "ok": true,
+  "list": [
+    {
+      "userId": 2,
+      "userNo": "MK0000000001",
+      "nickname": "Mock模特01",
+      "city": "北京市 北京市",
+      "price": {
+        "hourly": 300,
+        "halfDay": 1200,
+        "fullDay": 2400
+      },
+      "profileAuditStatus": 2
+    }
+  ]
+}
+
+12-1) 模特详情（按对外 userNo 或内部 userId）
+- 方法：GET
+- 路径：/api/models/detail
+- 请求头：Authorization: Bearer <token>
+- Query（二选一，同时传时优先 userNo）：
+  - userNo：string，与列表返回的 userNo 一致（users.user_no）
+  - userId：number，与列表返回的 userId 一致（users.id）
+- 说明：仅返回已上架模特（role=模特、账号正常、接单开关开）；不含手机号等敏感字段。**当前登录用户为商家（role=2）时，仅当资料审核已通过（profile_audit_status=2）才返回详情；否则 404**，与 `/api/models/list` 一致。
+- 返回示例：
+{
+  "ok": true,
+  "userId": 2,
+  "userNo": "MK0000000001",
+  "nickname": "Mock模特01",
+  "avatarUrl": "https://...",
+  "city": "北京市 北京市",
+  "intro": "简介",
+  "gender": "女",
+  "measurements": {
+    "height": 170,
+    "weight": 50,
+    "bust": 85,
+    "waist": 60,
+    "hip": 90
+  },
+  "price": {
+    "hourly": 300,
+    "halfDay": 1200,
+    "fullDay": 2400
+  },
+  "profileAuditStatus": 0,
+  "card": { "photoAngles": [], "measurements": {} },
+  "portfolio": { "categories": [], "photos": [] },
+  "schedule": {
+    "scheduleMap": {
+      "2026-05-10": "available",
+      "2026-05-11": "full"
+    }
+  },
+  "orderSettings": {
+    "orderEnabled": true,
+    "onlyLocal": false,
+    "onlyFemale": false
+  }
+}
+- 说明：`schedule.scheduleMap` 的 key 为 `YYYY-MM-DD`，value 为 `available`（可约）/ `full`（已满）/ `rest`（休息）；商家端仅应允许选择未来 30 天内且为 `available` 的单日。
+- 失败：无对应模特或不可展示时 HTTP 404，code 为 NOT_FOUND
+
+13) 保存模特基础信息
+- 方法：PUT
+- 路径：/api/models/basic-info
+- 请求头：Authorization: Bearer <token>
+- 说明：前端按需求将全部字段作为必填项，全部填写后才允许提交
+
+14) 获取分类树
+- 方法：GET
+- 路径：/api/models/category-tree
+- 请求头：Authorization: Bearer <token>
+- 返回示例：
+{
+  "ok": true,
+  "tree": {
+    "mainTypeGroups": [],
+    "styleGroups": [],
+    "sceneGroups": []
+  }
+}
+
+15) 获取当前用户已选分类
+- 方法：GET
+- 路径：/api/models/categories
+- 请求头：Authorization: Bearer <token>
+- 返回示例：
+{
+  "ok": true,
+  "categoryIds": [101, 205, 309]
+}
+
+16) 保存模特分类
+- 方法：PUT
+- 路径：/api/models/categories
+- 请求头：Authorization: Bearer <token>
+- 请求体：
+{
+  "categoryIds": [101, 205, 309]
+}
+- 说明：
+  - 后端会校验分类ID必须存在且为叶子节点
+  - 后端仅写入 `model_profile_categories`，用于后续过滤/搜索
+
+17) 保存模卡数据
+- 方法：PUT
+- 路径：/api/models/card
+- 请求头：Authorization: Bearer <token>
+
+18) 保存作品集数据
+- 方法：PUT
+- 路径：/api/models/portfolio
+- 请求头：Authorization: Bearer <token>
+
+19) 保存价格设置
+- 方法：PUT
+- 路径：/api/models/pricing
+- 请求头：Authorization: Bearer <token>
+
+20) 保存档期
+- 方法：PUT
+- 路径：/api/models/schedule
+- 请求头：Authorization: Bearer <token>
+
+21) 保存接单设置
+- 方法：PUT
+- 路径：/api/models/order-settings
+- 请求头：Authorization: Bearer <token>
+- 返回示例：
+{
+  "ok": true,
+  "quote": {
+    "amount": 1200,
+    "platformFee": 180,
+    "payableAmount": 1380
+  }
+}

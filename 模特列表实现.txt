@@ -1,0 +1,54 @@
+模特列表实现说明（商家首页）
+
+一、目标
+- 商家身份（role=2）进入首页后，获取并展示可合作模特列表。
+
+二、当前已实现
+1) 后端接口
+- 路径：`GET /api/models/list`
+- 鉴权：需要 `Authorization: Bearer <token>`
+- 返回字段：
+  - userId
+  - userNo
+  - nickname
+  - city
+  - price.hourly / price.halfDay / price.fullDay
+  - profileAuditStatus
+
+2) 后端筛选条件（当前版本）
+- `users.role = 1`（模特）
+- `users.status = 1`（正常）
+- `model_profiles.is_available = 1`（接单开启）
+
+3) 前端渲染
+- 页面：`pages/home/home`
+- 逻辑：
+  - 仅当 `role=2` 时请求 `/api/models/list`
+  - 列表为空时显示“暂无可展示模特”
+  - 展示昵称、ID、城市、三档价格
+
+4) 文档同步
+- `接口文档.txt` 已新增 `GET /api/models/list` 说明。
+
+三、数据依赖说明
+- 若用户只有 `users` 记录、没有对应 `model_profiles` 记录，或 `is_available != 1`，则不会出现在列表中。
+- 为验证链路，已补齐 2 条 mock 模特的 `model_profiles`（含城市与价格，且 `is_available=1`）。
+
+四、当前限制
+- 暂无筛选参数（城市/价格区间/分类等）
+- 暂无分页参数（当前固定上限 50 条）
+- 暂未接入“只接本地单/只接女性客户”等偏好过滤
+- 暂未接入“仅显示审核通过模特”的严格规则
+
+五、下一步建议（按优先级）
+P0
+- 增加分页：`page`、`pageSize`
+- 增加基础筛选：`city`、`minPrice`、`maxPrice`、`categoryIds`
+
+P1
+- 接入档期过滤：仅返回指定日期 `available` 的模特
+- 接入偏好过滤：`only_local_orders`、`only_female_clients`
+
+P2
+- 排序能力：价格、评分、接单量、发布时间
+- 列表缓存和预加载优化（小程序性能）

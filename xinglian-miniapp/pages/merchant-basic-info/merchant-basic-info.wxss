@@ -1,0 +1,42 @@
+@import "../../styles/xl-theme.wxss";
+
+.section {
+  padding: 20rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  color: #111827;
+  font-weight: 600;
+}
+
+.field {
+  margin-top: 18rpx;
+}
+
+.label {
+  display: block;
+  margin-bottom: 10rpx;
+  color: #374151;
+  font-size: 24rpx;
+}
+
+.input {
+  height: 76rpx;
+  padding: 0 20rpx;
+  font-size: 26rpx;
+  color: #111827;
+}
+
+.picker-text {
+  display: flex;
+  align-items: center;
+}
+
+.picker-placeholder {
+  color: #9ca3af;
+}
+
+.save-btn {
+  margin-top: 24rpx;
+}

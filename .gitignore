@@ -1,0 +1,29 @@
+.DS_Store
+*.local
+
+# Secrets & credentials (never commit)
+.env
+.env.*
+!.env.example
+服务器.txt
+秘钥.txt
+
+# Dependencies & build output
+node_modules/
+dist/
+dist-ssr/
+
+# Runtime uploads
+xinglian-server/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Mini program local config (optional paths)
+xinglian-miniapp/project.private.config.json

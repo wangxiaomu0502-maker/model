@@ -1,0 +1,25 @@
+-- 订单表（支付成功后落库；首态待模特确认接单）
+CREATE TABLE IF NOT EXISTS orders (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  order_no VARCHAR(32) NOT NULL COMMENT '对外订单号',
+  merchant_user_id BIGINT UNSIGNED NOT NULL COMMENT '下单商家 users.id',
+  model_user_id BIGINT UNSIGNED NOT NULL COMMENT '接单模特 users.id',
+  booking_date DATE NOT NULL COMMENT '预约服务日期',
+  duration_kind ENUM('full_day', 'half_day', 'hourly') NOT NULL COMMENT '时长类型',
+  hour_count TINYINT UNSIGNED NULL COMMENT '按小时时 1-8，其它类型为 NULL',
+  unit_price_snapshot DECIMAL(10, 2) NOT NULL COMMENT '单价快照：全天/半天为对应一口价，按小时为每小时价',
+  service_amount DECIMAL(10, 2) NOT NULL COMMENT '服务费合计（模特侧报价合计）',
+  platform_fee DECIMAL(10, 2) NOT NULL DEFAULT 0 COMMENT '平台费（预留）',
+  payable_amount DECIMAL(10, 2) NOT NULL COMMENT '应付总额（首期等于 service_amount + platform_fee）',
+  payment_status TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '0未支付 1已支付 2退款中 3已退款',
+  payment_channel VARCHAR(32) NULL COMMENT '支付方式 mock/wechat 等',
+  paid_at DATETIME NULL COMMENT '支付完成时间',
+  order_status TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1待模特确认接单 2进行中 3模特已完成 4已完成 9已取消',
+  remark VARCHAR(500) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_orders_order_no (order_no),
+  KEY idx_orders_merchant (merchant_user_id, created_at DESC),
+  KEY idx_orders_model (model_user_id, booking_date),
+  KEY idx_orders_booking_date (booking_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商家预约模特订单';

@@ -1,0 +1,33 @@
+<view class="page-root">
+  <view class="hero-mini">
+    <view class="hero-mini-blob hero-mini-blob-1"></view>
+    <view class="hero-mini-blob hero-mini-blob-2"></view>
+    <view class="hero-mini-inner">
+      <text class="hero-mini-kicker">设置</text>
+      <text class="hero-mini-title">账号与安全</text>
+      <text class="hero-mini-desc">管理账号风险操作，请谨慎处理注销等事项。</text>
+    </view>
+  </view>
+
+  <view class="section-card">
+    <view class="section-head">
+      <view class="section-accent"></view>
+      <text class="section-title">危险操作</text>
+    </view>
+    <text class="section-desc">
+      注销后将删除当前账号在本平台的资料与业务数据，且不可恢复。请确认已无未完成订单或纠纷后再操作。
+    </text>
+    <view class="danger-zone">
+      <button
+        class="danger-btn"
+        hover-class="danger-btn-hover"
+        hover-stay-time="70"
+        bindtap="handleDeleteAccount"
+        loading="{{deleting}}"
+        disabled="{{deleting}}"
+      >
+        注销账号
+      </button>
+    </view>
+  </view>
+</view>

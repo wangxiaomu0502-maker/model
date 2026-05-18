@@ -1,0 +1,55 @@
+一、线上 API 地址（小程序）
+
+  文件：xinglian-miniapp/app.js
+  常量：PROD_API_BASE = https://api.xinglianmoku.cn
+
+  逻辑摘要：
+  · app.js 里 FORCE_LOCAL_API 必须为 false（提测/发布前检查）。
+  · 未写入 xinglian_api_env 时：开发者工具模拟器（platform=devtools）默认本地 Base；真机（ios/android）默认 PROD_API_BASE。
+  · 设置页可强制本地或线上；FORCE_LOCAL_API 为 true 时一律本地。
+  · 「清除 API 偏好」后按上一条自动规则（模拟器本机 / 真机线上）。
+
+二、后端 + 管理后台部署
+
+  仓库根目录脚本：deploy.sh
+
+  用法示例：
+    ./deploy.sh --host <服务器IP> --user root --pass '<密码>'
+
+  脚本会：
+  · 构建 xinglian-admin（VITE_API_BASE_URL 已写死为 https://api.xinglianmoku.cn）
+  · 构建 xinglian-server
+  · 上传 admin 静态资源到服务器 /var/www/admin.xinglianmoku.cn/
+  · 打包上传服务端到 /srv/xinglian-server/，并 scp 本地 xinglian-server/.env 覆盖线上
+  · 远端 npm ci、npm run build、pm2 restart xinglian-server
+
+  注意：
+  · 本机需已安装 sshpass；服务器需已配置 nginx、pm2、目录权限等。
+  · 线上 .env 以你本机 xinglian-server/.env 为准上传，部署前确认 DB、JWT、微信、COS 等为生产值。
+
+三、微信小程序后台（必做）
+
+  登录 mp.weixin.qq.com → 开发 → 开发管理 → 开发设置 → 服务器域名
+
+  request 合法域名增加：
+    https://api.xinglianmoku.cn
+
+  若使用上传文件、COS 直传等，再按实际域名补充 uploadFile、downloadFile 等。
+
+  本地调试：开发者工具可勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」。
+
+四、小程序发版后如何确认走线上
+
+  1）确认 app.js：FORCE_LOCAL_API === false
+  2）真机预览 / 体验版 / 正式版在未保存「本地 API」偏好时，默认 https://api.xinglianmoku.cn
+  3）若曾在设置里打开「使用本地 API」，请在设置里关闭并保存，或清除小程序数据后重进
+
+五、快速自检
+
+  浏览器或 curl：
+    curl -I https://api.xinglianmoku.cn/api/admin/login
+
+  小程序控制台 onLaunch 会打印：
+    [xinglian] api: <实际 Base> | platform= ... | mpEnv= ...
+
+  应与预期一致（线上应为 https://api.xinglianmoku.cn，无末尾斜杠）。

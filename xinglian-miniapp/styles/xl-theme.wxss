@@ -1,0 +1,179 @@
+/* 常用功能页统一主题：浅蓝灰渐变底 + Indigo→Violet 主色（对齐实名/设置） */
+
+.page-themed-root {
+  min-height: 100vh;
+  position: relative;
+  box-sizing: border-box;
+  padding: 24rpx 24rpx calc(40rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(165deg, #f7fbff 0%, #eef3ff 55%, #f4f5fb 100%);
+}
+
+/* 底部固定操作栏时，预留 footer 高度 */
+.page-themed-root--bottombar {
+  padding-bottom: calc(152rpx + env(safe-area-inset-bottom));
+}
+
+/* 合同页：内容由 scroll-view 自带内边距，根节点不加水平 padding */
+.page-themed-root--no-pad {
+  padding: 0;
+}
+
+.page-themed-root .bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  padding: 16rpx 28rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1rpx solid rgba(129, 140, 248, 0.22);
+  box-shadow: 0 -18rpx 42rpx rgba(79, 70, 229, 0.07);
+  box-sizing: border-box;
+}
+
+.page-themed-root .submit-btn,
+.page-themed-root .save-btn {
+  width: 100%;
+  height: 88rpx;
+  border-radius: 999rpx;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #ffffff;
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 52%, #8b5cf6 100%);
+  box-shadow: 0 18rpx 42rpx rgba(79, 70, 229, 0.35);
+}
+
+.page-themed-root .submit-btn::after,
+.page-themed-root .save-btn::after {
+  border: none;
+}
+
+.page-themed-root .submit-btn[disabled],
+.page-themed-root .save-btn[disabled] {
+  opacity: 0.55;
+}
+
+.page-themed-root .card,
+.page-themed-root .section {
+  border-radius: 28rpx;
+  border: 1rpx solid rgba(129, 140, 248, 0.22);
+  box-shadow: 0 18rpx 44rpx rgba(79, 70, 229, 0.07);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.page-themed-root .folder-card {
+  border-radius: 28rpx;
+  border: 1rpx solid rgba(129, 140, 248, 0.22);
+  box-shadow: 0 18rpx 44rpx rgba(79, 70, 229, 0.07);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.page-themed-root .input,
+.page-themed-root .picker-value,
+.page-themed-root .textarea,
+.page-themed-root .picker-text {
+  border: 1rpx solid rgba(129, 140, 248, 0.35);
+  border-radius: 18rpx;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 248, 255, 0.92) 100%);
+}
+
+.page-themed-root .tab-bar {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1rpx solid rgba(129, 140, 248, 0.22);
+  box-shadow: 0 12rpx 32rpx rgba(79, 70, 229, 0.06);
+}
+
+.page-themed-root .tab-item-active {
+  color: #4338ca;
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.14), rgba(129, 140, 248, 0.09));
+  font-weight: 700;
+}
+
+.page-themed-root .chip-active {
+  border-color: rgba(79, 70, 229, 0.45);
+  color: #4338ca;
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.page-themed-root .mode-item.active {
+  color: #4338ca;
+  border-color: rgba(79, 70, 229, 0.45);
+  background: rgba(99, 102, 241, 0.12);
+  font-weight: 600;
+}
+
+.page-themed-root .status-item.active {
+  border-color: rgba(79, 70, 229, 0.45);
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.page-themed-root .top-add-folder {
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 52%, #8b5cf6 100%);
+  box-shadow: 0 14rpx 34rpx rgba(79, 70, 229, 0.28);
+}
+
+.page-themed-root .empty-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 52%, #8b5cf6 100%);
+  box-shadow: 0 14rpx 34rpx rgba(79, 70, 229, 0.28);
+}
+
+.page-themed-root button.empty-btn::after {
+  border: none;
+}
+
+.page-themed-root .empty-card {
+  border-color: rgba(129, 140, 248, 0.35);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.page-themed-root .link {
+  color: #6366f1;
+}
+
+.page-themed-root .add-tile {
+  border-color: rgba(129, 140, 248, 0.38);
+  background: rgba(247, 248, 255, 0.85);
+}
+
+.page-themed-root .photo-placeholder {
+  background: rgba(238, 242, 255, 0.95);
+  color: #6366f1;
+}
+
+/* 合同详情 */
+.page-themed-root .scroll {
+  background: transparent;
+}
+
+.page-themed-root .footer {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1rpx solid rgba(129, 140, 248, 0.22);
+  box-shadow: 0 -18rpx 42rpx rgba(79, 70, 229, 0.07);
+}
+
+.page-themed-root .rich-wrap {
+  border-color: rgba(129, 140, 248, 0.22);
+  box-shadow: 0 18rpx 44rpx rgba(79, 70, 229, 0.06);
+}
+
+.page-themed-root .sign-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 52%, #8b5cf6 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 14rpx 34rpx rgba(79, 70, 229, 0.28);
+}
+
+.page-themed-root .sign-btn::after {
+  border: none;
+}

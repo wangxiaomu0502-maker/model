@@ -1,0 +1,98 @@
+<view class="page page-themed-root">
+  <view wx:if="{{!canUse}}" class="card state-card">
+    <text class="state-lead">仅限模特与商家</text>
+    <text class="state-msg">当前身份无法使用本页，将自动返回上一页。</text>
+  </view>
+
+  <block wx:elif="{{loading}}">
+    <view class="head-banner">
+      <text class="head-kicker">转介绍</text>
+      <text class="head-title">经纪人绑定</text>
+      <text class="head-desc">正在读取当前绑定信息…</text>
+    </view>
+    <view class="card load-card">
+      <view class="sk-line"></view>
+      <view class="sk-line sk-line--w70"></view>
+      <view class="sk-line sk-line--w85"></view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="head-banner">
+      <text class="head-kicker">转介绍</text>
+      <text class="head-title">绑定经纪人</text>
+      <text class="head-desc">仅商家可绑定经纪人。在「我的」复制经纪人 12 位用户 ID，填入下方并保存。</text>
+    </view>
+
+    <view class="card body-card">
+      <view class="sec">
+        <view class="sec-head">
+          <view class="sec-mark"></view>
+          <text class="sec-title">当前绑定</text>
+        </view>
+        <view class="pill-wrap">
+          <view class="pill {{hasBroker ? 'pill--on' : 'pill--off'}}">
+            {{hasBroker ? "已绑定经纪人" : "暂未绑定"}}
+          </view>
+        </view>
+        <view class="kv">
+          <text class="kv-k">经纪人昵称</text>
+          <block wx:if="{{hasBroker}}">
+            <text class="kv-v">{{brokerDisplayName}}</text>
+          </block>
+          <view wx:else class="kv-ph">
+            <text class="kv-ph-text">暂无昵称</text>
+          </view>
+        </view>
+        <view class="kv kv-last">
+          <text class="kv-k">用户 ID</text>
+          <block wx:if="{{hasBroker}}">
+            <text class="kv-v kv-mono">{{brokerUserNoDisplay}}</text>
+          </block>
+          <view wx:else class="kv-ph">
+            <text class="kv-ph-text kv-ph-text--mono">暂无 ID</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="divider"></view>
+
+      <view class="sec">
+        <view class="sec-head">
+          <view class="sec-mark sec-mark--soft"></view>
+          <text class="sec-title">填写或修改</text>
+        </view>
+        <text class="sec-sub">12 位 ID（user_no）；留空并保存可解除绑定。</text>
+
+        <view class="field">
+          <text class="field-label">经纪人用户 ID</text>
+          <input
+            class="input"
+            type="text"
+            maxlength="20"
+            placeholder="请输入或粘贴 ID"
+            value="{{brokerInput}}"
+            bindinput="onBrokerInput"
+          />
+        </view>
+
+        <view class="actions">
+          <button class="ghost-btn" hover-class="ghost-btn--hover" bindtap="onClear">清空</button>
+          <button
+            class="main-btn"
+            loading="{{saving}}"
+            disabled="{{saving}}"
+            hover-class="main-btn--hover"
+            bindtap="onSave"
+          >
+            保存
+          </button>
+        </view>
+      </view>
+
+      <view class="note">
+        <text class="note-inner">{{hint}}</text>
+      </view>
+    </view>
+  </block>
+</view>

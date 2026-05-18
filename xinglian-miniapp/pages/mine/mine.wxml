@@ -1,0 +1,125 @@
+<page-meta wx:if="{{auditSubmitModalVisible}}" page-style="overflow: hidden;"></page-meta>
+<view class="page {{auditSubmitModalVisible ? 'page--modal-open' : ''}}">
+  <view class="top-card">
+    <view class="top-hero">
+      <view class="hero-blob hero-blob-1"></view>
+      <view class="hero-blob hero-blob-2"></view>
+      <view class="hero-grid"></view>
+      <view class="profile-row">
+        <view class="avatar-shell" bindtap="onAvatarTap">
+          <image class="avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill"></image>
+        </view>
+        <view class="profile-info">
+          <view class="name-row">
+            <text class="nickname">{{userInfo.nickName}}</text>
+            <view class="title-inline">
+              <text class="identity-chip">{{identity}}</text>
+            </view>
+          </view>
+          <text class="center-desc">{{headerSubtitle}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{showAuditStatus}}" class="hero-meta-strip hero-meta-strip-accent">
+        <text class="hero-meta-k">平台资料审核</text>
+        <view class="hero-audit-right">
+          <view class="hero-meta-status-wrap">
+            <text class="hero-meta-status">{{profileAuditStatusText}}</text>
+            <view
+              wx:if="{{profileAuditStatus === 3}}"
+              class="audit-reject-hint"
+              hover-class="audit-reject-hint-hover"
+              bindtap="onTapRejectReasonHint"
+            >
+              <text class="audit-reject-hint-mark">?</text>
+            </view>
+          </view>
+          <button
+            wx:if="{{showProfileAuditSubmit}}"
+            size="mini"
+            class="audit-submit-btn"
+            hover-class="audit-submit-btn-hover"
+            bindtap="openAuditSubmitModal"
+          >
+            提交审核
+          </button>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view
+    wx:if="{{auditSubmitModalVisible}}"
+    class="audit-modal-mask"
+    catchtouchmove="preventModalBubble"
+    bindtap="closeAuditSubmitModal"
+  >
+    <view class="audit-modal-sheet" catchtap="preventModalBubble">
+      <view class="audit-modal-header">
+        <text class="audit-modal-title">资料完成度</text>
+        <text class="audit-modal-close" catchtap="closeAuditSubmitModal">关闭</text>
+      </view>
+      <view wx:if="{{auditReadinessLoading}}" class="audit-modal-loading">加载中…</view>
+      <block wx:elif="{{auditReadiness}}">
+        <view class="audit-modal-progress-card">
+          <view class="audit-modal-progress-top">
+            <text class="audit-modal-progress-label">已完成项</text>
+            <text class="audit-modal-progress-val">{{auditReadiness.completedCount}}/{{auditReadiness.totalCount}}</text>
+          </view>
+          <view class="audit-modal-progress-bar">
+            <view class="audit-modal-progress-fill" style="width: {{auditReadiness.percent}}%;"></view>
+          </view>
+          <text class="audit-modal-percent-tip">{{auditReadiness.percent}}%</text>
+        </view>
+        <view class="audit-modal-list">
+          <view class="audit-modal-row" wx:for="{{auditReadiness.items}}" wx:key="key">
+            <view class="audit-modal-dot {{item.done ? 'on' : ''}}"></view>
+            <text class="audit-modal-name">{{item.label}}</text>
+            <text class="audit-modal-flag {{item.done ? 'done' : 'todo'}}">{{item.done ? '已填' : '待填'}}</text>
+          </view>
+        </view>
+        <view class="audit-modal-hint" wx:if="{{!auditReadiness.allDone}}">请先完成全部必填项，再提交平台审核</view>
+        <button
+          class="audit-modal-submit"
+          hover-class="audit-modal-submit-hover"
+          disabled="{{auditSubmitting || auditReadinessLoading || !auditReadiness.allDone}}"
+          loading="{{auditSubmitting}}"
+          bindtap="onConfirmProfileAuditSubmit"
+        >
+          提交平台审核
+        </button>
+      </block>
+    </view>
+  </view>
+
+  <view wx:if="{{menus.length > 0}}" class="menu-panel">
+    <view class="menu-panel-head">
+      <text class="menu-panel-title">常用功能</text>
+    </view>
+    <view class="menu-kingkong">
+      <view
+        class="menu-kk-item"
+        wx:for="{{menus}}"
+        wx:key="menuKey"
+        wx:for-index="kkIdx"
+        data-menu-key="{{item.menuKey}}"
+        bindtap="onMenuTap"
+        hover-class="menu-kk-item-hover"
+        hover-stay-time="70"
+      >
+        <view class="menu-kk-hit">
+          <view class="menu-kk-orb-wrap">
+            <view class="menu-kk-orb kk-tone-{{kkIdx % 6}}">
+              <text class="menu-kk-char">{{item.icon}}</text>
+            </view>
+            <view
+              wx:if="{{item.menuKey === 'myOrders' && (currentRole === 1 || currentRole === 2) && pendingModelAcceptOrderCount > 0}}"
+              class="menu-kk-badge-dot"
+            ></view>
+          </view>
+          <text class="menu-kk-label">{{item.name}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,73 @@
+<view class="page page-themed-root income-page">
+  <view wx:if="{{loading && !initialLoaded}}" class="income-state">
+    <text class="income-state-text">加载中…</text>
+  </view>
+
+  <block wx:elif="{{loadError}}">
+    <view class="income-state income-state--err">
+      <text class="income-state-text">{{loadError}}</text>
+    </view>
+  </block>
+
+  <block wx:else>
+    <!-- 余额概览 -->
+    <view class="income-hero">
+      <view class="income-hero-inner">
+        <text class="income-hero-label">可用余额（可提现）</text>
+        <view class="income-hero-amount-row">
+          <text class="income-hero-currency">¥</text>
+          <text class="income-hero-amount">{{availableDisplay}}</text>
+        </view>
+        <view class="income-hero-stats">
+          <view class="income-stat">
+            <text class="income-stat-label">待结算</text>
+            <text class="income-stat-val">¥{{pendingDisplay}}</text>
+          </view>
+          <view class="income-stat" wx:if="{{frozenYuan > 0}}">
+            <text class="income-stat-label">冻结</text>
+            <text class="income-stat-val income-stat-val--muted">¥{{frozenDisplay}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{!ledgerTableReady}}" class="income-hint">
+      <text>账户明细表未就绪或正在升级，余额与流水可能不完整，请联系平台。</text>
+    </view>
+
+    <!-- 流水 -->
+    <view class="income-panel">
+      <view class="income-panel-head">
+        <view class="income-panel-mark"></view>
+        <text class="income-panel-title">流水明细</text>
+      </view>
+
+      <view wx:if="{{ledgerRows.length === 0}}" class="income-empty">
+        <view class="income-empty-icon"></view>
+        <text class="income-empty-title">暂无流水记录</text>
+        <text class="income-empty-tip">分账入账后将在此展示</text>
+      </view>
+
+      <view wx:else class="income-ledger">
+        <view class="income-ledger-item" wx:for="{{ledgerRows}}" wx:key="id">
+          <view class="income-ledger-dot {{item.amountClass}}"></view>
+          <view class="income-ledger-body">
+            <view class="income-ledger-row">
+              <text class="income-ledger-title">{{item.titleLine}}</text>
+              <text class="income-ledger-amt {{item.amountClass}}">{{item.amountLine}}</text>
+            </view>
+            <text class="income-ledger-time">{{item.timeLine}}</text>
+            <text wx:if="{{item.subLine}}" class="income-ledger-sub">{{item.subLine}}</text>
+          </view>
+        </view>
+        <view
+          wx:if="{{showLoadMore}}"
+          class="income-load-more"
+          bindtap="onLoadMoreLedger"
+        >
+          <text class="income-load-more-text">{{paging ? "加载中…" : "加载更多"}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

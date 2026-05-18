@@ -1,0 +1,152 @@
+@import "../../styles/xl-theme.wxss";
+
+.page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+  padding: 4rpx 4rpx 0;
+}
+
+.page-head-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.page-head-count {
+  font-size: 26rpx;
+  color: #6366f1;
+  font-weight: 600;
+}
+
+/* 类型：模特 / 风格 / 场景 */
+.type-tabs {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.type-tab {
+  flex: 1;
+  height: 68rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  color: #64748b;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1rpx solid rgba(148, 163, 184, 0.35);
+}
+
+.type-tab--on {
+  color: #4338ca;
+  font-weight: 600;
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* 大分类：顶部横向 */
+.major-scroll {
+  width: 100%;
+  margin-bottom: 16rpx;
+  white-space: nowrap;
+}
+
+.major-row {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 12rpx;
+  padding: 4rpx 4rpx 12rpx;
+}
+
+.major-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 64rpx;
+  padding: 0 28rpx;
+  font-size: 28rpx;
+  color: #475569;
+  border-radius: 999rpx;
+  background: #fff;
+  border: 1rpx solid #e2e8f0;
+}
+
+.major-tab--on {
+  color: #fff;
+  font-weight: 600;
+  border-color: transparent;
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+  box-shadow: 0 8rpx 20rpx rgba(99, 102, 241, 0.28);
+}
+
+.body-scroll {
+  height: calc(100vh - 340rpx - env(safe-area-inset-bottom));
+  min-height: 400rpx;
+}
+
+.body-panel {
+  padding: 8rpx 4rpx 0;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1rpx solid rgba(129, 140, 248, 0.15);
+  box-shadow: 0 10rpx 28rpx rgba(79, 70, 229, 0.05);
+}
+
+.sub-block {
+  padding: 24rpx 22rpx;
+  border-bottom: 1rpx solid #f1f5f9;
+}
+
+.sub-block:last-child {
+  border-bottom: none;
+}
+
+.sub-block-title {
+  display: block;
+  margin-bottom: 16rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #334155;
+}
+
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.body-panel > .chip-grid {
+  padding: 24rpx 22rpx;
+}
+
+.chip {
+  padding: 16rpx 26rpx;
+  font-size: 28rpx;
+  color: #334155;
+  line-height: 1.3;
+  border-radius: 16rpx;
+  background: #f8fafc;
+  border: 1rpx solid #e2e8f0;
+}
+
+.chip--on {
+  color: #4338ca;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.empty-hint {
+  padding: 48rpx;
+  text-align: center;
+  font-size: 28rpx;
+  color: #94a3b8;
+}
+
+.scroll-foot {
+  height: 24rpx;
+}

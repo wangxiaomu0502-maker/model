@@ -1,0 +1,101 @@
+/* 与 Intro / 身份页 Hero 一致的 Indigo → Violet 主题 */
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 42%, #6d28d9 72%, #7c3aed 100%);
+}
+
+.bg-blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.bg-blob-1 {
+  width: 520rpx;
+  height: 520rpx;
+  top: -220rpx;
+  right: -160rpx;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.24) 0%, transparent 65%);
+}
+
+.bg-blob-2 {
+  width: 380rpx;
+  height: 380rpx;
+  bottom: -120rpx;
+  left: -100rpx;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0%, transparent 68%);
+}
+
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.92) 1rpx, transparent 1rpx),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.92) 1rpx, transparent 1rpx);
+  background-size: 48rpx 48rpx;
+  pointer-events: none;
+}
+
+.center {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  padding: calc(env(safe-area-inset-top) + 40rpx) 48rpx calc(env(safe-area-inset-bottom) + 40rpx);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner-wrap {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.12);
+}
+
+.spinner {
+  width: 72rpx;
+  height: 72rpx;
+  border: 6rpx solid rgba(255, 255, 255, 0.28);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.85s linear infinite;
+}
+
+.text {
+  margin-top: 40rpx;
+  padding: 0 24rpx;
+  text-align: center;
+  font-size: 29rpx;
+  font-weight: 600;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.94);
+  letter-spacing: 0.03em;
+}
+
+.brand-mark {
+  margin-top: 72rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

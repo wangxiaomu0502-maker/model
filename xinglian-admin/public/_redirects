@@ -1,0 +1,3 @@
+# SPA：任意路径回退到 index.html（Netlify；其它平台可对照配置 nginx try_files）
+
+/*    /index.html   200

@@ -1,0 +1,43 @@
+<view class="page page-themed-root">
+  <view class="section">
+    <view class="section-title">视图模式</view>
+    <view class="mode-switch">
+      <view class="mode-item {{mode === 'month' ? 'active' : ''}}" data-mode="month" bindtap="switchMode">月视图</view>
+      <view class="mode-item {{mode === 'week' ? 'active' : ''}}" data-mode="week" bindtap="switchMode">周视图</view>
+    </view>
+    <text class="hint">当前支持未来30天（不含今天）编辑；周视图会展示前7天。</text>
+  </view>
+
+  <view class="section">
+    <view class="section-title">状态选择</view>
+    <view class="status-list">
+      <view
+        class="status-item {{selectedStatus === item.key ? 'active' : ''}}"
+        wx:for="{{statusList}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="selectStatus"
+      >
+        <text class="dot" style="background: {{item.color}};"></text>
+        <text>{{item.label}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">未来30天档期（不含今天）</view>
+    <view class="calendar-grid">
+      <view
+        class="day-item"
+        wx:for="{{days}}"
+        wx:key="dateKey"
+        wx:if="{{mode === 'month' || index < 7}}"
+        data-date="{{item.dateKey}}"
+        bindtap="setDayStatus"
+      >
+        <text class="date">{{item.day}}日 周{{item.week}}</text>
+        <view class="status {{item.status}}">{{item.status === 'available' ? '可接单' : item.status === 'full' ? '已约满' : '休息'}}</view>
+      </view>
+    </view>
+  </view>
+</view>

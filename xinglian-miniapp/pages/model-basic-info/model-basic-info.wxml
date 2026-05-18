@@ -1,0 +1,57 @@
+<view class="page page-themed-root page-themed-root--bottombar">
+  <view class="card">
+    <view class="field">
+      <text class="label">姓名（艺名）</text>
+      <input class="input" placeholder="请输入姓名或艺名" value="{{form.name}}" data-field="name" bindinput="onInput" />
+    </view>
+
+    <view class="field">
+      <text class="label">性别</text>
+      <picker mode="selector" range="{{genderOptions}}" value="{{genderIndex}}" bindchange="onGenderChange">
+        <view class="picker-value {{form.gender ? '' : 'picker-placeholder'}}">{{form.gender || "请选择性别"}}</view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <text class="label">出生日期</text>
+      <picker mode="date" value="{{form.birthDate}}" bindchange="onDateChange">
+        <view class="picker-value {{form.birthDate ? '' : 'picker-placeholder'}}">{{form.birthDate || "请选择出生日期"}}</view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <text class="label">所在城市（省市）</text>
+      <picker
+        mode="multiSelector"
+        range="{{cityColumns}}"
+        value="{{cityIndex}}"
+        bindchange="onCityChange"
+        bindcolumnchange="onCityColumnChange"
+      >
+        <view class="picker-value {{form.city ? '' : 'picker-placeholder'}}">{{form.city || "请选择省市"}}</view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <text class="label">简介（200字以内）</text>
+      <textarea
+        class="textarea"
+        maxlength="200"
+        placeholder="介绍你的风格、经验与可服务场景"
+        value="{{form.intro}}"
+        data-field="intro"
+        bindinput="onInput"
+      ></textarea>
+    </view>
+
+    <view class="field">
+      <text class="label">联系方式（手机号）</text>
+      <input class="input" type="number" maxlength="11" placeholder="请输入手机号" value="{{form.phone}}" data-field="phone" bindinput="onInput" />
+      <text class="hint">仅平台和合作商家可见，不公开</text>
+    </view>
+  </view>
+
+  <view class="bottom-bar">
+    <button class="submit-btn" bindtap="submitForm" loading="{{loading}}" disabled="{{loading}}">保存基础信息</button>
+  </view>
+</view>

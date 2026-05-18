@@ -1,0 +1,449 @@
+@import "../../styles/xl-theme.wxss";
+
+.contract-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.contract-page--sig-lock {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.contract-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 48rpx;
+}
+
+.contract-state-text {
+  font-size: 28rpx;
+  color: #64748b;
+}
+
+.contract-scroll {
+  flex: 1;
+  height: 0;
+  padding: 24rpx 24rpx 0;
+  box-sizing: border-box;
+}
+
+.contract-scroll-pad {
+  height: calc(200rpx + env(safe-area-inset-bottom));
+}
+
+/* ---------- 顶部概览 ---------- */
+.contract-hero {
+  margin-bottom: 24rpx;
+  padding: 28rpx 26rpx 24rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #312e81 0%, #4338ca 48%, #6366f1 100%);
+  box-shadow: 0 16rpx 40rpx rgba(67, 56, 202, 0.28);
+  box-sizing: border-box;
+}
+
+.contract-hero-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
+}
+
+.contract-doc-icon {
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 88rpx;
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 20rpx rgba(15, 23, 42, 0.12);
+}
+
+.contract-doc-icon-text {
+  font-size: 22rpx;
+  font-weight: 800;
+  color: #4338ca;
+  letter-spacing: 0.06em;
+}
+
+.contract-hero-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  padding-top: 4rpx;
+}
+
+.contract-type-tag {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: 0.06em;
+}
+
+.contract-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+
+.contract-status {
+  flex-shrink: 0;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.contract-status--signed {
+  color: #047857;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.contract-status--pending {
+  color: #b45309;
+  background: rgba(254, 243, 199, 0.95);
+}
+
+.contract-parties {
+  margin-top: 22rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.22);
+}
+
+.contract-parties-label {
+  display: block;
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8rpx;
+}
+
+.contract-parties-text {
+  display: block;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.5;
+}
+
+.contract-signed-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-top: 16rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 14rpx;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.contract-signed-meta-label {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.contract-signed-meta-val {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 正文区 ---------- */
+.contract-doc {
+  border-radius: 26rpx;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1rpx solid rgba(129, 140, 248, 0.2);
+  box-shadow: 0 10rpx 36rpx rgba(79, 70, 229, 0.06);
+  box-sizing: border-box;
+}
+
+.contract-doc-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx 14rpx;
+  padding: 22rpx 24rpx;
+  background: linear-gradient(180deg, #f8faff 0%, #f1f5ff 100%);
+  border-bottom: 1rpx solid rgba(129, 140, 248, 0.16);
+}
+
+.contract-panel-mark {
+  width: 8rpx;
+  height: 28rpx;
+  border-radius: 999rpx;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #6366f1 0%, #4338ca 100%);
+}
+
+.contract-doc-head-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.03em;
+}
+
+.contract-doc-head-tip {
+  font-size: 22rpx;
+  color: #94a3b8;
+  margin-left: auto;
+}
+
+.contract-doc-body {
+  padding: 28rpx 26rpx 32rpx;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.contract-rich {
+  font-size: 28rpx;
+  color: #334155;
+  line-height: 1.75;
+  letter-spacing: 0.02em;
+}
+
+/* ---------- 法律提示 ---------- */
+.contract-legal {
+  margin-top: 20rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 16rpx;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1rpx solid rgba(129, 140, 248, 0.18);
+  box-sizing: border-box;
+}
+
+.contract-legal-text {
+  font-size: 22rpx;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+/* ---------- 底栏 ---------- */
+.contract-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 500;
+  padding: 16rpx 28rpx;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1rpx solid rgba(129, 140, 248, 0.22);
+  box-shadow: 0 -12rpx 36rpx rgba(79, 70, 229, 0.08);
+  box-sizing: border-box;
+}
+
+.safe-bottom {
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+}
+
+.contract-sign-btn {
+  width: 100%;
+  height: 88rpx;
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 52%, #8b5cf6 100%) !important;
+  border: none !important;
+  box-shadow: 0 14rpx 34rpx rgba(79, 70, 229, 0.28);
+  box-sizing: border-box;
+}
+
+.contract-sign-btn::after {
+  border: none;
+}
+
+.contract-signed-bar {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 12rpx 8rpx;
+}
+
+.contract-signed-bar-icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  font-size: 32rpx;
+  font-weight: 700;
+  text-align: center;
+  line-height: 56rpx;
+  flex-shrink: 0;
+}
+
+.contract-signed-bar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.contract-signed-bar-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #047857;
+}
+
+.contract-signed-bar-time {
+  font-size: 24rpx;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 签名弹窗 ---------- */
+.sig-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.56);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.sig-sheet {
+  width: 100%;
+  border-top-left-radius: 28rpx;
+  border-top-right-radius: 28rpx;
+  background: #ffffff;
+  padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  border-top: 1rpx solid rgba(129, 140, 248, 0.22);
+  box-shadow: 0 -18rpx 48rpx rgba(79, 70, 229, 0.12);
+}
+
+.sig-sheet-head {
+  margin-bottom: 20rpx;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.sig-sheet-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.sig-sheet-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.sig-sheet-tip {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #64748b;
+}
+
+.sig-close {
+  flex-shrink: 0;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #6366f1;
+  padding: 8rpx 4rpx;
+}
+
+.sig-canvas-wrap {
+  border-radius: 18rpx;
+  padding: 12rpx;
+  background: #f8fafc;
+  border: 1rpx solid rgba(129, 140, 248, 0.2);
+}
+
+.sig-canvas {
+  width: 100%;
+  height: 360rpx;
+  display: block;
+  border-radius: 14rpx;
+  border: 2rpx dashed #94a3b8;
+  background: #ffffff;
+  box-sizing: border-box;
+  touch-action: none;
+}
+
+.sig-canvas-hint {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.sig-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.sig-btn {
+  margin: 0 !important;
+  padding: 0 28rpx !important;
+  min-height: 80rpx !important;
+  height: 80rpx !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 28rpx !important;
+  font-weight: 600 !important;
+  border-radius: 999rpx !important;
+  box-sizing: border-box !important;
+}
+
+.sig-btn::after {
+  border: none;
+}
+
+.sig-btn-ghost {
+  min-width: 160rpx;
+  background: rgba(241, 245, 249, 0.95) !important;
+  color: #475569 !important;
+  border: 1rpx solid rgba(148, 163, 184, 0.35) !important;
+}
+
+.sig-btn-hover {
+  opacity: 0.9;
+}
+
+.sig-btn-primary {
+  flex: 1;
+  min-width: 240rpx;
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 10rpx 28rpx rgba(79, 70, 229, 0.28);
+}
+
+.sig-btn-primary-hover {
+  opacity: 0.93;
+}

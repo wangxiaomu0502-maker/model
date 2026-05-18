@@ -1,0 +1,62 @@
+@import "../../styles/xl-theme.wxss";
+
+.card {
+  padding: 24rpx;
+}
+
+.field {
+  margin-bottom: 22rpx;
+}
+
+.field-row {
+  display: flex;
+  gap: 14rpx;
+}
+
+.half {
+  flex: 1;
+}
+
+.third {
+  width: calc((100% - 28rpx) / 3);
+}
+
+.label {
+  display: block;
+  margin-bottom: 10rpx;
+  font-size: 24rpx;
+  color: #4b5563;
+}
+
+.input,
+.picker-value,
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  color: #111827;
+  font-size: 28rpx;
+}
+
+.picker-placeholder {
+  color: #9ca3af;
+}
+
+.input,
+.picker-value {
+  height: 78rpx;
+  padding: 0 18rpx;
+  display: flex;
+  align-items: center;
+}
+
+.textarea {
+  min-height: 180rpx;
+  padding: 16rpx 18rpx;
+}
+
+.hint {
+  margin-top: 8rpx;
+  display: block;
+  font-size: 22rpx;
+  color: #9ca3af;
+}

@@ -1,0 +1,82 @@
+<view class="page page-themed-root page-themed-root--bottombar">
+  <view class="page-head">
+    <text class="page-head-title">分类选择</text>
+    <text class="page-head-count">已选 {{selectedCount}} 项</text>
+  </view>
+
+  <view class="type-tabs">
+    <view
+      class="type-tab {{currentTab === item.key ? 'type-tab--on' : ''}}"
+      wx:for="{{tabs}}"
+      wx:key="key"
+      data-tab="{{item.key}}"
+      bindtap="switchTab"
+    >
+      {{item.label}}
+    </view>
+  </view>
+
+  <scroll-view
+    wx:if="{{majorGroups.length > 0}}"
+    scroll-x
+    class="major-scroll"
+    enhanced
+    show-scrollbar="{{false}}"
+    enable-flex
+  >
+    <view class="major-row">
+      <view
+        class="major-tab {{activeMajorGroup.id === item.id ? 'major-tab--on' : ''}}"
+        wx:for="{{majorGroups}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="switchMajorGroup"
+      >
+        {{item.name}}
+      </view>
+    </view>
+  </scroll-view>
+
+  <scroll-view scroll-y class="body-scroll" enhanced show-scrollbar="{{false}}">
+    <view wx:if="{{!activeMajorGroup}}" class="empty-hint">暂无分类数据</view>
+
+    <view wx:elif="{{currentTab === 'main'}}" class="body-panel">
+      <view class="sub-block" wx:for="{{activeMajorGroup.children}}" wx:key="id">
+        <text class="sub-block-title">{{item.name}}</text>
+        <view class="chip-grid">
+          <view
+            class="chip {{selectedMap[optionNode.id] ? 'chip--on' : ''}}"
+            wx:for="{{item.children}}"
+            wx:for-item="optionNode"
+            wx:key="id"
+            data-value="{{optionNode.id}}"
+            bindtap="toggleSelect"
+          >
+            {{optionNode.name}}
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:else class="body-panel">
+      <view class="chip-grid">
+        <view
+          class="chip {{selectedMap[optionNode.id] ? 'chip--on' : ''}}"
+          wx:for="{{activeMajorGroup.children}}"
+          wx:for-item="optionNode"
+          wx:key="id"
+          data-value="{{optionNode.id}}"
+          bindtap="toggleSelect"
+        >
+          {{optionNode.name}}
+        </view>
+      </view>
+    </view>
+
+    <view class="scroll-foot"></view>
+  </scroll-view>
+
+  <view class="bottom-bar">
+    <button class="save-btn" bindtap="saveSelection">保存分类</button>
+  </view>
+</view>

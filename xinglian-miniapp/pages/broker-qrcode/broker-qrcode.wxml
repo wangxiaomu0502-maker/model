@@ -1,0 +1,60 @@
+<view class="page broker-page broker-qrcode-page">
+  <view class="broker-dash-hero">
+    <view class="broker-hero-blob broker-hero-blob-1"></view>
+    <view class="broker-hero-blob broker-hero-blob-2"></view>
+    <view class="broker-hero-grid"></view>
+    <view class="broker-dash-hero-inner">
+      <view class="broker-dash-hero-main">
+        <text class="broker-dash-eyebrow">常用功能</text>
+        <text class="broker-dash-title">我的二维码</text>
+        <text class="broker-dash-desc">邀请商家扫码进入小程序并绑定您</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="hint">加载中…</view>
+
+  <block wx:else>
+    <view class="card qr-card">
+      <text class="qr-card-title">星链模特 · 小程序码</text>
+      <text class="qr-card-sub">长按图片可识别；也可保存后分享给好友</text>
+      <view class="qr-frame" bindtap="onPreviewQr">
+        <image
+          class="qr-image"
+          src="{{qrImage}}"
+          mode="aspectFit"
+          show-menu-by-longpress="{{true}}"
+        />
+      </view>
+      <view class="qr-actions">
+        <button class="qr-btn qr-btn--ghost" bindtap="onPreviewQr">预览大图</button>
+        <button class="qr-btn qr-btn--primary" bindtap="onSaveQr">保存到相册</button>
+      </view>
+    </view>
+
+    <view class="card id-card">
+      <view class="id-head">
+        <text class="id-title">手动绑定我的 ID</text>
+        <text class="id-desc">若对方已注册，可在「经纪人」页填写下方 12 位用户 ID 完成绑定</text>
+      </view>
+      <view class="id-row">
+        <text class="id-label">我的昵称</text>
+        <text class="id-value">{{nickname || '—'}}</text>
+      </view>
+      <view class="id-row id-row--last">
+        <text class="id-label">用户 ID</text>
+        <text class="id-value id-mono" selectable>{{userNo || '—'}}</text>
+      </view>
+      <button class="id-copy-btn" bindtap="onCopyUserNo" disabled="{{!userNo}}">复制用户 ID</button>
+    </view>
+
+    <view class="tips card">
+      <text class="tips-title">使用说明</text>
+      <text class="tips-line">1. 分享小程序码，对方扫码进入后选择身份并完成注册。</text>
+      <text class="tips-line">2. 商家在「我的 → 经纪人」中填写您的用户 ID，即可建立绑定关系。</text>
+      <text class="tips-line">3. 绑定成功后，可在「我的商家」「关联订单」中查看。</text>
+    </view>
+  </block>
+
+  <view class="bottom-space"></view>
+</view>

@@ -1,0 +1,262 @@
+1. 用户角色表（user_role）
+
+字段设计（3个）：
+1) id：主键ID，TINYINT UNSIGNED，自增
+2) code：角色枚举值，TINYINT UNSIGNED，唯一（0游客 1模特 2商家 3经纪人 4代理人 5管理员）
+3) name：角色名称，VARCHAR(20)
+
+建表SQL：
+CREATE TABLE IF NOT EXISTS user_role (
+  id TINYINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  code TINYINT UNSIGNED NOT NULL UNIQUE COMMENT '0游客 1模特 2商家 3经纪人 4代理人 5管理员',
+  name VARCHAR(20) NOT NULL COMMENT '角色名称'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+初始化数据：
+INSERT INTO user_role (code, name) VALUES
+(0, '游客'),
+(1, '模特'),
+(2, '商家'),
+(3, '经纪人'),
+(4, '代理人'),
+(5, '管理员')
+ON DUPLICATE KEY UPDATE name=VALUES(name);
+
+2. 用户主表（users，存通用字段）
+
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  user_no CHAR(12) NOT NULL COMMENT '对外用户ID（12位短ID）',
+  openid VARCHAR(64) NOT NULL COMMENT '微信openid',
+  unionid VARCHAR(64) NULL COMMENT '微信unionid',
+  phone VARCHAR(20) NULL COMMENT '手机号（游客阶段可为空）',
+  phone_verified TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '手机号是否验证 0否1是',
+  role TINYINT UNSIGNED NOT NULL COMMENT '0游客 1模特 2商家 3经纪人 4代理人 5管理员',
+  referrer_id BIGINT UNSIGNED NULL COMMENT '推荐人用户ID',
+  nickname VARCHAR(50) NULL COMMENT '昵称',
+  avatar_url VARCHAR(255) NULL COMMENT '头像URL',
+  gender TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0未知 1男 2女',
+  real_name VARCHAR(50) NULL COMMENT '实名姓名',
+  id_card_no VARCHAR(32) NULL COMMENT '身份证号',
+  id_card_front_url VARCHAR(255) NULL COMMENT '身份证人像面图片URL',
+  id_card_back_url VARCHAR(255) NULL COMMENT '身份证国徽面图片URL',
+  id_card_issue_authority VARCHAR(120) NULL COMMENT '身份证签发机关',
+  id_card_valid_date VARCHAR(64) NULL COMMENT '身份证有效期文本',
+  verified_status TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0未实名 1审核中 2已实名 3驳回',
+  profile_audit_status TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '资料审核状态 0待提交 1审核中 2审核通过 3审核失败',
+  profile_audit_reject_reason VARCHAR(500) NULL COMMENT '资料审核驳回说明（驳回时写入，通过或重新提审后清空）',
+  verified_at DATETIME NULL COMMENT '实名通过时间',
+  contract_platform_broker_signed_at DATETIME NULL COMMENT '平台与经纪人服务合同签署时间 platform_broker，NULL=未签',
+  contract_platform_broker_signature_url VARCHAR(255) NULL COMMENT '平台与经纪人合同手写签名图URL platform_broker',
+  contract_platform_merchant_signed_at DATETIME NULL COMMENT '平台与商家服务合同签署时间 platform_merchant，NULL=未签',
+  contract_platform_merchant_signature_url VARCHAR(255) NULL COMMENT '平台与商家合同手写签名图URL platform_merchant',
+  contract_broker_model_signed_at DATETIME NULL COMMENT '经纪人与模特合作协议签署时间 broker_model，NULL=未签',
+  contract_broker_model_signature_url VARCHAR(255) NULL COMMENT '经纪人与模特合同手写签名图URL broker_model',
+  status TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1正常 2禁用 3注销中 4已注销',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_users_openid (openid),
+  UNIQUE KEY uk_users_user_no (user_no),
+  UNIQUE KEY uk_users_phone (phone),
+  KEY idx_users_referrer_id (referrer_id),
+  KEY idx_users_role_status (role, status),
+  KEY idx_users_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+说明（users 与后台账号）：
+- 本表仅承载 **C 端 / 业务用户**（小程序等），`role` 主要为 0～4（游客、模特、商家、经纪人、代理人）。
+- **`role = 5`（管理员）不再用于登录运营后台**；后台账号在独立表 **`admin_users`**（见下文 §10），使用账号密码登录，JWT 载荷含 `scope: "admin"`。
+- 历史数据中若存在 `users.role = 5`，管理端「用户列表」接口已排除该类记录，避免与后台账号混淆。
+- **合同签署**：`contract_*_signed_at` 三字段与运营后台 `contract_templates` 三类 `contract_kind` 一一对应；非空表示该用户已签署对应模板（仅存签署时刻，正文版本另议）。变更脚本见 `sql/alter-users-contract-signed-at.sql`。
+
+3. 模特扩展表（model_profiles）
+
+CREATE TABLE IF NOT EXISTS model_profiles (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '关联users.id',
+  stage_name VARCHAR(50) NULL COMMENT '艺名',
+  gender TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0其他 1男 2女',
+  birth_date DATE NULL COMMENT '出生日期',
+  city VARCHAR(50) NULL COMMENT '所在城市',
+  intro VARCHAR(500) NULL COMMENT '简介',
+  height DECIMAL(5,2) NULL COMMENT '身高cm',
+  weight DECIMAL(5,2) NULL COMMENT '体重kg',
+  bust DECIMAL(5,2) NULL COMMENT '胸围',
+  waist DECIMAL(5,2) NULL COMMENT '腰围',
+  hip DECIMAL(5,2) NULL COMMENT '臀围',
+  shoulder_width DECIMAL(5,2) NULL COMMENT '肩宽',
+  leg_length DECIMAL(5,2) NULL COMMENT '腿长',
+  shoe_size VARCHAR(20) NULL COMMENT '鞋码',
+  hair_color VARCHAR(30) NULL COMMENT '发色',
+  skin_tone VARCHAR(30) NULL COMMENT '肤色',
+  price_hour DECIMAL(10,2) NULL COMMENT '小时价',
+  price_halfday DECIMAL(10,2) NULL COMMENT '半天价',
+  price_allday DECIMAL(10,2) NULL COMMENT '全天价',
+  is_available TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '接单开关 0关1开',
+  only_local_orders TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '只接本地单',
+  only_female_clients TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '只接女性客户',
+  profile_status TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0草稿 1审核中 2已通过 3已驳回',
+  reject_reason VARCHAR(255) NULL COMMENT '驳回原因',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_model_profiles_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+4. 商家扩展表（merchant_profiles）
+
+CREATE TABLE IF NOT EXISTS merchant_profiles (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '关联users.id',
+  company_name VARCHAR(100) NULL COMMENT '公司名称',
+  contact_name VARCHAR(50) NULL COMMENT '联系人',
+  contact_phone VARCHAR(20) NULL COMMENT '联系电话',
+  city VARCHAR(50) NULL COMMENT '所在城市',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_merchant_profiles_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+5. 经纪人扩展表（broker_profiles）
+
+CREATE TABLE IF NOT EXISTS broker_profiles (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '关联users.id',
+  real_name VARCHAR(50) NULL COMMENT '真实姓名',
+  city VARCHAR(50) NULL COMMENT '所在城市',
+  service_package_expire DATETIME NULL COMMENT '服务包到期时间',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_broker_profiles_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+6. 代理人扩展表（agent_profiles）
+
+CREATE TABLE IF NOT EXISTS agent_profiles (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '关联users.id',
+  company_name VARCHAR(100) NULL COMMENT '公司名称',
+  contact_name VARCHAR(50) NULL COMMENT '联系人',
+  emergency_contact_name VARCHAR(50) NULL COMMENT '紧急联系人',
+  emergency_contact_phone VARCHAR(20) NULL COMMENT '紧急联系人电话',
+  real_name VARCHAR(50) NULL COMMENT '真实姓名（兼容旧数据）',
+  city VARCHAR(50) NULL COMMENT '所在城市（省 市）',
+  business_license_url VARCHAR(2048) NULL COMMENT '营业执照图片或PDF URL',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_agent_profiles_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+7. 模特扩展数据表（model_extra_data）
+
+CREATE TABLE IF NOT EXISTS model_extra_data (
+  user_id BIGINT UNSIGNED PRIMARY KEY COMMENT '关联users.id',
+  card_json JSON NULL COMMENT '模卡照片与身材数据',
+  portfolio_json JSON NULL COMMENT '作品集：{folders:[{id,name,coverPhotoId?}],photos:[{id,folderId,url}]}，封面在各文件夹 coverPhotoId；兼容旧版 photos[].isCover',
+  schedule_json JSON NULL COMMENT '未来档期数据',
+  order_settings_json JSON NULL COMMENT '接单偏好与开关',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+8. 模特分类节点表（model_category_nodes）
+
+CREATE TABLE IF NOT EXISTS model_category_nodes (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  parent_id BIGINT UNSIGNED NULL COMMENT '父分类ID，根节点为NULL',
+  type ENUM('main','style','scene') NOT NULL COMMENT '分类维度',
+  name VARCHAR(100) NOT NULL COMMENT '名称',
+  level TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '层级',
+  is_leaf TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '是否叶子节点',
+  sort_order INT NOT NULL DEFAULT 0 COMMENT '排序',
+  is_enabled TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '是否启用',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_model_category_nodes_unique (type, parent_id, name),
+  KEY idx_model_category_nodes_parent_sort (parent_id, sort_order),
+  KEY idx_model_category_nodes_type_level_enabled (type, level, is_enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+9. 模特分类关系表（model_profile_categories）
+
+CREATE TABLE IF NOT EXISTS model_profile_categories (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '关联users.id',
+  category_id BIGINT UNSIGNED NOT NULL COMMENT '关联model_category_nodes.id(叶子分类)',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_model_profile_categories_user_category (user_id, category_id),
+  KEY idx_model_profile_categories_category_user (category_id, user_id),
+  KEY idx_model_profile_categories_user_category (user_id, category_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+10. 后台管理员表（admin_users）
+
+说明：与 `users`（C 端）物理分离；登录接口 `POST /api/admin/login`，密码 bcrypt 存储。
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  username VARCHAR(64) NOT NULL COMMENT '登录账号',
+  password_hash VARCHAR(255) NOT NULL COMMENT 'bcrypt',
+  display_name VARCHAR(64) NULL COMMENT '展示名',
+  status TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1正常 0禁用',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_admin_users_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台管理员账号';
+
+初始化脚本见仓库 `sql/create-admin-users-table.sql`（含默认账号 `admin` / `xinglian@2026`，上线后请修改密码）。
+
+11. 订单表（orders）
+
+业务说明：
+- 商家向模特发起预约；**仅支付成功后产生订单**（首期：`POST /api/orders` 内联 mock 支付）。入库即 `payment_status=1`、`order_status=1`（待模特确认接单）。
+- `order_status`：`1`待模特确认接单 → 模特接单 → `2`进行中 → 模特确认服务完成 → `3`模特已完成 → 商家确认服务完成 → `4`已完成；商家在 `1`/`2`/`3` 时可取消为 `9`（边界策略可后续细化）。
+- 接口层时长枚举：`fullDay` / `halfDay` / `hourly`；库内存：`full_day` / `half_day` / `hourly`。
+- `unit_price_snapshot`：全天/半天存对应一口价；按小时存「每小时单价」。`service_amount`：本条订单服务费合计（按小时 = 单价 × hour_count）。
+- `platform_fee` 预留；首期常为 0。`payable_amount` = service_amount + platform_fee。
+
+字段清单：
+1) id：主键，BIGINT UNSIGNED 自增
+2) order_no：对外订单号，VARCHAR(32)，唯一
+3) merchant_user_id：下单商家 users.id
+4) model_user_id：接单模特 users.id
+5) booking_date：预约服务日期，DATE
+6) duration_kind：ENUM full_day / half_day / hourly
+7) hour_count：按小时时为 1–8；全天/半天为 NULL
+8) unit_price_snapshot：单价快照 DECIMAL(10,2)
+9) service_amount：服务费合计 DECIMAL(10,2)
+10) platform_fee：平台费 DECIMAL(10,2)，默认 0
+11) payable_amount：应付总额 DECIMAL(10,2)
+12) payment_status：0未支付 1已支付 2退款中 3已退款（首期创建即为 1）
+13) payment_channel：mock / wechat 等
+14) paid_at：支付完成时间（首期 mock 即下单时间）
+15) order_status：1待模特确认接单 2进行中 3模特已完成 4已完成 9已取消
+16) remark：备注 VARCHAR(500) 可空
+17) created_at / updated_at：时间戳
+
+建表 SQL（与仓库 `sql/create-orders-table.sql` 保持一致，以下可直接执行）：
+
+CREATE TABLE IF NOT EXISTS orders (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  order_no VARCHAR(32) NOT NULL COMMENT '对外订单号',
+  merchant_user_id BIGINT UNSIGNED NOT NULL COMMENT '下单商家 users.id',
+  model_user_id BIGINT UNSIGNED NOT NULL COMMENT '接单模特 users.id',
+  booking_date DATE NOT NULL COMMENT '预约服务日期',
+  duration_kind ENUM('full_day', 'half_day', 'hourly') NOT NULL COMMENT '时长类型',
+  hour_count TINYINT UNSIGNED NULL COMMENT '按小时时 1-8，其它类型为 NULL',
+  unit_price_snapshot DECIMAL(10, 2) NOT NULL COMMENT '单价快照：全天/半天为对应一口价，按小时为每小时价',
+  service_amount DECIMAL(10, 2) NOT NULL COMMENT '服务费合计（模特侧报价合计）',
+  platform_fee DECIMAL(10, 2) NOT NULL DEFAULT 0 COMMENT '平台费（预留）',
+  payable_amount DECIMAL(10, 2) NOT NULL COMMENT '应付总额（首期等于 service_amount + platform_fee）',
+  payment_status TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '0未支付 1已支付 2退款中 3已退款',
+  payment_channel VARCHAR(32) NULL COMMENT '支付方式 mock/wechat 等',
+  paid_at DATETIME NULL COMMENT '支付完成时间',
+  order_status TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1待模特确认接单 2进行中 3模特已完成 4已完成 9已取消',
+  remark VARCHAR(500) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_orders_order_no (order_no),
+  KEY idx_orders_merchant (merchant_user_id, created_at DESC),
+  KEY idx_orders_model (model_user_id, booking_date),
+  KEY idx_orders_booking_date (booking_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商家预约模特订单';

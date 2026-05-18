@@ -1,0 +1,65 @@
+<view class="page-root">
+  <view class="content">
+    <view class="hero">
+      <view class="hero-blob hero-blob-1"></view>
+      <view class="hero-blob hero-blob-2"></view>
+      <view class="hero-grid"></view>
+      <view class="hero-inner">
+        <text class="hero-kicker">注册向导</text>
+        <text class="title">选择注册身份</text>
+        <text class="subtitle">注册后将使用该身份使用平台功能；游客仅可浏览。</text>
+        <text class="hero-tip">选定身份后需完成实名核验，再完善资料。</text>
+      </view>
+    </view>
+
+    <view class="list-head">
+      <view class="list-accent"></view>
+      <text class="list-title">请选择身份</text>
+    </view>
+
+    <view class="identity-list">
+      <view
+        wx:for="{{identityList}}"
+        wx:for-index="cardIdx"
+        wx:key="key"
+        class="identity-item identity-tone-{{cardIdx % 4}} {{currentIdentity === item.name ? 'active' : ''}} {{item.disabled ? 'disabled' : ''}}"
+        data-identity="{{item.name}}"
+        data-role="{{item.role}}"
+        data-disabled="{{item.disabled}}"
+        bindtap="selectIdentity"
+        hover-class="{{item.disabled ? 'identity-item-hover-none' : 'identity-item-hover'}}"
+        hover-stay-time="70"
+      >
+        <view class="identity-main">
+          <view class="identity-head">
+            <view class="identity-icon-wrap">
+              <text class="identity-icon">{{item.icon}}</text>
+            </view>
+            <view class="identity-name-row">
+              <text class="identity-name">{{item.name}}</text>
+              <text wx:if="{{item.disabled && item.tag}}" class="identity-tag">{{item.tag}}</text>
+            </view>
+          </view>
+          <text class="identity-desc">{{item.desc}}</text>
+        </view>
+        <view wx:if="{{!item.disabled}}" class="check {{currentIdentity === item.name ? 'checked' : ''}}">
+          <text class="check-inner">{{currentIdentity === item.name ? '✓' : ''}}</text>
+        </view>
+        <text wx:if="{{item.disabled}}" class="disabled-text">不可选</text>
+      </view>
+    </view>
+
+    <view class="scroll-spacer"></view>
+  </view>
+
+  <view class="bottom-bar">
+    <button
+      class="confirm-btn"
+      hover-class="confirm-btn-hover"
+      hover-stay-time="70"
+      bindtap="confirmIdentity"
+    >
+      下一步
+    </button>
+  </view>
+</view>

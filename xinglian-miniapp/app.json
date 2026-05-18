@@ -1,0 +1,59 @@
+{
+  "pages": [
+    "pages/loading/loading",
+    "pages/mine/mine",
+    "pages/settings/settings",
+    "pages/contract-detail/contract-detail",
+    "pages/intro/intro",
+    "pages/identity/identity",
+    "pages/realname-verify/realname-verify",
+    "pages/model-basic-info/model-basic-info",
+    "pages/model-category/model-category",
+    "pages/model-card/model-card",
+    "pages/model-portfolio/model-portfolio",
+    "pages/model-pricing/model-pricing",
+    "pages/model-schedule/model-schedule",
+    "pages/model-order/model-order",
+    "pages/broker-info/broker-info",
+    "pages/broker-qrcode/broker-qrcode",
+    "pages/broker-my-models/broker-my-models",
+    "pages/broker-my-merchants/broker-my-merchants",
+    "pages/broker-order-list/broker-order-list",
+    "pages/merchant-basic-info/merchant-basic-info",
+    "pages/model-detail/model-detail",
+    "pages/order-list/order-list",
+    "pages/order-detail/order-detail",
+    "pages/home/home",
+    "pages/model-income-detail/model-income-detail",
+    "pages/broker-income-detail/broker-income-detail"
+  ],
+  "window": {
+    "navigationBarTitleText": "星链小程序",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f6f6f6",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#222222",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "assets/tab/home.png",
+        "selectedIconPath": "assets/tab/home-active.png"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的",
+        "iconPath": "assets/tab/mine.png",
+        "selectedIconPath": "assets/tab/mine-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

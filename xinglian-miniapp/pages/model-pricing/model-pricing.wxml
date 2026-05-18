@@ -1,0 +1,43 @@
+<view class="page page-themed-root">
+  <view class="section">
+    <view class="section-title">服务价格设置</view>
+
+    <view class="field">
+      <text class="label">时薪（每小时）</text>
+      <input
+        class="input"
+        type="number"
+        placeholder="请输入价格"
+        value="{{pricing.hourly}}"
+        data-field="hourly"
+        bindinput="onPricingInput"
+      />
+    </view>
+
+    <view class="field">
+      <text class="label">半天（4小时）</text>
+      <input
+        class="input"
+        type="number"
+        placeholder="请输入价格"
+        value="{{pricing.halfDay}}"
+        data-field="halfDay"
+        bindinput="onPricingInput"
+      />
+    </view>
+
+    <view class="field">
+      <text class="label">全天（8小时）</text>
+      <input
+        class="input"
+        type="number"
+        placeholder="请输入价格"
+        value="{{pricing.fullDay}}"
+        data-field="fullDay"
+        bindinput="onPricingInput"
+      />
+    </view>
+
+    <button class="save-btn" bindtap="savePricing">保存价格</button>
+  </view>
+</view>

@@ -1,0 +1,264 @@
+<view class="page page-themed-root order-detail-page {{showActions ? 'page-themed-root--bottombar' : ''}}">
+  <scroll-view wx:if="{{!loading && order}}" scroll-y class="detail-scroll" enhanced show-scrollbar="{{false}}">
+    <!-- 订单号 + 状态 / 支付 Tag -->
+    <view class="hero section card">
+      <text class="hero-eyebrow">订单号</text>
+      <text class="hero-order-no" selectable>{{order.orderNo}}</text>
+      <view class="hero-tags tag-row">
+        <text class="tag tag--os{{order.orderStatus}}">{{order.orderStatusText}}</text>
+        <text class="tag tag--ps{{order.paymentStatus}}">{{order.paymentStatusText}}</text>
+      </view>
+    </view>
+
+    <!-- 订单信息 -->
+    <view class="section card info-card">
+      <view class="card-cap">
+        <text class="cap-dot"></text>
+        <text class="cap-title">订单信息</text>
+      </view>
+      <view class="detail-rows detail-rows--tight">
+        <view class="detail-row">
+          <text class="detail-k">订单 ID</text>
+          <text class="detail-v detail-v--mono">{{order.orderId}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-k">当前视角</text>
+          <text class="detail-v">{{order.brokerView ? '经纪人' : order.viewerRole === 1 ? '模特' : order.viewerRole === 2 ? '商家' : '—'}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-k">下单时间</text>
+          <text class="detail-v">{{order.createdAtDisplay}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-k">最后更新</text>
+          <text class="detail-v">{{order.updatedAtDisplay}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 支付信息 -->
+    <view class="section card info-card">
+      <view class="card-cap">
+        <text class="cap-dot cap-dot--green"></text>
+        <text class="cap-title">支付信息</text>
+      </view>
+      <view class="detail-rows detail-rows--tight">
+        <view class="detail-row">
+          <text class="detail-k">支付状态</text>
+          <view class="detail-v detail-v--tags">
+            <text class="tag tag--ps{{order.paymentStatus}}">{{order.paymentStatusText}}</text>
+          </view>
+        </view>
+        <view class="detail-row">
+          <text class="detail-k">支付方式</text>
+          <text class="detail-v">{{order.paymentChannelLabel}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-k">支付完成时间</text>
+          <text class="detail-v">{{order.paidAtDisplay}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 经纪人视角：佣金与关联 -->
+    <view wx:if="{{order.brokerView}}" class="section card info-card broker-panel">
+      <view class="card-cap">
+        <text class="cap-dot cap-dot--violet"></text>
+        <text class="cap-title">我的推广佣金</text>
+      </view>
+      <view class="detail-rows detail-rows--tight">
+        <view class="detail-row">
+          <text class="detail-k">关联身份</text>
+          <text class="detail-v">{{order.relationText}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-k">佣金状态</text>
+          <text class="detail-v">{{order.commissionStatusText}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-k">我的佣金</text>
+          <text class="detail-v detail-v--strong">¥{{order.myCommissionYuan}}</text>
+        </view>
+        <view wx:if="{{order.commissionSettled}}" class="detail-row">
+          <text class="detail-k">分账时间</text>
+          <text class="detail-v">{{order.splitCalculatedAtDisplay}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 费用明细 -->
+    <view class="amount-panel section card">
+      <view class="amount-head">
+        <text class="amount-label">应付合计</text>
+        <view class="amount-total">
+          <text class="amount-currency">¥</text>
+          <text class="amount-num">{{order.payableAmount}}</text>
+        </view>
+      </view>
+      <view class="amount-divider"></view>
+      <view class="detail-rows">
+        <view class="detail-row">
+          <text class="detail-k">服务费</text>
+          <text class="detail-v">¥{{order.serviceAmount}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-k">平台费</text>
+          <text class="detail-v">¥{{order.platformFee}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-k">单价快照</text>
+          <text class="detail-v">¥{{order.unitPriceSnapshot}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 服务信息 -->
+    <view class="section card info-card">
+      <view class="card-cap">
+        <text class="cap-dot cap-dot--violet"></text>
+        <text class="cap-title">服务信息</text>
+      </view>
+      <view class="detail-rows detail-rows--tight">
+        <view class="detail-row">
+          <text class="detail-k">预约日期</text>
+          <text class="detail-v detail-v--strong">{{order.bookingDate}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-k">时长类型</text>
+          <text class="detail-v">{{order.durationKindText}}</text>
+        </view>
+        <view wx:if="{{order.hourCount}}" class="detail-row">
+          <text class="detail-k">小时数</text>
+          <text class="detail-v">{{order.hourCount}} 小时</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 参与方 -->
+    <view class="section card info-card">
+      <view class="card-cap">
+        <text class="cap-dot cap-dot--amber"></text>
+        <text class="cap-title">参与方</text>
+      </view>
+      <view class="party-list">
+        <view class="party-item">
+          <view class="party-avatar party-avatar--m">商</view>
+          <view class="party-meta">
+            <text class="party-role">商家</text>
+            <text class="party-name">{{order.merchant.nickname || '—'}}</text>
+            <text class="party-no" selectable>编号 {{order.merchant.userNo || '—'}}</text>
+          </view>
+        </view>
+        <view class="party-split"></view>
+        <view class="party-item">
+          <view class="party-avatar party-avatar--f">模</view>
+          <view class="party-meta">
+            <text class="party-role">模特</text>
+            <text class="party-name">{{order.model.nickname || '—'}}</text>
+            <text class="party-no" selectable>编号 {{order.model.userNo || '—'}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 备注 -->
+    <view class="section card info-card">
+      <view class="card-cap">
+        <text class="cap-dot cap-dot--slate"></text>
+        <text class="cap-title">备注</text>
+      </view>
+      <text class="remark-block">{{order.remarkDisplay}}</text>
+    </view>
+
+    <view class="bottom-space"></view>
+  </scroll-view>
+
+  <view wx:if="{{loading}}" class="loading-panel">
+    <view class="loading-card section card">
+      <view class="sk-line sk-line--long"></view>
+      <view class="sk-line sk-line--med"></view>
+      <view class="sk-line sk-line--short"></view>
+    </view>
+    <text class="loading-text">加载中…</text>
+  </view>
+
+  <view wx:elif="{{!order}}" class="hint">暂无数据</view>
+
+  <view wx:if="{{order && showActions}}" class="bottom-bar {{bottomBarDual ? 'bottom-bar--dual' : 'bottom-bar--stack'}}">
+    <button
+      wx:if="{{order.actions.modelCancel}}"
+      class="ghost-btn {{bottomBarDual ? 'bar-btn--dual' : ''}}"
+      loading="{{acting}}"
+      disabled="{{acting}}"
+      bindtap="onOpenModelCancel"
+    >
+      取消订单
+    </button>
+    <button
+      wx:if="{{order.actions.modelConfirmAccept}}"
+      class="save-btn {{bottomBarDual ? 'bar-btn--dual' : ''}}"
+      loading="{{acting}}"
+      disabled="{{acting}}"
+      bindtap="onConfirmAccept"
+    >
+      确认接单
+    </button>
+    <button
+      wx:if="{{order.actions.modelConfirmService}}"
+      class="save-btn"
+      loading="{{acting}}"
+      disabled="{{acting}}"
+      bindtap="onConfirmService"
+    >
+      确认服务完成
+    </button>
+    <button
+      wx:if="{{order.actions.merchantConfirmComplete}}"
+      class="save-btn"
+      loading="{{acting}}"
+      disabled="{{acting}}"
+      bindtap="onConfirmComplete"
+    >
+      确认服务完成
+    </button>
+    <button
+      wx:if="{{order.actions.merchantCancel}}"
+      class="ghost-btn"
+      loading="{{acting}}"
+      disabled="{{acting}}"
+      bindtap="onOpenMerchantCancel"
+    >
+      取消订单
+    </button>
+  </view>
+
+  <view wx:if="{{showCancelReasonSheet}}" class="reason-mask" catchtap="closeCancelReasonSheet" catchtouchmove="stopTouchMove">
+    <view class="reason-sheet section card" catchtap="preventCloseTap">
+      <text class="reason-title">填写取消原因</text>
+      <text class="reason-hint">{{cancelReasonAudienceHint}}</text>
+      <textarea
+        class="reason-textarea"
+        maxlength="480"
+        placeholder="请简要说明取消原因"
+        value="{{cancelReasonDraft}}"
+        bindinput="onCancelReasonInput"
+        fixed="true"
+        cursor-spacing="24"
+      />
+      <view class="reason-actions">
+        <button class="reason-back ghost-btn ghost-btn--sheet" hover-class="none" bindtap="closeCancelReasonSheet">
+          返回
+        </button>
+        <button
+          class="reason-submit save-btn save-btn--sheet"
+          hover-class="none"
+          loading="{{acting}}"
+          disabled="{{acting}}"
+          bindtap="submitCancelWithReason"
+        >
+          确认取消
+        </button>
+      </view>
+    </view>
+  </view>
+</view>

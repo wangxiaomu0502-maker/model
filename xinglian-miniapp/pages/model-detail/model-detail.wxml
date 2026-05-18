@@ -1,0 +1,252 @@
+<page-meta
+  wx:if="{{showBookingPopup || showPortfolioPopup}}"
+  page-style="overflow: hidden;"
+></page-meta>
+<view
+  class="page page-themed-root page-themed-root--bottombar detail-page {{showBookingPopup || showPortfolioPopup ? 'detail-page--modal-open' : ''}}"
+>
+  <view wx:if="{{loading}}" class="detail-state detail-state--loading">
+    <text class="detail-state-text">加载中…</text>
+  </view>
+
+  <view wx:elif="{{loadError}}" class="detail-state detail-state--err">
+    <text class="detail-state-text">{{loadError}}</text>
+  </view>
+
+  <scroll-view
+    wx:elif="{{model}}"
+    scroll-y="{{!showBookingPopup && !showPortfolioPopup}}"
+    class="detail-scroll {{showBookingPopup || showPortfolioPopup ? 'detail-scroll--locked' : ''}}"
+    enhanced
+    show-scrollbar="{{false}}"
+    enable-flex
+  >
+    <view class="detail-stack">
+      <!-- 顶部人物 -->
+      <view class="detail-hero">
+        <image
+          class="detail-hero-avatar"
+          src="{{model.avatarUrl || '/assets/logo/logo.png'}}"
+          mode="aspectFill"
+        />
+        <view class="detail-hero-text">
+          <text class="detail-hero-name">{{model.nickname}}</text>
+          <text class="detail-hero-sub">{{model.city || "城市未填"}} · {{model.gender || "—"}}</text>
+        </view>
+        <view
+          wx:if="{{portfolioSections.length}}"
+          class="detail-hero-portfolio-btn"
+          bindtap="onOpenPortfolioPopup"
+        >
+          <text class="detail-hero-portfolio-btn-text">作品集</text>
+          <text class="detail-hero-portfolio-btn-count">{{portfolioPhotoCount}}</text>
+        </view>
+      </view>
+
+      <!-- 报价 -->
+      <view class="detail-panel">
+        <view class="detail-panel-head">
+          <view class="detail-panel-mark"></view>
+          <text class="detail-panel-title">服务报价</text>
+        </view>
+        <view class="detail-price-grid">
+          <view class="detail-price-item">
+            <text class="detail-price-item-label">按小时</text>
+            <text class="detail-price-item-val">{{model.price.hourly != null ? model.price.hourly + " 元" : "—"}}</text>
+          </view>
+          <view class="detail-price-item">
+            <text class="detail-price-item-label">半天</text>
+            <text class="detail-price-item-val">{{model.price.halfDay != null ? model.price.halfDay + " 元" : "—"}}</text>
+          </view>
+          <view class="detail-price-item">
+            <text class="detail-price-item-label">全天</text>
+            <text class="detail-price-item-val">{{model.price.fullDay != null ? model.price.fullDay + " 元" : "—"}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 模卡 -->
+      <view class="detail-panel detail-panel--card" wx:if="{{showCardPanel}}">
+        <view class="detail-panel-head">
+          <view class="detail-panel-mark detail-panel-mark--accent"></view>
+          <view class="detail-panel-head-text">
+            <text class="detail-panel-title">模卡</text>
+            <text class="detail-panel-sub">身材与展示照</text>
+          </view>
+        </view>
+        <view class="detail-pill-row detail-pill-row--dense">
+          <text class="detail-pill detail-pill--accent">身高 {{cardMeasureText.height}} cm</text>
+          <text class="detail-pill detail-pill--accent">体重 {{cardMeasureText.weight}} kg</text>
+          <text class="detail-pill detail-pill--accent">胸围 {{cardMeasureText.bust}} cm</text>
+          <text class="detail-pill detail-pill--accent">腰围 {{cardMeasureText.waist}} cm</text>
+          <text class="detail-pill detail-pill--accent">臀围 {{cardMeasureText.hip}} cm</text>
+          <text class="detail-pill detail-pill--accent">肩宽 {{cardMeasureText.shoulder}} cm</text>
+          <text class="detail-pill detail-pill--accent">臂展 {{cardMeasureText.armSpan}} cm</text>
+          <text class="detail-pill detail-pill--accent">腿长 {{cardMeasureText.legLength}} cm</text>
+          <text class="detail-pill detail-pill--accent">鞋码 {{cardMeasureText.shoeSize}}</text>
+          <text wx:if="{{cardHairColor}}" class="detail-pill detail-pill--accent">发色 {{cardHairColor}}</text>
+          <text wx:if="{{cardSkinColor}}" class="detail-pill detail-pill--accent">肤色 {{cardSkinColor}}</text>
+        </view>
+        <scroll-view
+          wx:if="{{cardUrls.length}}"
+          scroll-x
+          class="detail-media-strip"
+          enhanced
+          show-scrollbar="{{false}}"
+          enable-flex
+        >
+          <image
+            wx:for="{{cardUrls}}"
+            wx:for-index="idx"
+            wx:key="idx"
+            class="detail-media-thumb"
+            src="{{item}}"
+            mode="aspectFill"
+            data-url="{{item}}"
+            data-from="card"
+            bindtap="onPreviewImage"
+          />
+        </scroll-view>
+      </view>
+
+      <!-- 接单说明 -->
+      <view class="detail-panel" wx:if="{{model.orderSettings}}">
+        <view class="detail-panel-head">
+          <view class="detail-panel-mark"></view>
+          <text class="detail-panel-title">接单说明</text>
+        </view>
+        <view class="order-brief">
+          <view class="order-brief-line">
+            <text class="order-brief-label">接单状态</text>
+            <text class="order-brief-val">{{model.orderSettings.orderEnabled ? "开放预约" : "暂停接单"}}</text>
+          </view>
+          <view class="order-brief-line">
+            <text class="order-brief-label">地域</text>
+            <text class="order-brief-val">{{model.orderSettings.onlyLocal ? "仅本地单" : "可接异地单"}}</text>
+          </view>
+          <view class="order-brief-line">
+            <text class="order-brief-label">商家</text>
+            <text class="order-brief-val">{{model.orderSettings.onlyFemale ? "仅女性商家" : "不限商家性别"}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 简介 -->
+      <view class="detail-panel detail-panel--intro">
+        <view class="detail-panel-head">
+          <view class="detail-panel-mark"></view>
+          <text class="detail-panel-title">简介</text>
+        </view>
+        <text class="detail-intro-body">{{model.intro || "暂无简介"}}</text>
+      </view>
+
+      <view class="detail-scroll-pad"></view>
+    </view>
+  </scroll-view>
+
+  <view class="bottom-bar bottom-bar--detail">
+    <view wx:if="{{quoteLine}}" class="bottom-quote">
+      <text class="bottom-quote-line">{{quoteLine}}</text>
+    </view>
+    <button class="save-btn detail-order-btn" bindtap="onPlaceOrder" disabled="{{!model}}">
+      {{orderBtnTitle}}
+    </button>
+  </view>
+
+  <view
+    wx:if="{{showBookingPopup || showPortfolioPopup}}"
+    class="detail-scroll-lock"
+    catchtouchmove="preventTouchMove"
+  ></view>
+
+  <view wx:if="{{showBookingPopup}}" class="popup-mask" bindtap="onCloseBookingPopup" catchtouchmove="preventTouchMove">
+    <view class="popup-panel" catchtap="preventPopupTapBubble">
+      <view class="popup-head">
+        <text class="popup-title">预约模特</text>
+        <text class="popup-close" bindtap="onCloseBookingPopup">关闭</text>
+      </view>
+
+      <view class="popup-section">
+        <text class="popup-section-title">1. 选择预约日期</text>
+        <view wx:if="{{bookableDateOptions.length === 0}}" class="empty-hint">暂无可预约日期，请稍后再试。</view>
+        <scroll-view wx:else scroll-y class="date-scroll">
+          <view
+            wx:for="{{bookableDateOptions}}"
+            wx:key="dateKey"
+            class="date-row {{selectedDateKey === item.dateKey ? 'date-row-on' : ''}}"
+            data-key="{{item.dateKey}}"
+            bindtap="onPickDate"
+          >
+            <text class="date-row-main">{{item.label}}</text>
+            <text class="date-row-check" wx:if="{{selectedDateKey === item.dateKey}}">已选</text>
+          </view>
+        </scroll-view>
+      </view>
+
+      <view class="popup-section">
+        <text class="popup-section-title">2. 选择服务时长</text>
+        <view class="seg">
+          <view
+            wx:if="{{model.price.fullDay != null}}"
+            class="seg-item {{durationKind === 'fullDay' ? 'seg-on' : ''}}"
+            data-kind="fullDay"
+            bindtap="onPickDuration"
+          >全天</view>
+          <view
+            wx:if="{{model.price.halfDay != null}}"
+            class="seg-item {{durationKind === 'halfDay' ? 'seg-on' : ''}}"
+            data-kind="halfDay"
+            bindtap="onPickDuration"
+          >半天</view>
+          <view
+            wx:if="{{model.price.hourly != null}}"
+            class="seg-item {{durationKind === 'hourly' ? 'seg-on' : ''}}"
+            data-kind="hourly"
+            bindtap="onPickDuration"
+          >按小时</view>
+        </view>
+        <view wx:if="{{durationKind === 'hourly'}}" class="hour-block">
+          <text class="hour-label">预约小时数（1–{{hourLabels.length}} 小时）</text>
+          <picker mode="selector" range="{{hourLabels}}" value="{{hourIndex}}" bindchange="onHourPickerChange">
+            <view class="hour-picker">{{hourLabels[hourIndex]}}</view>
+          </picker>
+        </view>
+      </view>
+
+      <button class="save-btn popup-btn" bindtap="onConfirmBooking" disabled="{{!canSubmit}}">{{orderBtnTitle}}</button>
+    </view>
+  </view>
+
+  <view wx:if="{{showPortfolioPopup}}" class="popup-mask" bindtap="onClosePortfolioPopup" catchtouchmove="preventTouchMove">
+    <view class="popup-panel popup-panel--portfolio" catchtap="preventPopupTapBubble">
+      <view class="popup-head">
+        <view class="popup-head-text">
+          <text class="popup-title">作品集</text>
+          <text class="popup-sub">共 {{portfolioPhotoCount}} 张</text>
+        </view>
+        <text class="popup-close" bindtap="onClosePortfolioPopup">关闭</text>
+      </view>
+      <scroll-view scroll-y class="portfolio-popup-scroll" enhanced show-scrollbar="{{false}}">
+        <view class="portfolio-popup-body">
+          <view class="portfolio-folder" wx:for="{{portfolioSections}}" wx:key="id">
+            <text class="portfolio-folder-name">{{item.name}}</text>
+            <view class="portfolio-popup-grid">
+              <image
+                wx:for="{{item.urls}}"
+                wx:for-item="src"
+                wx:for-index="pidx"
+                wx:key="pidx"
+                class="portfolio-popup-thumb"
+                src="{{src}}"
+                mode="aspectFill"
+                data-url="{{src}}"
+                data-section-id="{{item.id}}"
+                bindtap="onPreviewImage"
+              />
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

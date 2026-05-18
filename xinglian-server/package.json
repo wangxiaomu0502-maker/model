@@ -1,0 +1,44 @@
+{
+  "name": "xinglian-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node.js backend for Xinglian",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "migrate:user-account-ledger": "tsx scripts/migrate-user-account-ledger.ts",
+    "purge:users-orders": "tsx scripts/purge-users-and-orders.ts",
+    "migrate:split-v2": "tsx scripts/migrate-split-v2.ts",
+    "smoke:split-v2": "tsx scripts/smoke-split-v2.ts"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "cos-nodejs-sdk-v5": "^2.15.4",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "mysql2": "^3.22.3",
+    "tencentcloud-sdk-nodejs": "^4.1.227",
+    "zod": "^4.4.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,89 @@
+订单状态流转说明（与代码一致）
+
+适用范围：xinglian-server 模块 `src/modules/order/`；库字段 `orders.order_status`。
+支付字段独立：`orders.payment_status` / `payment_channel` / `paid_at`。
+
+────────────────────────────────
+一、状态枚举（order_status）
+
+数值    常量（代码）              对外文案（orderStatusText）
+────────────────────────────────────────────────────────────
+1       PENDING_MODEL_ACCEPT       待模特确认接单
+2       IN_PROGRESS                进行中
+3       MODEL_FINISHED             模特已完成
+4       COMPLETED                  已完成
+9       CANCELLED                  已取消
+
+说明：不存在「待支付」对应的 order_status；首期创建订单接口内在模拟支付成功后写库，首态即为 1。
+
+────────────────────────────────
+二、主线流转
+
+  [创建订单] → 1 待模特确认接单
+       │
+       │  模特 POST …/confirm-accept
+       ▼
+  2 进行中
+       │
+       │  模特 POST …/confirm-service
+       ▼
+  3 模特已完成（待商家确认服务完成）
+       │
+       │  商家 POST …/confirm-complete
+       ▼
+  4 已完成（归档）
+
+────────────────────────────────
+三、取消
+
+仅在状态为 1、2、3 时，商家可 POST …/cancel → 9 已取消。
+状态 4（已完成）不可再走取消主线。
+
+────────────────────────────────
+四、HTTP 接口（均需 JWT）
+
+创建订单
+  POST /api/orders
+  权限：商家 role=2
+  结果：payment_status=1（首期 mock）、order_status=1
+
+模特确认接单
+  POST /api/orders/:orderId/confirm-accept
+  权限：该单 model_user_id
+  前置：order_status = 1 → 变为 2
+
+模特确认服务完成
+  POST /api/orders/:orderId/confirm-service
+  权限：该单 model_user_id
+  前置：order_status = 2 → 变为 3
+
+商家确认服务完成
+  POST /api/orders/:orderId/confirm-complete
+  权限：该单 merchant_user_id
+  前置：order_status = 3 → 变为 4
+
+商家取消订单
+  POST /api/orders/:orderId/cancel
+  权限：该单 merchant_user_id
+  前置：order_status ∈ {1,2,3} → 9
+
+────────────────────────────────
+五、小程序 actions（订单详情 GET /api/orders/my/:orderId）
+
+modelConfirmAccept：       模特且 status=1
+modelConfirmService：      模特且 status=2
+merchantConfirmComplete：  商家且 status=3
+merchantCancel：           商家且 status∈{1,2,3}
+
+────────────────────────────────
+六、代码锚点
+
+  order-status.ts      OrderStatus、orderStatusLabel
+  order.service.ts     createMerchantOrder、confirmAcceptOrderByModel、
+                       confirmServiceByModel、confirmOrderCompleteByMerchant、
+                       cancelOrderByMerchant、getMineOrderDetail（actions）
+
+────────────────────────────────
+七、存量库迁移
+
+若数据库曾为旧枚举，部署新后端前执行仓库内迁移脚本（如 sql/migrate-order-status-v4.sql），与当前环境 DDL 保持一致后再上线。
