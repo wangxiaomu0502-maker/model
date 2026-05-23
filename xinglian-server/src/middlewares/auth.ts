@@ -49,3 +49,28 @@ export function requireAuth(
     });
   }
 }
+
+export function optionalAuth(
+  req: AuthenticatedRequest,
+  _res: Response,
+  next: NextFunction
+): void {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    next();
+    return;
+  }
+
+  const token = authHeader.slice("Bearer ".length).trim();
+  if (!token) {
+    next();
+    return;
+  }
+
+  try {
+    req.auth = jwt.verify(token, env.jwt.secret) as AuthTokenPayload;
+  } catch {
+    // Public endpoints should remain readable even if a stale token is present.
+  }
+  next();
+}

@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-export const CONTRACT_KIND_VALUES = ["platform_broker", "platform_merchant", "broker_model"] as const;
+export const CONTRACT_KIND_VALUES = [
+  "platform_broker",
+  "platform_merchant",
+  "broker_model",
+  "platform_agent"
+] as const;
 
 export type ContractKind = (typeof CONTRACT_KIND_VALUES)[number];
 

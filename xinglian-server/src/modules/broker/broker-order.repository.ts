@@ -7,6 +7,7 @@ export type BrokerOrderListRow = RowDataPacket & {
   id: number;
   order_no: string;
   booking_date: Date | string;
+  service_type: string;
   duration_kind: string;
   hour_count: number | null;
   payable_amount: string | number;
@@ -30,6 +31,7 @@ export type BrokerOrderDetailRow = RowDataPacket & {
   merchant_user_id: number;
   model_user_id: number;
   booking_date: Date | string;
+  service_type: string;
   duration_kind: string;
   hour_count: number | null;
   unit_price_snapshot: string | number;
@@ -113,7 +115,8 @@ export async function findUnsettledCompletedBrokerReferrerOrders(
   ];
   const values: unknown[] = [OrderStatus.COMPLETED, bid];
   const [rows] = await dbPool.query<BrokerOrderListRow[]>(
-    `SELECT o.id, o.order_no, o.booking_date, o.duration_kind, o.hour_count,
+    `SELECT o.id, o.order_no, o.booking_date, COALESCE(o.service_type, 'ordinary') AS service_type,
+            o.duration_kind, o.hour_count,
             o.payable_amount, o.order_status, o.payment_status, o.created_at,
             o.broker_user_id, o.agent_user_id,
             o.broker_income, o.agent_income,
@@ -152,7 +155,8 @@ export async function findOrdersPageForBroker(
   }
   values.push(safeLimit, safeOffset);
   const [rows] = await dbPool.query<BrokerOrderListRow[]>(
-    `SELECT o.id, o.order_no, o.booking_date, o.duration_kind, o.hour_count,
+    `SELECT o.id, o.order_no, o.booking_date, COALESCE(o.service_type, 'ordinary') AS service_type,
+            o.duration_kind, o.hour_count,
             o.payable_amount, o.order_status, o.payment_status, o.created_at,
             o.broker_user_id, o.agent_user_id,
             o.broker_income, o.agent_income,
@@ -173,7 +177,7 @@ export async function findOrdersPageForBroker(
 export async function findOrderDetailForBroker(orderId: number): Promise<BrokerOrderDetailRow | null> {
   const [rows] = await dbPool.query<BrokerOrderDetailRow[]>(
     `SELECT o.id, o.order_no, o.merchant_user_id, o.model_user_id,
-            o.booking_date, o.duration_kind, o.hour_count,
+            o.booking_date, COALESCE(o.service_type, 'ordinary') AS service_type, o.duration_kind, o.hour_count,
             o.unit_price_snapshot, o.service_amount, o.platform_fee, o.payable_amount,
             o.payment_status, o.payment_channel, o.paid_at, o.order_status, o.remark,
             o.created_at, o.updated_at,

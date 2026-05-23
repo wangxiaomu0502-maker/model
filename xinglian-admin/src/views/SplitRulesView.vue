@@ -17,6 +17,12 @@ import {
 
 const loading = ref(true);
 const saving = ref(false);
+const activeServiceType = ref<"ordinary" | "agent">("ordinary");
+
+const serviceTypeTabs = [
+  { key: "ordinary" as const, label: "普通服务", desc: "商家常规预约模特服务" },
+  { key: "agent" as const, label: "代理服务", desc: "代理方提供影棚的服务" }
+];
 
 /** 展示用：整数百分比（如 15 表示 15%），bp = pct × 100（万分比，仅支持整数%） */
 const form = reactive({
@@ -73,7 +79,7 @@ const updatedAtDisplay = computed(() => {
 async function load(): Promise<void> {
   loading.value = true;
   try {
-    const data = await fetchAdminSplitRules();
+    const data = await fetchAdminSplitRules(activeServiceType.value);
     form.modelPct = bpToPct(data.modelShareBp);
     form.serviceFeePct = bpToPct(data.platformFeeRateBp);
     form.platformFeePct = bpToPct(data.platformShareOfFeeBp);
@@ -98,6 +104,7 @@ async function onSave(): Promise<void> {
   }
 
   const body: AdminSplitRulesUpdateBody = {
+    serviceType: activeServiceType.value,
     platformFeeRateBp: pctToBp(form.serviceFeePct),
     modelShareBp: pctToBp(form.modelPct),
     platformShareOfFeeBp: pctToBp(form.platformFeePct),
@@ -115,6 +122,10 @@ async function onSave(): Promise<void> {
   } finally {
     saving.value = false;
   }
+}
+
+function onServiceTypeChange(): void {
+  void load();
 }
 
 watch(
@@ -139,6 +150,17 @@ onMounted(() => {
         <h1 class="hero-title">分账配置</h1>
       </div>
     </header>
+
+    <el-tabs v-model="activeServiceType" class="service-tabs" @tab-change="onServiceTypeChange">
+      <el-tab-pane
+        v-for="item in serviceTypeTabs"
+        :key="item.key"
+        :name="item.key"
+        :label="item.label"
+      >
+        <p class="service-tab-desc">{{ item.desc }}</p>
+      </el-tab-pane>
+    </el-tabs>
 
     <div class="panels" v-loading="loading">
       <section class="panel panel-flow" aria-label="资金流向示意">
@@ -333,6 +355,17 @@ onMounted(() => {
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--el-text-color-primary);
+}
+
+.service-tabs {
+  margin-bottom: 14px;
+  padding: 0 4px;
+}
+
+.service-tab-desc {
+  margin: 0 0 2px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 }
 
 .panels {

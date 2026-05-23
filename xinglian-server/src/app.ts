@@ -18,12 +18,15 @@ import userRouter from "./modules/user/user.routes";
 import ocrRouter from "./modules/ocr/ocr.routes";
 import brokerRouter from "./modules/broker/broker.routes";
 import walletRouter from "./modules/wallet/wallet.routes";
+import payRouter from "./modules/pay/pay.routes";
 
 const app = express();
 
 app.use(helmet());
 /** 默认放行跨域；小程序 wx.request 不走浏览器 CORS。不要用 origin:true+credentials 组合，易在无 Origin 的请求上与 cors 内部逻辑冲突导致异常 */
 app.use(cors());
+/** 微信支付回调需原始 body 验签，须在 express.json() 之前注册 */
+app.use("/api/pay/wechat/notify", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(requestContext);
@@ -46,6 +49,7 @@ app.use("/api/contracts", contractRouter);
 app.use("/api/ocr", ocrRouter);
 app.use("/api/broker", brokerRouter);
 app.use("/api/wallet", walletRouter);
+app.use("/api/pay", payRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
 

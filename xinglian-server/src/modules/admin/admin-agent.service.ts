@@ -55,6 +55,7 @@ function mapAgentRow(row: {
   created_at: Date | string;
   updated_at: Date | string;
   bound_model_count: number | string | null;
+  contract_platform_agent_signed_at: Date | string | null;
 }) {
   const companyName =
     row.company_name != null && String(row.company_name).trim()
@@ -88,6 +89,12 @@ function mapAgentRow(row: {
     verifiedStatus: Number(row.verified_status ?? 0),
     realName: contactName,
     boundModelCount: Number(row.bound_model_count ?? 0),
+    platformAgentContractSignedAt:
+      row.contract_platform_agent_signed_at instanceof Date
+        ? row.contract_platform_agent_signed_at.toISOString()
+        : row.contract_platform_agent_signed_at
+          ? String(row.contract_platform_agent_signed_at)
+          : null,
     createdAt:
       row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at ?? ""),
     updatedAt:

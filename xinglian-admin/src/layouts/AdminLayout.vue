@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import {
   Connection,
   Document,
+  Headset,
   List,
   Money,
   Odometer,
@@ -15,7 +16,7 @@ import {
 
 import adminLogo from "@/assets/admin-logo.png";
 
-import { clearAdminSession, getAdminProfile } from "@/composables/useAdminToken";
+import { clearAdminSession, getAdminProfile, getAdminRole } from "@/composables/useAdminToken";
 
 const route = useRoute();
 const router = useRouter();
@@ -23,13 +24,26 @@ const activeMenu = computed(() => {
   const p = route.path;
   if (p === "/orders" || p.startsWith("/orders/")) return "/orders";
   if (p === "/platform-billing" || p.startsWith("/platform-billing")) return "/platform-billing";
+  if (p === "/pending-orders" || p.startsWith("/pending-orders")) return "/pending-orders";
+  if (p === "/cs-users" || p.startsWith("/cs-users")) return "/cs-users";
   return p;
 });
+
+const isCs = computed(() => getAdminRole() === "cs");
+
+/** 待处理订单页在移动端隐藏侧栏，便于客服全屏处理 */
+const isPendingOrdersRoute = computed(() => {
+  const p = route.path;
+  return p === "/pending-orders" || p.startsWith("/pending-orders/");
+});
+
+const homePath = computed(() => (isCs.value ? "/pending-orders" : "/dashboard"));
 
 const displayLine = computed(() => {
   const p = getAdminProfile();
   if (!p) return "";
-  return p.displayName || p.username;
+  const name = p.displayName || p.username;
+  return isCs.value ? `${name}（客服）` : name;
 });
 
 function logout(): void {
@@ -43,7 +57,7 @@ function logout(): void {
   <el-container class="admin-root">
     <el-header class="admin-header" height="60px">
       <div class="header-left">
-        <router-link to="/dashboard" class="brand-link">
+        <router-link :to="homePath" class="brand-link">
           <img class="brand-logo-sm" :src="adminLogo" alt="" />
           <div class="brand-text">
             <span class="brand-title">星链</span>
@@ -62,51 +76,70 @@ function logout(): void {
         </el-button>
       </div>
     </el-header>
-    <el-container class="admin-body">
+    <el-container
+      class="admin-body"
+      :class="{ 'admin-body--pending-mobile': isPendingOrdersRoute }"
+    >
       <el-aside class="admin-aside" width="216px">
         <nav class="aside-inner" aria-label="主导航">
           <el-menu
-            :key="route.path"
+            :key="`${route.path}-${isCs}`"
             class="admin-menu"
             :router="true"
             :default-active="activeMenu"
           >
-            <el-menu-item index="/dashboard">
-              <el-icon><Odometer /></el-icon>
-              <span>工作台</span>
-            </el-menu-item>
-            <el-menu-item index="/models">
-              <el-icon><UserFilled /></el-icon>
-              <span>模特列表</span>
-            </el-menu-item>
-            <el-menu-item index="/merchants">
-              <el-icon><Shop /></el-icon>
-              <span>商家列表</span>
-            </el-menu-item>
-            <el-menu-item index="/broker-users">
-              <el-icon><Connection /></el-icon>
-              <span>经纪人列表</span>
-            </el-menu-item>
-            <el-menu-item index="/agents">
-              <el-icon><UserFilled /></el-icon>
-              <span>代理人列表</span>
-            </el-menu-item>
-            <el-menu-item index="/orders">
-              <el-icon><List /></el-icon>
-              <span>订单列表</span>
-            </el-menu-item>
-            <el-menu-item index="/platform-billing">
-              <el-icon><Money /></el-icon>
-              <span>平台看板</span>
-            </el-menu-item>
-            <el-menu-item index="/split-rules">
-              <el-icon><PieChart /></el-icon>
-              <span>分账配置</span>
-            </el-menu-item>
-            <el-menu-item index="/contract-templates">
-              <el-icon><Document /></el-icon>
-              <span>合同管理</span>
-            </el-menu-item>
+            <template v-if="isCs">
+              <el-menu-item index="/pending-orders">
+                <el-icon><List /></el-icon>
+                <span>待处理订单</span>
+              </el-menu-item>
+            </template>
+            <template v-else>
+              <el-menu-item index="/dashboard">
+                <el-icon><Odometer /></el-icon>
+                <span>工作台</span>
+              </el-menu-item>
+              <el-menu-item index="/models">
+                <el-icon><UserFilled /></el-icon>
+                <span>模特列表</span>
+              </el-menu-item>
+              <el-menu-item index="/merchants">
+                <el-icon><Shop /></el-icon>
+                <span>商家列表</span>
+              </el-menu-item>
+              <el-menu-item index="/broker-users">
+                <el-icon><Connection /></el-icon>
+                <span>经纪人列表</span>
+              </el-menu-item>
+              <el-menu-item index="/agents">
+                <el-icon><UserFilled /></el-icon>
+                <span>代理人列表</span>
+              </el-menu-item>
+              <el-menu-item index="/orders">
+                <el-icon><List /></el-icon>
+                <span>订单列表</span>
+              </el-menu-item>
+              <el-menu-item index="/platform-billing">
+                <el-icon><Money /></el-icon>
+                <span>平台看板</span>
+              </el-menu-item>
+              <el-menu-item index="/split-rules">
+                <el-icon><PieChart /></el-icon>
+                <span>分账配置</span>
+              </el-menu-item>
+              <el-menu-item index="/contract-templates">
+                <el-icon><Document /></el-icon>
+                <span>合同管理</span>
+              </el-menu-item>
+              <el-menu-item index="/cs-users">
+                <el-icon><Headset /></el-icon>
+                <span>客服管理</span>
+              </el-menu-item>
+              <el-menu-item index="/pending-orders">
+                <el-icon><List /></el-icon>
+                <span>待客服处理订单</span>
+              </el-menu-item>
+            </template>
           </el-menu>
         </nav>
       </el-aside>
@@ -333,5 +366,30 @@ function logout(): void {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* 待处理订单：移动端全宽内容区，不展示左侧菜单 */
+@media (max-width: 768px) {
+  .admin-body--pending-mobile .admin-aside {
+    display: none;
+  }
+
+  .admin-body--pending-mobile .admin-main {
+    padding: 0;
+    background: #eef2f7;
+    overflow-x: hidden;
+  }
+
+  .admin-body--pending-mobile .admin-header {
+    padding: 0 12px;
+  }
+
+  .admin-body--pending-mobile .brand-sub {
+    display: none;
+  }
+
+  .admin-body--pending-mobile .user-pill {
+    max-width: 120px;
+  }
 }
 </style>

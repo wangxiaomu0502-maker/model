@@ -7,7 +7,7 @@
       <view class="broker-dash-hero-main">
         <text class="broker-dash-eyebrow">常用功能</text>
         <text class="broker-dash-title">{{pageTitle}}</text>
-        <text class="broker-dash-desc">通过您的推荐码绑定的商家</text>
+        <text class="broker-dash-desc">平台在后台完成绑定后，将显示在此</text>
       </view>
       <view class="broker-dash-stat">
         <text class="broker-dash-stat-num">{{total}}</text>

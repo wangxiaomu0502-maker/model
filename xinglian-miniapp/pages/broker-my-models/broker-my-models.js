@@ -5,7 +5,7 @@ Page({
 
   data: {
     pageTitle: "我的模特",
-    emptyHint: "暂无绑定模特。请分享「我的二维码」，模特注册并填写您的用户 ID 后即可出现在此列表。"
+    emptyHint: "暂无绑定模特。请使用「二维码推广」或「链接推广」邀请注册。"
   },
 
   getListApiPath() {

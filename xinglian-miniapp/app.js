@@ -4,6 +4,14 @@ const PROD_API_BASE = "https://api.xinglianmoku.cn";
 /** 本地后端，与 xinglian-server env.PORT 一致 */
 const DEFAULT_LOCAL_API_BASE = "http://127.0.0.1:3000";
 
+/**
+ * 开发时手动切换 API（改此常量后重新编译/预览）：
+ * - "prod"  → 一律连线上 https://api.xinglianmoku.cn
+ * - "local" → 一律连本地（见 DEFAULT_LOCAL_API_BASE 或 storage xinglian_local_api_base）
+ * - "auto"  → 体验版/正式版线上；开发版模拟器本地、真机预览线上
+ */
+const API_ENV_OVERRIDE = "auto";
+
 const STORAGE_LOCAL_API_BASE = "xinglian_local_api_base";
 
 function getMiniProgramEnvVersion() {
@@ -39,12 +47,19 @@ function resolveLocalApiBase() {
 }
 
 /**
- * API 环境：
+ * API 环境（API_ENV_OVERRIDE === "auto" 时）：
  * - 体验版 / 正式版：一律线上
  * - 开发版 + 开发者工具模拟器：本地
  * - 开发版 + 真机预览：线上
  */
 function resolveApiBaseUrl() {
+  if (API_ENV_OVERRIDE === "prod") {
+    return PROD_API_BASE;
+  }
+  if (API_ENV_OVERRIDE === "local") {
+    return resolveLocalApiBase();
+  }
+
   const mpEnv = getMiniProgramEnvVersion();
   if (mpEnv === "trial" || mpEnv === "release") {
     return PROD_API_BASE;
@@ -59,6 +74,7 @@ App({
   PROD_API_BASE,
   DEFAULT_LOCAL_API_BASE,
   STORAGE_LOCAL_API_BASE,
+  API_ENV_OVERRIDE,
 
   getApiBaseUrlByEnv() {
     return resolveApiBaseUrl();
@@ -129,6 +145,8 @@ App({
     console.log(
       "[xinglian] api:",
       this.globalData.apiBaseUrl,
+      "| override=",
+      API_ENV_OVERRIDE,
       "| platform=",
       plat,
       "| mpEnv=",

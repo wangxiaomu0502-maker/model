@@ -8,21 +8,41 @@ import {
   resolveAgentUserIdForModel,
   resolveBrokerUserIdForMerchant
 } from "../user/user.repository";
-import { findSplitRulesById, insertDefaultSplitRulesRow } from "../admin/split-rules.repository";
+import { enqueueOrderForCs } from "../admin-cs-order/admin-cs-order.repository";
+import {
+  findSplitRulesByServiceType,
+  insertDefaultSplitRulesRow,
+  normalizeSplitServiceType
+} from "../admin/split-rules.repository";
 import { buildSplitRulesSnapshotJson } from "../split/order-split-rules-snapshot";
 import { getModelPublicDetail } from "../model/model.service";
 import {
+  cancelUnpaidAwaitingPaymentOrder,
   countOrdersForParticipant,
   findOrderDetailRowById,
   findOrderHeaderById,
   findOrdersForParticipant,
   insertOrder,
+  markOrderPaidByOrderNo,
+  markOrderRefundFinished,
+  markOrderRefunding,
   OrderDurationKindDb,
   OrderListRow,
+  restoreOrderAfterRefundFailure,
   updateOrderStatus,
   updateOrderStatusAndRemark,
   updateOrderToCompletedWithSplitParties
 } from "./order.repository";
+import { resolveOrderCsContactForApp, type OrderCsContactDto } from "./order-cs-contact.service";
+import {
+  closeWechatOrder,
+  createJsapiPrepay,
+  createWechatRefund,
+  isWechatPayConfigured,
+  queryWechatOrderByOutTradeNo,
+  queryWechatRefundByOutRefundNo
+} from "../../integrations/wechat/pay/wechat-pay.client";
+import { findOpenidByUserId } from "../auth/auth.repository";
 import { durationKindLabel, OrderStatus, orderStatusLabel, paymentStatusLabel } from "./order-status";
 import { CreateOrderDto, ListMineOrdersQuery, QuoteDto } from "./order.types";
 
@@ -88,6 +108,10 @@ function durationKindDbToApi(
   return "hourly";
 }
 
+function serviceTypeLabel(serviceType: string): string {
+  return serviceType === "agent" ? "代理服务（提供影棚）" : "普通服务";
+}
+
 function toNum(v: unknown): number | null {
   if (v == null) return null;
   const n = Number(v);
@@ -97,6 +121,21 @@ function toNum(v: unknown): number | null {
 function num(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+function yuanToFen(v: unknown): number {
+  return Math.round(num(v) * 100);
+}
+
+function buildOrderRefundNo(orderNo: string): string {
+  return `RF${orderNo}`.slice(0, 64);
+}
+
+function paymentStatusFromRefundStatus(status: string): 2 | 3 | 4 {
+  const normalized = status.toUpperCase();
+  if (normalized === "SUCCESS") return 3;
+  if (normalized === "ABNORMAL" || normalized === "CLOSED" || normalized === "FAILED") return 4;
+  return 2;
 }
 
 function isoDateOrNull(v: Date | string | null | undefined): string | null {
@@ -114,6 +153,8 @@ function listItemDto(row: OrderListRow, viewerRole: number) {
     bookingDate: bd ? bd.slice(0, 10) : "",
     durationKind: durationKindDbToApi(String(row.duration_kind || "")),
     durationKindText: durationKindLabel(row.duration_kind),
+    serviceType: normalizeSplitServiceType(row.service_type),
+    serviceTypeText: serviceTypeLabel(String(row.service_type || "")),
     hourCount: row.hour_count,
     payableAmount: num(row.payable_amount),
     orderStatus: row.order_status,
@@ -174,6 +215,8 @@ export async function getMineOrderDetail(
   bookingDate: string;
   durationKind: string;
   durationKindText: string;
+  serviceType: string;
+  serviceTypeText: string;
   hourCount: number | null;
   unitPriceSnapshot: number;
   serviceAmount: number;
@@ -197,7 +240,10 @@ export async function getMineOrderDetail(
     modelCancel: boolean;
     merchantConfirmComplete: boolean;
     merchantCancel: boolean;
+    merchantPay: boolean;
   };
+  csContact: OrderCsContactDto | null;
+  paymentMode: "mock" | "wechat";
 }> {
   if (viewerRole !== 1 && viewerRole !== 2) {
     throw new AppError("无权查看订单", 403, ErrorCodes.FORBIDDEN);
@@ -213,12 +259,15 @@ export async function getMineOrderDetail(
   }
   const st = Number(row.order_status);
   const bd = isoDateOrNull(row.booking_date as Date | string);
+  const csContact = await resolveOrderCsContactForApp(orderId);
   return {
     orderId: row.id,
     orderNo: row.order_no,
     bookingDate: bd ? bd.slice(0, 10) : "",
     durationKind: durationKindDbToApi(String(row.duration_kind || "")),
     durationKindText: durationKindLabel(row.duration_kind),
+    serviceType: normalizeSplitServiceType(row.service_type),
+    serviceTypeText: serviceTypeLabel(String(row.service_type || "")),
     hourCount: row.hour_count,
     unitPriceSnapshot: num(row.unit_price_snapshot),
     serviceAmount: num(row.service_amount),
@@ -243,14 +292,23 @@ export async function getMineOrderDetail(
     },
     viewerRole,
     actions: {
-      modelConfirmAccept: viewerRole === 1 && st === OrderStatus.PENDING_MODEL_ACCEPT,
+      modelConfirmAccept:
+        viewerRole === 1 && st === OrderStatus.PENDING_MODEL_ACCEPT && Number(row.payment_status) === 1,
       modelConfirmService: viewerRole === 1 && st === OrderStatus.IN_PROGRESS,
       modelCancel: viewerRole === 1 && st === OrderStatus.PENDING_MODEL_ACCEPT,
       merchantConfirmComplete: viewerRole === 2 && st === OrderStatus.MODEL_FINISHED,
       merchantCancel:
         viewerRole === 2 &&
-        (st === OrderStatus.PENDING_MODEL_ACCEPT || st === OrderStatus.IN_PROGRESS)
-    }
+        (st === OrderStatus.AWAITING_PAYMENT ||
+          st === OrderStatus.PENDING_MODEL_ACCEPT ||
+          st === OrderStatus.IN_PROGRESS),
+      merchantPay:
+        viewerRole === 2 &&
+        Number(row.payment_status) === 0 &&
+        (st === OrderStatus.AWAITING_PAYMENT || st === OrderStatus.PENDING_MODEL_ACCEPT)
+    },
+    csContact,
+    paymentMode: isWechatPayConfigured() ? "wechat" : "mock"
   };
 }
 
@@ -265,6 +323,8 @@ export async function createMerchantOrder(
   paymentStatus: number;
   paymentChannel: string | null;
   orderStatus: number;
+  paymentMode: "mock" | "wechat";
+  needPay: boolean;
 }> {
   if (merchantRole !== 2) {
     throw new AppError("仅商家可下单", 403, ErrorCodes.FORBIDDEN);
@@ -334,13 +394,14 @@ export async function createMerchantOrder(
     throw new AppError("模特暂不接单", 400, ErrorCodes.VALIDATION_ERROR);
   }
 
-  const paidAt = new Date();
   const orderNo = genOrderNo();
+  const useWechatPay = isWechatPayConfigured();
 
   const orderId = await insertOrder({
     orderNo,
     merchantUserId,
     modelUserId,
+    serviceType: body.serviceType,
     bookingDate: body.bookingDate,
     durationKind: durationDb,
     hourCount,
@@ -348,19 +409,144 @@ export async function createMerchantOrder(
     serviceAmount,
     platformFee,
     payableAmount,
-    paymentStatus: 1,
-    paymentChannel: "mock",
-    paidAt,
-    orderStatus: OrderStatus.PENDING_MODEL_ACCEPT
+    paymentStatus: useWechatPay ? 0 : 1,
+    paymentChannel: useWechatPay ? null : "mock",
+    paidAt: useWechatPay ? null : new Date(),
+    orderStatus: useWechatPay ? OrderStatus.AWAITING_PAYMENT : OrderStatus.PENDING_MODEL_ACCEPT
   });
 
   return {
     orderId,
     orderNo,
     payableAmount,
-    paymentStatus: 1,
-    paymentChannel: "mock",
-    orderStatus: OrderStatus.PENDING_MODEL_ACCEPT
+    paymentStatus: useWechatPay ? 0 : 1,
+    paymentChannel: useWechatPay ? null : "mock",
+    orderStatus: useWechatPay ? OrderStatus.AWAITING_PAYMENT : OrderStatus.PENDING_MODEL_ACCEPT,
+    paymentMode: useWechatPay ? ("wechat" as const) : ("mock" as const),
+    needPay: useWechatPay
+  };
+}
+
+export async function createJsapiPrepayForOrder(
+  orderId: number,
+  merchantUserId: number
+): Promise<{
+  timeStamp: string;
+  nonceStr: string;
+  package: string;
+  signType: "RSA";
+  paySign: string;
+}> {
+  if (!isWechatPayConfigured()) {
+    throw new AppError("微信支付未启用", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  const row = await findOrderDetailRowById(orderId);
+  if (!row) {
+    throw new AppError("订单不存在", 404, ErrorCodes.NOT_FOUND);
+  }
+  if (Number(row.merchant_user_id) !== merchantUserId) {
+    throw new AppError("无权操作该订单", 403, ErrorCodes.FORBIDDEN);
+  }
+  if (Number(row.payment_status) !== 0) {
+    throw new AppError("订单已支付或不可支付", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  const openid = await findOpenidByUserId(merchantUserId);
+  if (!openid) {
+    throw new AppError("未找到微信 openid，请重新登录小程序", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  const payableYuan = Number(row.payable_amount);
+  const totalFen = Math.round(payableYuan * 100);
+  const modelName = row.model_nickname || row.model_user_no || "模特";
+  const booking = String(row.booking_date).slice(0, 10);
+
+  return createJsapiPrepay({
+    description: `星链模库预约-${modelName}-${booking}`,
+    outTradeNo: row.order_no,
+    totalFen,
+    payerOpenid: openid
+  });
+}
+
+export async function syncWechatPaymentForOrder(
+  orderId: number,
+  merchantUserId: number
+): Promise<{
+  orderId: number;
+  paymentStatus: number;
+  orderStatus: number;
+  tradeState: string;
+}> {
+  if (!isWechatPayConfigured()) {
+    throw new AppError("微信支付未启用", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  const row = await findOrderDetailRowById(orderId);
+  if (!row) {
+    throw new AppError("订单不存在", 404, ErrorCodes.NOT_FOUND);
+  }
+  if (Number(row.merchant_user_id) !== merchantUserId) {
+    throw new AppError("无权操作该订单", 403, ErrorCodes.FORBIDDEN);
+  }
+  if (Number(row.payment_status) === 1) {
+    return {
+      orderId,
+      paymentStatus: 1,
+      orderStatus: Number(row.order_status),
+      tradeState: "SUCCESS"
+    };
+  }
+  if (Number(row.payment_status) !== 0) {
+    return {
+      orderId,
+      paymentStatus: Number(row.payment_status),
+      orderStatus: Number(row.order_status),
+      tradeState: String(row.refund_status || "")
+    };
+  }
+
+  const tx = await queryWechatOrderByOutTradeNo(row.order_no);
+  const tradeState = tx.tradeState;
+
+  if (tradeState === "SUCCESS") {
+    const localTotalFen = yuanToFen(row.payable_amount);
+    if (tx.totalFen != null && tx.totalFen !== localTotalFen) {
+      throw new AppError("微信支付金额与订单金额不一致", 409, ErrorCodes.VALIDATION_ERROR);
+    }
+    const ok = await markOrderPaidByOrderNo(row.order_no, "wechat", tx.transactionId || null);
+    if (!ok) {
+      const latest = await findOrderDetailRowById(orderId);
+      return {
+        orderId,
+        paymentStatus: Number(latest?.payment_status ?? row.payment_status),
+        orderStatus: Number(latest?.order_status ?? row.order_status),
+        tradeState
+      };
+    }
+    return {
+      orderId,
+      paymentStatus: 1,
+      orderStatus: OrderStatus.PENDING_MODEL_ACCEPT,
+      tradeState
+    };
+  }
+
+  if (tradeState === "CLOSED" || tradeState === "REVOKED") {
+    const remark = mergeCancelRemarkTag(row.remark, "商家取消", "微信支付已关闭");
+    await cancelUnpaidAwaitingPaymentOrder(orderId, remark);
+    return {
+      orderId,
+      paymentStatus: 0,
+      orderStatus: OrderStatus.CANCELLED,
+      tradeState
+    };
+  }
+
+  return {
+    orderId,
+    paymentStatus: Number(row.payment_status),
+    orderStatus: Number(row.order_status),
+    tradeState
   };
 }
 
@@ -379,6 +565,7 @@ export async function confirmAcceptOrderByModel(
     throw new AppError("当前状态不可确认接单", 400, ErrorCodes.VALIDATION_ERROR);
   }
   await updateOrderStatus(orderId, OrderStatus.IN_PROGRESS);
+  await enqueueOrderForCs(orderId);
   return { orderId, orderStatus: OrderStatus.IN_PROGRESS };
 }
 
@@ -423,7 +610,8 @@ export async function confirmOrderCompleteByMerchant(
   ]);
 
   await insertDefaultSplitRulesRow();
-  const rulesRow = await findSplitRulesById(1);
+  const serviceType = normalizeSplitServiceType(row.service_type);
+  const rulesRow = await findSplitRulesByServiceType(serviceType);
   if (!rulesRow) {
     throw new AppError("分账规则不存在", 500, ErrorCodes.INTERNAL_ERROR);
   }
@@ -441,6 +629,129 @@ export async function confirmOrderCompleteByMerchant(
   return { orderId, orderStatus: OrderStatus.COMPLETED };
 }
 
+async function refundPaidWechatOrderOnCancel(params: {
+  row: Awaited<ReturnType<typeof findOrderDetailRowById>> & {};
+  newRemark: string;
+}): Promise<void> {
+  const row = params.row;
+  const totalFen = yuanToFen(row.payable_amount);
+  if (totalFen < 1) {
+    throw new AppError("订单金额无效，无法退款", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  const previousOrderStatus = Number(row.order_status);
+  const refundNo = row.refund_no || buildOrderRefundNo(row.order_no);
+  const locked = await markOrderRefunding({
+    orderId: Number(row.id),
+    currentOrderStatus: previousOrderStatus,
+    remark: params.newRemark,
+    refundNo,
+    refundAmount: totalFen / 100
+  });
+  if (!locked) {
+    throw new AppError("订单状态已变化，请刷新后重试", 409, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  try {
+    const refund = await createWechatRefund({
+      outTradeNo: row.order_no,
+      transactionId: row.wechat_transaction_id,
+      outRefundNo: refundNo,
+      totalFen,
+      refundFen: totalFen,
+      reason: params.newRemark
+    });
+    const paymentStatus = paymentStatusFromRefundStatus(refund.status);
+    const ok = await markOrderRefundFinished({
+      orderId: Number(row.id),
+      paymentStatus,
+      wechatRefundId: refund.refundId,
+      refundStatus: refund.status
+    });
+    if (!ok) {
+      throw new AppError("更新退款状态失败", 500, ErrorCodes.INTERNAL_ERROR);
+    }
+  } catch (error) {
+    await restoreOrderAfterRefundFailure({
+      orderId: Number(row.id),
+      previousOrderStatus,
+      previousRemark: row.remark
+    });
+    throw error;
+  }
+}
+
+async function cancelUnpaidWechatOrder(params: {
+  orderId: number;
+  orderNo: string;
+  newRemark: string;
+}): Promise<void> {
+  if (isWechatPayConfigured()) {
+    await closeWechatOrder(params.orderNo);
+  }
+  const ok = await cancelUnpaidAwaitingPaymentOrder(params.orderId, params.newRemark);
+  if (!ok) {
+    throw new AppError("订单状态已变化，请刷新后重试", 409, ErrorCodes.VALIDATION_ERROR);
+  }
+}
+
+export async function syncWechatRefundForOrder(
+  orderId: number,
+  userId: number
+): Promise<{
+  orderId: number;
+  paymentStatus: number;
+  orderStatus: number;
+  refundStatus: string;
+}> {
+  if (!isWechatPayConfigured()) {
+    throw new AppError("微信支付未启用", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  const row = await findOrderDetailRowById(orderId);
+  if (!row) {
+    throw new AppError("订单不存在", 404, ErrorCodes.NOT_FOUND);
+  }
+  if (userId !== Number(row.merchant_user_id) && userId !== Number(row.model_user_id)) {
+    throw new AppError("无权操作该订单", 403, ErrorCodes.FORBIDDEN);
+  }
+  if (Number(row.payment_status) !== 2) {
+    return {
+      orderId,
+      paymentStatus: Number(row.payment_status),
+      orderStatus: Number(row.order_status),
+      refundStatus: String(row.refund_status || "")
+    };
+  }
+  if (!row.refund_no) {
+    throw new AppError("订单缺少商户退款单号，无法同步退款状态", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  const refund = await queryWechatRefundByOutRefundNo(row.refund_no);
+  const paymentStatus = paymentStatusFromRefundStatus(refund.status);
+  const ok = await markOrderRefundFinished({
+    orderId,
+    paymentStatus,
+    wechatRefundId: refund.refundId,
+    refundStatus: refund.status
+  });
+  if (!ok) {
+    const latest = await findOrderDetailRowById(orderId);
+    return {
+      orderId,
+      paymentStatus: Number(latest?.payment_status ?? row.payment_status),
+      orderStatus: Number(latest?.order_status ?? row.order_status),
+      refundStatus: String(latest?.refund_status || row.refund_status || "")
+    };
+  }
+
+  return {
+    orderId,
+    paymentStatus,
+    orderStatus: Number(row.order_status),
+    refundStatus: refund.status
+  };
+}
+
 export async function cancelOrderByMerchant(
   orderId: number,
   merchantUserId: number,
@@ -454,6 +765,12 @@ export async function cancelOrderByMerchant(
     throw new AppError("无权操作该订单", 403, ErrorCodes.FORBIDDEN);
   }
   const st = Number(row.order_status);
+  const paySt = Number(row.payment_status);
+  if (paySt === 0 && st === OrderStatus.AWAITING_PAYMENT) {
+    const newRemark = mergeCancelRemarkTag(row.remark, "商家取消", reasonRaw.trim() || "未支付取消");
+    await cancelUnpaidWechatOrder({ orderId, orderNo: row.order_no, newRemark });
+    return { orderId, orderStatus: OrderStatus.CANCELLED };
+  }
   if (st !== OrderStatus.PENDING_MODEL_ACCEPT && st !== OrderStatus.IN_PROGRESS) {
     throw new AppError("当前状态不可取消", 400, ErrorCodes.VALIDATION_ERROR);
   }
@@ -465,6 +782,10 @@ export async function cancelOrderByMerchant(
     throw new AppError("取消原因过长", 400, ErrorCodes.VALIDATION_ERROR);
   }
   const newRemark = mergeCancelRemarkTag(row.remark, "商家取消", reason);
+  if (paySt === 1 && String(row.payment_channel || "").toLowerCase() === "wechat") {
+    await refundPaidWechatOrderOnCancel({ row, newRemark });
+    return { orderId, orderStatus: OrderStatus.CANCELLED };
+  }
   await updateOrderStatusAndRemark(orderId, OrderStatus.CANCELLED, newRemark);
   return { orderId, orderStatus: OrderStatus.CANCELLED };
 }
@@ -506,6 +827,10 @@ export async function cancelOrderByModel(
     throw new AppError("取消原因过长", 400, ErrorCodes.VALIDATION_ERROR);
   }
   const newRemark = mergeCancelRemarkTag(row.remark, "模特取消", reason);
+  if (Number(row.payment_status) === 1 && String(row.payment_channel || "").toLowerCase() === "wechat") {
+    await refundPaidWechatOrderOnCancel({ row, newRemark });
+    return { orderId, orderStatus: OrderStatus.CANCELLED };
+  }
   await updateOrderStatusAndRemark(orderId, OrderStatus.CANCELLED, newRemark);
   return { orderId, orderStatus: OrderStatus.CANCELLED };
 }

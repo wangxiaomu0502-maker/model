@@ -6,13 +6,12 @@ import { fail, success } from "../../core/http/response";
 import { AuthenticatedRequest } from "../../middlewares/auth";
 import type { ContractKind } from "../admin/contract-templates.types";
 
-import type { PutMyReferrerBody } from "./user.referrer.types";
-import { getCurrentUserProfile, setMyReferrerBrokerByUserNo, signContractForCurrentUser } from "./user.service";
+import { resolveImageUploadMime } from "../../core/utils/resolve-upload-mime";
+import { getCurrentUserProfile, signContractForCurrentUser } from "./user.service";
 import { updateUserAvatarUrl } from "./user.repository";
 import { uploadAvatarToCos } from "./user.avatar.storage";
 import { uploadContractSignatureToCos } from "./user.contract-signature.storage";
 
-const AVATAR_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
 const CONTRACT_SIGNATURE_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export async function uploadAvatarController(
@@ -31,9 +30,10 @@ export async function uploadAvatarController(
 
     const file = (req as AuthenticatedRequest & { file?: Express.Multer.File })
       .file;
-    if (!file || !AVATAR_MIME.has(file.mimetype)) {
+    const mimetype = file ? resolveImageUploadMime(file) : null;
+    if (!file || !mimetype) {
       throw new AppError(
-        "invalid avatar file",
+        "头像格式不支持，请使用 JPG 或 PNG 图片",
         400,
         ErrorCodes.VALIDATION_ERROR
       );
@@ -42,7 +42,7 @@ export async function uploadAvatarController(
     const avatarUrl = await uploadAvatarToCos({
       userId,
       body: file.buffer,
-      mimetype: file.mimetype
+      mimetype
     });
     const updated = await updateUserAvatarUrl(userId, avatarUrl);
     if (!updated) {
@@ -76,28 +76,6 @@ export async function getMeController(
     return success(res, {
       user: profile
     });
-  } catch (error) {
-    return next(error);
-  }
-}
-
-export async function putMyReferrerController(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<Response | void> {
-  try {
-    const { userId } = (req as AuthenticatedRequest).auth ?? {};
-    if (!userId) {
-      return fail(req, res, 401, {
-        code: ErrorCodes.UNAUTHORIZED,
-        message: "unauthorized"
-      });
-    }
-
-    const { brokerUserNo } = req.body as PutMyReferrerBody;
-    const profile = await setMyReferrerBrokerByUserNo(userId, brokerUserNo);
-    return success(res, { user: profile });
   } catch (error) {
     return next(error);
   }

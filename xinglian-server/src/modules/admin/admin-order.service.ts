@@ -62,6 +62,7 @@ function parseSplitConfigSnapshot(raw: unknown): unknown {
 }
 
 export type AdminOrderListItemDto = {
+  parties: AdminOrderPartyItemDto[];
   orderId: number;
   orderNo: string;
   merchantUserId: number;
@@ -92,10 +93,103 @@ export type AdminOrderListItemDto = {
   createdAt: string;
 };
 
+export type AdminOrderPartyDto = {
+  userId: number | null;
+  userNo: string | null;
+  nickname: string | null;
+  realName: string | null;
+  phone: string | null;
+  companyName?: string | null;
+};
+
+/** 列表/详情参与方展示（不含 userId） */
+export type AdminOrderPartyItemDto = {
+  role: "merchant" | "model" | "broker" | "agent";
+  roleLabel: string;
+  userNo: string | null;
+  nickname: string | null;
+  realName: string | null;
+  phone: string | null;
+  companyName?: string | null;
+};
+
+function partyItem(
+  role: AdminOrderPartyItemDto["role"],
+  roleLabel: string,
+  userNo: string | null | undefined,
+  nickname: string | null | undefined,
+  realName: string | null | undefined,
+  phone: string | null | undefined,
+  companyName?: string | null | undefined
+): AdminOrderPartyItemDto {
+  return {
+    role,
+    roleLabel,
+    userNo: strOrNull(userNo),
+    nickname: strOrNull(nickname),
+    realName: strOrNull(realName),
+    phone: strOrNull(phone),
+    ...(companyName !== undefined ? { companyName: strOrNull(companyName) } : {})
+  };
+}
+
+function buildPartiesForAdminOrderRow(row: {
+  merchant_user_no: string | null;
+  merchant_nickname: string | null;
+  merchant_phone?: string | null;
+  model_user_no: string | null;
+  model_nickname: string | null;
+  model_phone?: string | null;
+  broker_user_no?: string | null;
+  broker_nickname?: string | null;
+  broker_real_name?: string | null;
+  broker_phone?: string | null;
+  agent_user_no?: string | null;
+  agent_nickname?: string | null;
+  agent_real_name?: string | null;
+  agent_company_name?: string | null;
+  agent_phone?: string | null;
+}): AdminOrderPartyItemDto[] {
+  return [
+    partyItem(
+      "merchant",
+      "商家",
+      row.merchant_user_no,
+      row.merchant_nickname,
+      null,
+      row.merchant_phone
+    ),
+    partyItem("model", "模特", row.model_user_no, row.model_nickname, null, row.model_phone),
+    partyItem(
+      "broker",
+      "经纪人",
+      row.broker_user_no,
+      row.broker_nickname,
+      row.broker_real_name,
+      row.broker_phone
+    ),
+    partyItem(
+      "agent",
+      "代理人",
+      row.agent_user_no,
+      row.agent_nickname,
+      row.agent_real_name,
+      row.agent_phone,
+      row.agent_company_name
+    )
+  ];
+}
+
 export type AdminOrderDetailDto = AdminOrderListItemDto & {
   remark: string | null;
   updatedAt: string;
   splitConfigSnapshot: unknown;
+  merchantPhone: string | null;
+  modelPhone: string | null;
+  merchant: AdminOrderPartyDto;
+  model: AdminOrderPartyDto;
+  broker: AdminOrderPartyDto | null;
+  agent: AdminOrderPartyDto | null;
 };
 
 function mapListRow(row: {
@@ -127,6 +221,7 @@ function mapListRow(row: {
   model_nickname: string | null;
 }): AdminOrderListItemDto {
   return {
+    parties: buildPartiesForAdminOrderRow(row),
     orderId: row.id,
     orderNo: row.order_no,
     merchantUserId: row.merchant_user_id,
@@ -228,14 +323,73 @@ export async function listOrdersForAdminByModel(
   };
 }
 
+function strOrNull(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s.length > 0 ? s : null;
+}
+
+function mapParty(
+  userId: number | null | undefined,
+  userNo: string | null | undefined,
+  nickname: string | null | undefined,
+  realName: string | null | undefined,
+  phone: string | null | undefined,
+  companyName?: string | null | undefined
+): AdminOrderPartyDto {
+  const id = numOrNull(userId);
+  return {
+    userId: id,
+    userNo: strOrNull(userNo),
+    nickname: strOrNull(nickname),
+    realName: strOrNull(realName),
+    phone: strOrNull(phone),
+    ...(companyName !== undefined ? { companyName: strOrNull(companyName) } : {})
+  };
+}
+
 export async function getOrderDetailForAdmin(orderId: number): Promise<AdminOrderDetailDto | null> {
   const row = await findOrderByIdForAdmin(orderId);
   if (!row) return null;
   const base = mapListRow(row);
+  const brokerId = numOrNull(row.broker_user_id);
+  const agentId = numOrNull(row.agent_user_id);
   return {
     ...base,
+    parties: buildPartiesForAdminOrderRow(row),
     remark: row.remark,
     updatedAt: toIso(row.updated_at) ?? "",
-    splitConfigSnapshot: parseSplitConfigSnapshot(row.split_config_snapshot)
+    splitConfigSnapshot: parseSplitConfigSnapshot(row.split_config_snapshot),
+    merchantPhone: strOrNull(row.merchant_phone),
+    modelPhone: strOrNull(row.model_phone),
+    merchant: mapParty(
+      row.merchant_user_id,
+      row.merchant_user_no,
+      row.merchant_nickname,
+      null,
+      row.merchant_phone
+    ),
+    model: mapParty(row.model_user_id, row.model_user_no, row.model_nickname, null, row.model_phone),
+    broker:
+      brokerId != null
+        ? mapParty(
+            brokerId,
+            row.broker_user_no,
+            row.broker_nickname,
+            row.broker_real_name,
+            row.broker_phone
+          )
+        : null,
+    agent:
+      agentId != null
+        ? mapParty(
+            agentId,
+            row.agent_user_no,
+            row.agent_nickname,
+            row.agent_real_name,
+            row.agent_phone,
+            row.agent_company_name
+          )
+        : null
   };
 }

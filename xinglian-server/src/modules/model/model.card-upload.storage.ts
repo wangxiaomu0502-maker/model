@@ -85,6 +85,36 @@ export async function uploadModelPortfolioImageToCos(input: {
   return `${base}/${objectKey}`;
 }
 
+export async function uploadModelStylePositionImageToCos(input: {
+  userId: number;
+  body: Buffer;
+  mimetype: string;
+}): Promise<string> {
+  if (!input.body || input.body.length === 0) {
+    throw new AppError("empty style position image", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  const ext = extFromMime(input.mimetype);
+  const objectKey = `models/style-position/${input.userId}/${Date.now()}${ext}`;
+
+  try {
+    await putObjectToCos({
+      key: objectKey,
+      body: input.body,
+      contentType: input.mimetype
+    });
+  } catch (err) {
+    throw new AppError(
+      `failed to upload style position image to cos (${getCosErrorMessage(err)})`,
+      502,
+      ErrorCodes.UPSTREAM_ERROR
+    );
+  }
+
+  const base = normalizePublicBaseUrl(env.cos.publicBaseUrl);
+  return `${base}/${objectKey}`;
+}
+
 export async function uploadModelCardImageToCos(input: {
   userId: number;
   body: Buffer;

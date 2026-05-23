@@ -1,0 +1,81 @@
+@import "../../styles/broker-page-hero.wxss";
+@import "../broker-qrcode/broker-qrcode.wxss";
+
+.broker-link-page .broker-dash-hero-inner {
+  display: block;
+}
+
+.link-card {
+  padding: 28rpx 26rpx;
+  margin-bottom: 20rpx;
+}
+
+.link-card-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.link-card-sub {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.link-box {
+  margin-top: 24rpx;
+  padding: 22rpx 20rpx;
+  border-radius: 16rpx;
+  background: #f8fafc;
+  border: 1rpx solid rgba(129, 140, 248, 0.28);
+}
+
+.link-text {
+  display: block;
+  font-size: 24rpx;
+  line-height: 1.55;
+  color: #312e81;
+  word-break: break-all;
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.link-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.link-btn {
+  width: 100%;
+  margin: 0;
+  height: 80rpx;
+  line-height: 80rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  border-radius: 999rpx;
+  padding: 0;
+}
+
+.link-btn::after {
+  border: none;
+}
+
+.link-btn--primary {
+  color: #ffffff;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 52%, #7c3aed 100%);
+  box-shadow: 0 12rpx 28rpx rgba(79, 70, 229, 0.32);
+}
+
+.link-btn--ghost {
+  color: #4338ca;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1rpx solid rgba(129, 140, 248, 0.35);
+}
+
+.link-btn[disabled] {
+  opacity: 0.45;
+}

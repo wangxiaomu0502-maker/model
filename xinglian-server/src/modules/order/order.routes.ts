@@ -10,7 +10,10 @@ import {
   createOrderController,
   getMineOrderDetailController,
   listMineOrdersController,
-  quoteOrderController
+  payOrderController,
+  quoteOrderController,
+  syncRefundOrderController,
+  syncPayOrderController
 } from "./order.controller";
 import {
   createOrderSchema,
@@ -35,6 +38,24 @@ orderRouter.get(
   getMineOrderDetailController
 );
 orderRouter.post("/quote", requireAuth, validate(quoteSchema), quoteOrderController);
+orderRouter.post(
+  "/:orderId/pay",
+  requireAuth,
+  validate(orderIdParamSchema, "params"),
+  payOrderController
+);
+orderRouter.post(
+  "/:orderId/sync-pay",
+  requireAuth,
+  validate(orderIdParamSchema, "params"),
+  syncPayOrderController
+);
+orderRouter.post(
+  "/:orderId/sync-refund",
+  requireAuth,
+  validate(orderIdParamSchema, "params"),
+  syncRefundOrderController
+);
 orderRouter.post(
   "/:orderId/confirm-accept",
   requireAuth,

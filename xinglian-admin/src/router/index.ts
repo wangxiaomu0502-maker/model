@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 import AdminLayout from "@/layouts/AdminLayout.vue";
-import { getAdminToken } from "@/composables/useAdminToken";
+import { getAdminRole, getAdminToken } from "@/composables/useAdminToken";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -88,18 +88,34 @@ const router = createRouter({
           name: "contract-templates",
           component: () => import("@/views/ContractTemplatesView.vue"),
           meta: { title: "合同管理" }
+        },
+        {
+          path: "cs-users",
+          name: "cs-users",
+          component: () => import("@/views/CsUserListView.vue"),
+          meta: { title: "客服管理", adminOnly: true }
+        },
+        {
+          path: "pending-orders",
+          name: "pending-orders",
+          component: () => import("@/views/PendingOrdersView.vue"),
+          meta: { title: "待处理订单" }
         }
       ]
     }
   ]
 });
 
+const CS_HOME = "/pending-orders";
+const ADMIN_HOME = "/dashboard";
+
 router.beforeEach((to) => {
   const token = getAdminToken();
+  const role = getAdminRole();
 
   if (to.meta.public === true) {
     if (to.name === "login" && token) {
-      return { path: "/dashboard" };
+      return { path: role === "cs" ? CS_HOME : ADMIN_HOME };
     }
     return true;
   }
@@ -109,6 +125,24 @@ router.beforeEach((to) => {
       return { name: "login" };
     }
     return { name: "login", query: { redirect: to.fullPath } };
+  }
+
+  if (to.path === "/" || to.path === "") {
+    return { path: role === "cs" ? CS_HOME : ADMIN_HOME };
+  }
+
+  if (to.meta.adminOnly === true && role !== "admin") {
+    return { path: role === "cs" ? CS_HOME : ADMIN_HOME };
+  }
+
+  if (role === "cs") {
+    const allowed =
+      to.path === CS_HOME ||
+      to.path.startsWith(`${CS_HOME}/`) ||
+      to.name === "pending-orders";
+    if (!allowed) {
+      return { path: CS_HOME };
+    }
   }
 
   return true;

@@ -12,7 +12,9 @@ import {
   countUsersGroupedByRole123,
   findModelBasicDetailForAdminByUserId,
   findValidAgentUserIdForAdmin,
+  findValidBrokerUserIdForAdmin,
   updateModelAgentUserIdForAdmin,
+  updateMerchantReferrerIdForAdmin,
   findMerchantBasicDetailForAdminByUserId,
   findBrokerBasicDetailForAdminByUserId,
   countBoundMerchantsForBrokerAdmin,
@@ -56,6 +58,7 @@ export async function getAdminDashboardStats(): Promise<{
   modelCount: number;
   merchantCount: number;
   brokerCount: number;
+  agentCount: number;
 }> {
   const [
     users,
@@ -109,6 +112,8 @@ export async function listUsersForAdminByRole(
     updatedAt: string;
     /** 商家/经纪人：referrer_id 对应经纪人展示文案 */
     referrerBrokerLabel: string | null;
+    /** 商家：绑定经纪人 users.id */
+    referrerBrokerUserId: number | null;
     /** 模特：所属代理人展示文案 */
     agentUserLabel: string | null;
     /** 经纪人列表：referrer_id 指向该经纪人的商家数量 */
@@ -170,6 +175,10 @@ export async function listUsersForAdminByRole(
           ? row.updated_at.toISOString()
           : String(row.updated_at),
       referrerBrokerLabel: Number(row.role) === 1 ? null : formatReferrerBrokerLabelForAdmin(row),
+      referrerBrokerUserId:
+        Number(row.role) === 2 && row.referrer_broker_user_id != null
+          ? Number(row.referrer_broker_user_id)
+          : null,
       agentUserLabel: Number(row.role) === 1 ? formatAgentUserLabelForAdmin(row) : null,
       boundMerchantCount: Number(row.bound_merchant_count ?? 0),
       boundModelCount: Number(row.bound_model_count ?? 0)
@@ -230,6 +239,10 @@ type AdminModelCardPayload = {
   skinColor: string;
 };
 
+type AdminStylePositionPayload = {
+  photos: Array<{ id: string; url: string }>;
+};
+
 function parseCardJson(raw: unknown): AdminModelCardPayload {
   if (raw == null) return { photoAngles: [], measurements: {}, hairColor: "", skinColor: "" };
   let parsed: unknown = raw;
@@ -270,6 +283,39 @@ function parseCardJson(raw: unknown): AdminModelCardPayload {
     hairColor: obj.hairColor != null ? String(obj.hairColor).trim() : "",
     skinColor: obj.skinColor != null ? String(obj.skinColor).trim() : ""
   };
+}
+
+function parseStylePositionJson(raw: unknown): AdminStylePositionPayload {
+  if (raw == null) return { photos: [] };
+  let parsed: unknown = raw;
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (!s) return { photos: [] };
+    try {
+      parsed = JSON.parse(s);
+    } catch {
+      return { photos: [] };
+    }
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { photos: [] };
+  }
+  const obj = parsed as { photos?: unknown };
+  const photos = Array.isArray(obj.photos)
+    ? obj.photos
+        .filter((x) => x && typeof x === "object")
+        .map((x, index) => {
+          const row = x as Record<string, unknown>;
+          const url = String(row.url || "").trim();
+          if (!url) return null;
+          return {
+            id: String(row.id || `style_${index}`),
+            url
+          };
+        })
+        .filter((x): x is { id: string; url: string } => Boolean(x))
+    : [];
+  return { photos };
 }
 
 function parseScheduleJson(raw: unknown): { scheduleMap: Record<string, "available" | "full" | "rest"> } {
@@ -373,6 +419,27 @@ export async function setModelAgentUserForAdmin(
   return { agentUserId };
 }
 
+export async function setMerchantBrokerForAdmin(
+  merchantUserId: number,
+  brokerUserId: number | null
+): Promise<{ brokerUserId: number | null }> {
+  const merchant = await findMerchantBasicDetailForAdminByUserId(merchantUserId);
+  if (!merchant) {
+    throw new AppError("merchant user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  if (brokerUserId != null) {
+    const valid = await findValidBrokerUserIdForAdmin(brokerUserId);
+    if (valid == null) {
+      throw new AppError("经纪人不存在、已禁用或未签署平台合同", 400, ErrorCodes.VALIDATION_ERROR);
+    }
+  }
+  const ok = await updateMerchantReferrerIdForAdmin(merchantUserId, brokerUserId);
+  if (!ok) {
+    throw new AppError("merchant user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  return { brokerUserId };
+}
+
 export async function getModelBasicDetailForAdmin(userId: number): Promise<{
   userId: number;
   userNo: string;
@@ -429,6 +496,9 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     folders: Array<{ id: string; name: string; coverPhotoId?: string }>;
     photos: Array<{ id: string; folderId: string; url: string }>;
   };
+  stylePosition: {
+    photos: Array<{ id: string; url: string }>;
+  };
 }> {
   const row = await findModelBasicDetailForAdminByUserId(userId);
   if (!row) {
@@ -446,6 +516,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     skin_tone: row.skin_tone
   }) as AdminModelCardPayload;
   const portfolio = normalizePortfolioFromStorage(row.portfolio_json, { stripNonRemoteUrls: false });
+  const stylePosition = parseStylePositionJson(row.style_position_json);
   const schedule = parseScheduleJson(row.schedule_json);
   const orderSettings = parseOrderSettingsJson(row.order_settings_json, {
     orderEnabled: Boolean(row.is_available),
@@ -519,6 +590,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     })),
     card,
     portfolio,
+    stylePosition,
     schedule,
     orderSettings
   };
@@ -540,6 +612,7 @@ export async function getMerchantBasicDetailForAdmin(userId: number): Promise<{
   createdAt: string;
   updatedAt: string;
   referrerBroker: {
+    userId: number | null;
     userNo: string | null;
     nickname: string | null;
     realName: string | null;
@@ -549,10 +622,15 @@ export async function getMerchantBasicDetailForAdmin(userId: number): Promise<{
   if (!row) {
     throw new AppError("merchant user not found", 404, ErrorCodes.NOT_FOUND);
   }
+  const refId =
+    row.referrer_broker_user_id != null && Number.isFinite(Number(row.referrer_broker_user_id))
+      ? Number(row.referrer_broker_user_id)
+      : null;
   const refNo = row.referrer_broker_user_no ? String(row.referrer_broker_user_no) : null;
   const referrerBroker =
-    refNo || row.referrer_broker_nickname || row.referrer_broker_real_name
+    refId != null || refNo || row.referrer_broker_nickname || row.referrer_broker_real_name
       ? {
+          userId: refId,
           userNo: refNo,
           nickname: row.referrer_broker_nickname ? String(row.referrer_broker_nickname) : null,
           realName: row.referrer_broker_real_name ? String(row.referrer_broker_real_name) : null

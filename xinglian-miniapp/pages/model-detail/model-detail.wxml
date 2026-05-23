@@ -67,43 +67,98 @@
 
       <!-- 模卡 -->
       <view class="detail-panel detail-panel--card" wx:if="{{showCardPanel}}">
-        <view class="detail-panel-head">
-          <view class="detail-panel-mark detail-panel-mark--accent"></view>
-          <view class="detail-panel-head-text">
-            <text class="detail-panel-title">模卡</text>
-            <text class="detail-panel-sub">身材与展示照</text>
+        <view class="detail-card-glow detail-card-glow--top"></view>
+        <view class="detail-card-glow detail-card-glow--bottom"></view>
+        <view class="detail-card-head">
+          <view class="detail-panel-head detail-card-title-wrap">
+            <view class="detail-panel-mark detail-panel-mark--accent"></view>
+            <view class="detail-panel-head-text">
+              <text class="detail-panel-title">模卡</text>
+              <text class="detail-panel-sub">身材数据 · 展示照片</text>
+            </view>
+          </view>
+          <text wx:if="{{cardUrls.length}}" class="detail-card-count">{{cardUrls.length}} 张</text>
+        </view>
+        <view class="detail-card-cover" wx:if="{{cardUrls.length}}">
+          <image
+            class="detail-card-cover-img"
+            src="{{cardUrls[0]}}"
+            mode="aspectFill"
+            data-url="{{cardUrls[0]}}"
+            data-from="card"
+            bindtap="onPreviewImage"
+          />
+          <view class="detail-card-cover-mask">
+            <text class="detail-card-cover-kicker">Model Card</text>
+            <text class="detail-card-cover-title">点击查看大图</text>
           </view>
         </view>
-        <view class="detail-pill-row detail-pill-row--dense">
-          <text class="detail-pill detail-pill--accent">身高 {{cardMeasureText.height}} cm</text>
-          <text class="detail-pill detail-pill--accent">体重 {{cardMeasureText.weight}} kg</text>
-          <text class="detail-pill detail-pill--accent">胸围 {{cardMeasureText.bust}} cm</text>
-          <text class="detail-pill detail-pill--accent">腰围 {{cardMeasureText.waist}} cm</text>
-          <text class="detail-pill detail-pill--accent">臀围 {{cardMeasureText.hip}} cm</text>
-          <text class="detail-pill detail-pill--accent">肩宽 {{cardMeasureText.shoulder}} cm</text>
-          <text class="detail-pill detail-pill--accent">臂展 {{cardMeasureText.armSpan}} cm</text>
-          <text class="detail-pill detail-pill--accent">腿长 {{cardMeasureText.legLength}} cm</text>
-          <text class="detail-pill detail-pill--accent">鞋码 {{cardMeasureText.shoeSize}}</text>
-          <text wx:if="{{cardHairColor}}" class="detail-pill detail-pill--accent">发色 {{cardHairColor}}</text>
-          <text wx:if="{{cardSkinColor}}" class="detail-pill detail-pill--accent">肤色 {{cardSkinColor}}</text>
+        <scroll-view
+          wx:if="{{cardPhotoItems.length > 1}}"
+          scroll-x
+          class="detail-card-photo-strip"
+          enhanced
+          show-scrollbar="{{false}}"
+          enable-flex
+        >
+          <view
+            wx:for="{{cardPhotoItems}}"
+            wx:key="url"
+            class="detail-card-photo-item"
+            data-url="{{item.url}}"
+            data-from="card"
+            bindtap="onPreviewImage"
+          >
+            <image class="detail-card-photo-img" src="{{item.url}}" mode="aspectFill" />
+            <text class="detail-card-photo-label">{{item.label}}</text>
+          </view>
+        </scroll-view>
+        <view class="detail-card-metrics" wx:if="{{cardPrimaryMetrics.length}}">
+          <view class="detail-card-metric" wx:for="{{cardPrimaryMetrics}}" wx:key="label">
+            <text class="detail-card-metric-label">{{item.label}}</text>
+            <view class="detail-card-metric-value-row">
+              <text class="detail-card-metric-value">{{item.value}}</text>
+              <text wx:if="{{item.unit}}" class="detail-card-metric-unit">{{item.unit}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="detail-pill-row detail-card-chip-row" wx:if="{{cardSecondaryMetrics.length || cardStyleTags.length}}">
+          <text
+            wx:for="{{cardSecondaryMetrics}}"
+            wx:key="label"
+            class="detail-card-chip"
+          >{{item.label}} {{item.value}}{{item.unit}}</text>
+          <text
+            wx:for="{{cardStyleTags}}"
+            wx:for-item="tag"
+            wx:key="*this"
+            class="detail-card-chip detail-card-chip--tone"
+          >{{tag}}</text>
+        </view>
+      </view>
+
+      <!-- 接单说明 -->
+      <view class="detail-panel detail-panel--style" wx:if="{{stylePositionPhotos.length}}">
+        <view class="detail-panel-head">
+          <view class="detail-panel-mark"></view>
+          <text class="detail-panel-title">风格定位</text>
         </view>
         <scroll-view
-          wx:if="{{cardUrls.length}}"
           scroll-x
-          class="detail-media-strip"
+          class="detail-style-strip"
           enhanced
           show-scrollbar="{{false}}"
           enable-flex
         >
           <image
-            wx:for="{{cardUrls}}"
+            wx:for="{{stylePositionPhotos}}"
             wx:for-index="idx"
             wx:key="idx"
-            class="detail-media-thumb"
+            class="detail-style-photo"
             src="{{item}}"
             mode="aspectFill"
             data-url="{{item}}"
-            data-from="card"
+            data-from="stylePosition"
             bindtap="onPreviewImage"
           />
         </scroll-view>
@@ -138,6 +193,14 @@
           <text class="detail-panel-title">简介</text>
         </view>
         <text class="detail-intro-body">{{model.intro || "暂无简介"}}</text>
+      </view>
+
+      <view wx:if="{{isVisitor}}" class="detail-panel visitor-detail-cta">
+        <view class="visitor-detail-cta-text">
+          <text class="visitor-detail-cta-title">喜欢这位模特？</text>
+          <text class="visitor-detail-cta-desc">注册成为商家后即可发起预约、查看订单进度。</text>
+        </view>
+        <button class="visitor-detail-cta-btn" size="mini" bindtap="goRegister">去注册</button>
       </view>
 
       <view class="detail-scroll-pad"></view>
@@ -184,7 +247,24 @@
       </view>
 
       <view class="popup-section">
-        <text class="popup-section-title">2. 选择服务时长</text>
+        <text class="popup-section-title">2. 选择服务类型</text>
+        <view class="seg">
+          <view
+            class="seg-item {{serviceType === 'ordinary' ? 'seg-on' : ''}}"
+            data-service-type="ordinary"
+            bindtap="onPickServiceType"
+          >普通服务</view>
+          <view
+            class="seg-item {{serviceType === 'agent' ? 'seg-on' : ''}}"
+            data-service-type="agent"
+            bindtap="onPickServiceType"
+          >代理服务</view>
+        </view>
+        <view class="empty-hint">代理服务表示本次服务由代理方提供影棚。</view>
+      </view>
+
+      <view class="popup-section">
+        <text class="popup-section-title">3. 选择服务时长</text>
         <view class="seg">
           <view
             wx:if="{{model.price.fullDay != null}}"

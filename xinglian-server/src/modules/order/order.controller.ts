@@ -10,9 +10,12 @@ import {
   confirmAcceptOrderByModel,
   confirmOrderCompleteByMerchant,
   confirmServiceByModel,
+  createJsapiPrepayForOrder,
   createMerchantOrder,
   getMineOrderDetail,
-  listMineOrders
+  listMineOrders,
+  syncWechatRefundForOrder,
+  syncWechatPaymentForOrder
 } from "./order.service";
 import {
   CreateOrderDto,
@@ -89,9 +92,56 @@ export async function createOrderController(req: Request, res: Response, next: N
         payableAmount: order.payableAmount,
         paymentStatus: order.paymentStatus,
         paymentChannel: order.paymentChannel,
-        orderStatus: order.orderStatus
+        orderStatus: order.orderStatus,
+        paymentMode: order.paymentMode,
+        needPay: order.needPay
       }
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function payOrderController(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = (req as AuthenticatedRequest).auth?.userId;
+    if (!userId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { orderId } = req.params as unknown as OrderIdParams;
+    const payment = await createJsapiPrepayForOrder(orderId, userId);
+    success(res, { payment });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function syncPayOrderController(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = (req as AuthenticatedRequest).auth?.userId;
+    if (!userId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { orderId } = req.params as unknown as OrderIdParams;
+    const result = await syncWechatPaymentForOrder(orderId, userId);
+    success(res, result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function syncRefundOrderController(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = (req as AuthenticatedRequest).auth?.userId;
+    if (!userId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { orderId } = req.params as unknown as OrderIdParams;
+    const result = await syncWechatRefundForOrder(orderId, userId);
+    success(res, result);
   } catch (error) {
     next(error);
   }

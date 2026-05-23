@@ -134,6 +134,21 @@
       </view>
     </view>
 
+    <!-- 客服联系 -->
+    <view wx:if="{{order.csContact && order.csContact.visible}}" class="section card info-card cs-contact-card">
+      <view class="card-cap">
+        <text class="cap-dot cap-dot--green"></text>
+        <text class="cap-title">客服联系</text>
+      </view>
+      <text class="cs-contact-hint">{{order.csContact.hintText}}</text>
+      <view wx:if="{{order.csContact.phone}}" class="cs-contact-phone-row">
+        <text class="cs-contact-label">客服电话</text>
+        <text class="cs-contact-phone" selectable>{{order.csContact.phone}}</text>
+        <button class="cs-call-btn" size="mini" bindtap="onCallCs">拨打</button>
+      </view>
+      <text wx:else class="cs-contact-no-phone">客服电话配置中，请稍候</text>
+    </view>
+
     <!-- 参与方 -->
     <view class="section card info-card">
       <view class="card-cap">
@@ -211,6 +226,15 @@
       bindtap="onConfirmService"
     >
       确认服务完成
+    </button>
+    <button
+      wx:if="{{order.actions.merchantPay}}"
+      class="save-btn"
+      loading="{{acting}}"
+      disabled="{{acting}}"
+      bindtap="onPayOrder"
+    >
+      去支付
     </button>
     <button
       wx:if="{{order.actions.merchantConfirmComplete}}"

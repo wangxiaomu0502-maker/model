@@ -10,6 +10,8 @@ const PHOTO_ANGLES = [
   { key: "bikiniLingerie", label: "比基尼/内衣" }
 ];
 
+const MAX_PICK_COUNT = 9;
+
 const MEASUREMENT_FIELDS = [
   "height",
   "weight",
@@ -210,65 +212,111 @@ Page({
     });
   },
 
+  uploadCardPhoto(file) {
+    const app = getApp();
+    return new Promise((resolve, reject) => {
+      wx.uploadFile({
+        url: `${app.globalData.apiBaseUrl}/api/models/card/upload`,
+        filePath: file.tempFilePath,
+        name: "file",
+        header: {
+          Authorization: `Bearer ${app.globalData.token || ""}`
+        },
+        success: (uploadRes) => {
+          const status = uploadRes.statusCode;
+          let body = {};
+          try {
+            body = JSON.parse(uploadRes.data || "{}");
+          } catch (_err) {
+            body = {};
+          }
+          if (status !== 200 || !body.ok || !body.url) {
+            reject(new Error(body.message || `上传失败(${status})`));
+            return;
+          }
+          resolve({
+            url: body.url,
+            width: file.width || 0,
+            height: file.height || 0
+          });
+        },
+        fail: () => reject(new Error("网络异常，上传失败"))
+      });
+    });
+  },
+
+  fillBatchPhotos(startKey, uploadedList) {
+    const current = this.data.photoAngles || [];
+    const startIndex = Math.max(0, current.findIndex((item) => item.key === startKey));
+    const targetIndexes = [startIndex];
+    current.forEach((item, index) => {
+      if (index !== startIndex && !item.url && index > startIndex) targetIndexes.push(index);
+    });
+    current.forEach((item, index) => {
+      if (index !== startIndex && !item.url && index < startIndex) targetIndexes.push(index);
+    });
+
+    const next = current.map((item) => ({ ...item }));
+    uploadedList.forEach((uploaded, idx) => {
+      const targetIndex = targetIndexes[idx];
+      if (targetIndex == null) return;
+      next[targetIndex] = {
+        ...next[targetIndex],
+        url: uploaded.url,
+        width: uploaded.width,
+        height: uploaded.height
+      };
+    });
+    this.setData({ photoAngles: next });
+  },
+
+  chooseBatchPhotos() {
+    const firstEmpty = (this.data.photoAngles || []).find((item) => !item.url);
+    if (!firstEmpty) {
+      wx.showToast({ title: "模卡照片已满", icon: "none" });
+      return;
+    }
+    this.choosePhotoByKey(firstEmpty.key);
+  },
+
   choosePhoto(e) {
     const key = e.currentTarget.dataset.key;
+    this.choosePhotoByKey(key);
+  },
+
+  choosePhotoByKey(key) {
     if (!key) return;
+    const current = this.data.photoAngles || [];
+    const startIndex = current.findIndex((item) => item.key === key);
+    const emptyCount = current.filter((item) => !item.url).length;
+    const replaceExisting = startIndex >= 0 && current[startIndex] && current[startIndex].url ? 1 : 0;
+    const pickCount = Math.min(MAX_PICK_COUNT, Math.max(1, emptyCount + replaceExisting));
 
     wx.chooseMedia({
-      count: 1,
+      count: pickCount,
       mediaType: ["image"],
       sourceType: ["album", "camera"],
-      success: (res) => {
-        const file = (res.tempFiles && res.tempFiles[0]) || null;
-        if (!file) return;
+      success: async (res) => {
+        const files = (res.tempFiles || []).filter((file) => file && file.tempFilePath);
+        if (!files.length) return;
 
-        const width = file.width || 0;
-        const height = file.height || 0;
-
-        const app = getApp();
-        wx.showLoading({ title: "上传中..." });
-        wx.uploadFile({
-          url: `${app.globalData.apiBaseUrl}/api/models/card/upload`,
-          filePath: file.tempFilePath,
-          name: "file",
-          header: {
-            Authorization: `Bearer ${app.globalData.token || ""}`
-          },
-          success: (uploadRes) => {
-            const status = uploadRes.statusCode;
-            let body = {};
-            try {
-              body = JSON.parse(uploadRes.data || "{}");
-            } catch (_err) {
-              body = {};
-            }
-            if (status !== 200 || !body.ok || !body.url) {
-              wx.showToast({
-                title: body.message || `上传失败(${status})`,
-                icon: "none"
-              });
-              return;
-            }
-            const next = this.data.photoAngles.map((item) =>
-              item.key === key
-                ? { ...item, url: body.url, width, height }
-                : item
-            );
-            this.setData({
-              photoAngles: next
-            });
-            wx.showToast({ title: "上传成功", icon: "success" });
-          },
-          fail: () => {
-            wx.showToast({
-              title: "网络异常，上传失败",
-              icon: "none"
-            });
-          },
-          complete: () => {
-            wx.hideLoading();
+        wx.showLoading({ title: "上传中...", mask: true });
+        try {
+          const uploadedList = [];
+          for (const file of files.slice(0, pickCount)) {
+            const uploaded = await this.uploadCardPhoto(file);
+            uploadedList.push(uploaded);
           }
-        });
+          this.fillBatchPhotos(key, uploadedList);
+          wx.showToast({ title: "上传成功", icon: "success" });
+        } catch (err) {
+          wx.showToast({
+            title: (err && err.message) || "上传失败",
+            icon: "none"
+          });
+        } finally {
+          wx.hideLoading();
+        }
       }
     });
   },

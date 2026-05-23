@@ -23,6 +23,7 @@ export type AdminUserListRow = RowDataPacket & {
   referrer_broker_user_no: string | null;
   referrer_broker_nickname: string | null;
   referrer_broker_real_name: string | null;
+  referrer_broker_user_id: number | null;
   agent_user_no: string | null;
   agent_nickname: string | null;
   agent_real_name: string | null;
@@ -73,6 +74,7 @@ export type AdminModelBasicDetailRow = RowDataPacket & {
   only_female_clients: number;
   card_json: string | null;
   portfolio_json: string | null;
+  style_position_json: string | null;
   schedule_json: string | null;
   order_settings_json: string | null;
 };
@@ -83,16 +85,17 @@ export type AdminModelCategoryRow = RowDataPacket & {
   type: "main" | "style" | "scene";
 };
 
-/** 工作台等场景：一次查询 role 1/2/3 用户数（未删除） */
+/** 工作台等场景：一次查询 role 1/2/3/4 用户数（未删除） */
 export async function countUsersGroupedByRole123(): Promise<{
   modelCount: number;
   merchantCount: number;
   brokerCount: number;
+  agentCount: number;
 }> {
   const [rows] = await dbPool.query<RowDataPacket[]>(
     `SELECT role, COUNT(*) AS cnt
      FROM users
-     WHERE deleted_at IS NULL AND role IN (1, 2, 3)
+     WHERE deleted_at IS NULL AND role IN (1, 2, 3, 4)
      GROUP BY role`
   );
   const byRole = new Map<number, number>();
@@ -102,7 +105,8 @@ export async function countUsersGroupedByRole123(): Promise<{
   return {
     modelCount: byRole.get(1) ?? 0,
     merchantCount: byRole.get(2) ?? 0,
-    brokerCount: byRole.get(3) ?? 0
+    brokerCount: byRole.get(3) ?? 0,
+    agentCount: byRole.get(4) ?? 0
   };
 }
 
@@ -131,6 +135,7 @@ export async function findUsersPageForAdminByRole(
             u.contract_broker_model_signed_at, u.contract_broker_model_signature_url,
             u.contract_platform_merchant_signed_at, u.contract_platform_broker_signed_at,
             u.created_at, u.updated_at,
+            u.referrer_id AS referrer_broker_user_id,
             ref.user_no AS referrer_broker_user_no,
             ref.nickname AS referrer_broker_nickname,
             bref.real_name AS referrer_broker_real_name,
@@ -172,7 +177,7 @@ export async function findModelBasicDetailForAdminByUserId(
             mp.shoe_size, mp.hair_color, mp.skin_tone,
             mp.price_hour, mp.price_halfday, mp.price_allday,
             mp.is_available, mp.only_local_orders, mp.only_female_clients,
-            mex.card_json, mex.portfolio_json, mex.schedule_json, mex.order_settings_json
+            mex.card_json, mex.portfolio_json, mex.style_position_json, mex.schedule_json, mex.order_settings_json
      FROM users u
      LEFT JOIN users ag ON ag.id = u.agent_user_id AND ag.deleted_at IS NULL
      LEFT JOIN agent_profiles ap ON ap.user_id = ag.id
@@ -215,6 +220,38 @@ export async function findValidAgentUserIdForAdmin(agentUserId: number): Promise
   return found != null ? Number(found) : null;
 }
 
+export async function updateMerchantReferrerIdForAdmin(
+  merchantUserId: number,
+  brokerUserId: number | null
+): Promise<boolean> {
+  const id = Math.floor(Number(merchantUserId));
+  if (!Number.isFinite(id) || id <= 0) return false;
+  const [result] = await dbPool.query<ResultSetHeader>(
+    `UPDATE users
+     SET referrer_id = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ? AND role = 2 AND deleted_at IS NULL`,
+    [brokerUserId, id]
+  );
+  return result.affectedRows > 0;
+}
+
+export async function findValidBrokerUserIdForAdmin(brokerUserId: number): Promise<number | null> {
+  const id = Math.floor(Number(brokerUserId));
+  if (!Number.isFinite(id) || id <= 0) return null;
+  const [rows] = await dbPool.query<RowDataPacket[]>(
+    `SELECT id FROM users
+     WHERE id = ?
+       AND role = 3
+       AND status = 1
+       AND deleted_at IS NULL
+       AND contract_platform_broker_signed_at IS NOT NULL
+     LIMIT 1`,
+    [id]
+  );
+  const found = rows[0]?.id;
+  return found != null ? Number(found) : null;
+}
+
 export async function findModelCategoriesForAdminByUserId(
   userId: number
 ): Promise<AdminModelCategoryRow[]> {
@@ -249,6 +286,7 @@ export type AdminMerchantBasicDetailRow = RowDataPacket & {
   referrer_broker_user_no: string | null;
   referrer_broker_nickname: string | null;
   referrer_broker_real_name: string | null;
+  referrer_broker_user_id: number | null;
 };
 
 export async function findMerchantBasicDetailForAdminByUserId(
@@ -262,6 +300,7 @@ export async function findMerchantBasicDetailForAdminByUserId(
             u.contract_platform_merchant_signed_at, u.contract_platform_merchant_signature_url,
             u.created_at, u.updated_at,
             mp.city,
+            u.referrer_id AS referrer_broker_user_id,
             ref.user_no AS referrer_broker_user_no,
             ref.nickname AS referrer_broker_nickname,
             bref.real_name AS referrer_broker_real_name

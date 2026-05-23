@@ -1,7 +1,7 @@
+const brokerPromo = require("../../utils/broker-promo.js");
+
 Page({
   data: {
-    /** 商家注册不要求身份证正反面（需求：商家实名可选） */
-    skipIdCardOcr: false,
     nickname: "",
     avatarPreviewUrl: "",
     avatarStoredUrl: "",
@@ -24,32 +24,12 @@ Page({
     submitLoading: false
   },
 
-  syncSkipIdCardOcr() {
-    const role = Number(getApp().globalData.role || 0);
-    this.setData({ skipIdCardOcr: role === 2 });
-  },
-
-  onLoad() {
-    this.syncSkipIdCardOcr();
-  },
-
-  onShow() {
-    this.syncSkipIdCardOcr();
-  },
-
   onNicknameInput(e) {
     const value = (e.detail && e.detail.value) || "";
     this.setData({ nickname: value });
   },
 
-  onChooseAvatar(e) {
-    const detail = e.detail || {};
-    const localUrl = detail.avatarUrl || "";
-    if (!localUrl) {
-      wx.showToast({ title: "未获取到头像", icon: "none" });
-      return;
-    }
-
+  onPickAvatar() {
     const app = getApp();
     if (!app.globalData.token) {
       wx.showToast({
@@ -59,11 +39,45 @@ Page({
       return;
     }
 
-    this.setData({ avatarPreviewUrl: localUrl });
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ["image"],
+      sourceType: ["album", "camera"],
+      sizeType: ["compressed"],
+      success: (res) => {
+        const filePath = res?.tempFiles?.[0]?.tempFilePath || "";
+        if (!filePath) {
+          wx.showToast({ title: "未获取到图片", icon: "none" });
+          return;
+        }
+        this.uploadAvatarFile(filePath);
+      },
+      fail: (err) => {
+        const msg = String((err && err.errMsg) || "");
+        if (/cancel/i.test(msg)) return;
+        wx.showToast({
+          title: "选择图片失败，请重试",
+          icon: "none"
+        });
+      }
+    });
+  },
+
+  uploadAvatarFile(filePath) {
+    const app = getApp();
+    if (!app.globalData.token) {
+      wx.showToast({
+        title: "登录状态失效，请重新登录",
+        icon: "none"
+      });
+      return;
+    }
+
+    this.setData({ avatarPreviewUrl: filePath });
     wx.showLoading({ title: "上传头像中..." });
     wx.uploadFile({
       url: `${app.globalData.apiBaseUrl}/api/users/me/avatar`,
-      filePath: localUrl,
+      filePath,
       name: "file",
       header: {
         Authorization: `Bearer ${app.globalData.token}`
@@ -80,7 +94,8 @@ Page({
         if (status !== 200 || !body.ok || !body.avatarUrl) {
           wx.showToast({
             title: body.message || `头像上传失败(${status})`,
-            icon: "none"
+            icon: "none",
+            duration: 2800
           });
           return;
         }
@@ -386,7 +401,6 @@ Page({
       return;
     }
 
-    const skipOcr = Boolean(this.data.skipIdCardOcr) || Number(role) === 2;
     let realName;
     let idCardNo;
     let idCardFrontUrl;
@@ -394,31 +408,42 @@ Page({
     let idCardIssueAuthority;
     let idCardValidDate;
 
-    if (skipOcr && (!this.data.ocrFrontDone || !this.data.ocrBackDone)) {
-      realName = "";
-      idCardNo = "";
-      idCardFrontUrl = "";
-      idCardBackUrl = "";
-      idCardIssueAuthority = "";
-      idCardValidDate = "";
-    } else {
-      if (!this.data.ocrFrontDone || !this.data.ocrBackDone) {
-        wx.showToast({ title: "请先完成人像面和国徽面OCR识别", icon: "none" });
-        return;
-      }
-      realName = String(this.data.realName || "").trim();
-      idCardNo = String(this.data.idCardNo || "").trim();
-      idCardFrontUrl = String(this.data.idCardFrontUrl || "").trim();
-      idCardBackUrl = String(this.data.idCardBackUrl || "").trim();
-      idCardIssueAuthority = String(this.data.issueAuthority || "").trim();
-      idCardValidDate = String(this.data.validDate || "").trim();
-      if (!realName || !idCardNo || !idCardFrontUrl || !idCardBackUrl || !idCardIssueAuthority || !idCardValidDate) {
-        wx.showToast({ title: "识别结果不完整，请重试", icon: "none" });
-        return;
-      }
+    if (!this.data.ocrFrontDone || !this.data.ocrBackDone) {
+      wx.showToast({ title: "请先完成人像面和国徽面OCR识别", icon: "none" });
+      return;
+    }
+    realName = String(this.data.realName || "").trim();
+    idCardNo = String(this.data.idCardNo || "").trim();
+    idCardFrontUrl = String(this.data.idCardFrontUrl || "").trim();
+    idCardBackUrl = String(this.data.idCardBackUrl || "").trim();
+    idCardIssueAuthority = String(this.data.issueAuthority || "").trim();
+    idCardValidDate = String(this.data.validDate || "").trim();
+    if (!realName || !idCardNo || !idCardFrontUrl || !idCardBackUrl || !idCardIssueAuthority || !idCardValidDate) {
+      wx.showToast({ title: "识别结果不完整，请重试", icon: "none" });
+      return;
     }
 
     this.setData({ submitLoading: true });
+
+    const registrationData = {
+      role,
+      phone: phoneNumber,
+      faceVerified: true,
+      nickname: nick,
+      avatarUrl: avatarStored,
+      realName,
+      idCardNo,
+      idCardFrontUrl,
+      idCardBackUrl,
+      idCardIssueAuthority,
+      idCardValidDate
+    };
+    if (Number(role) === 2) {
+      const brokerUserNo = brokerPromo.readPendingBrokerUserNo();
+      if (brokerUserNo) {
+        registrationData.brokerUserNo = brokerUserNo;
+      }
+    }
 
     wx.request({
       url: `${app.globalData.apiBaseUrl}/api/auth/complete-registration`,
@@ -427,19 +452,7 @@ Page({
         "content-type": "application/json",
         Authorization: `Bearer ${app.globalData.token}`
       },
-      data: {
-        role,
-        phone: phoneNumber,
-        faceVerified: true,
-        nickname: nick,
-        avatarUrl: avatarStored,
-        realName,
-        idCardNo,
-        idCardFrontUrl,
-        idCardBackUrl,
-        idCardIssueAuthority,
-        idCardValidDate
-      },
+      data: registrationData,
       success: (res) => {
         if (!res.data?.ok) {
           wx.showToast({
@@ -453,6 +466,10 @@ Page({
           title: "注册完成",
           icon: "success"
         });
+
+        if (Number(role) === 2) {
+          brokerPromo.clearPendingBrokerUserNo();
+        }
 
         app.globalData.role = Number(res.data.role || role);
         wx.setStorageSync("selectedRole", app.globalData.role);

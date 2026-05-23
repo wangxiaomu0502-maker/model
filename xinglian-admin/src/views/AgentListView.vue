@@ -12,10 +12,15 @@ import {
 import {
   createAdminAgent,
   deleteAdminAgent,
+  fetchAdminAgentBoundModels,
+  fetchAdminAgentDetail,
+  fetchAdminAgentIncomeLedger,
   fetchAdminAgents,
   updateAdminAgent,
   uploadAdminAgentBusinessLicense,
+  type AdminAgentBoundModelRow,
   type AdminAgentFormBody,
+  type AdminAgentIncomeLedgerRow,
   type AdminAgentRow
 } from "@/api/admin";
 
@@ -43,17 +48,98 @@ const form = reactive({
 
 const STATUS_LABELS: Record<number, string> = {
   1: "正常",
-  2: "禁用"
+  2: "禁用",
+  3: "注销中",
+  4: "已注销"
 };
+
+const VERIFIED_LABELS: Record<number, string> = {
+  2: "已实名",
+  1: "审核中",
+  3: "驳回",
+  0: "未实名"
+};
+
+const PROFILE_AUDIT_LABELS: Record<number, string> = {
+  0: "待提交",
+  1: "审核中",
+  2: "审核通过",
+  3: "审核失败"
+};
+
+const detailVisible = ref(false);
+const detailLoading = ref(false);
+const detailAgent = ref<AdminAgentRow | null>(null);
+const detailUserId = ref<number | null>(null);
+
+const detailModelsLoading = ref(false);
+const detailModelsList = ref<AdminAgentBoundModelRow[]>([]);
+const detailModelsTotal = ref(0);
+const detailModelPager = reactive({ page: 1, pageSize: 10 });
+
+const detailLedgerLoading = ref(false);
+const detailLedgerList = ref<AdminAgentIncomeLedgerRow[]>([]);
+const detailLedgerTotal = ref(0);
+const detailLedgerPager = reactive({ page: 1, pageSize: 10 });
+const detailWallet = ref({
+  availableYuan: 0,
+  frozenYuan: 0,
+  ledgerTableReady: false,
+  allTimeIncomeYuan: 0
+});
 
 function statusLabel(s: number): string {
   return STATUS_LABELS[s] ?? `状态${s}`;
 }
 
-function statusTagType(s: number): "success" | "danger" | "info" {
+function statusTagType(s: number): "success" | "warning" | "danger" | "info" {
   if (s === 1) return "success";
   if (s === 2) return "danger";
+  if (s === 3) return "warning";
+  if (s === 4) return "info";
   return "info";
+}
+
+function displayCellName(n: string | null | undefined): string {
+  const x = n?.trim();
+  return x ? x : "—";
+}
+
+function verifiedLabel(status: number): string {
+  return VERIFIED_LABELS[status] ?? "未实名";
+}
+
+function verifiedTagType(status: number): "success" | "warning" | "danger" | "info" {
+  if (status === 2) return "success";
+  if (status === 1) return "warning";
+  if (status === 3) return "danger";
+  return "info";
+}
+
+function profileAuditLabel(status: number): string {
+  return PROFILE_AUDIT_LABELS[status] ?? "待提交";
+}
+
+function profileAuditTagType(status: number): "success" | "warning" | "danger" | "info" {
+  if (status === 2) return "success";
+  if (status === 1) return "warning";
+  if (status === 3) return "danger";
+  return "info";
+}
+
+function contractSignedLabel(signedAt: string | null): string {
+  return signedAt ? "已签署" : "未签署";
+}
+
+function contractSignedTagType(signedAt: string | null): "success" | "info" {
+  return signedAt ? "success" : "info";
+}
+
+function formatYuan(n: number): string {
+  return new Intl.NumberFormat("zh-CN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(Number.isFinite(n) ? n : 0);
 }
 
 function formatTime(iso: string): string {
@@ -232,6 +318,114 @@ function onTokenChanged(): void {
   void loadList();
 }
 
+async function loadDetailModelsPage(): Promise<void> {
+  const uid = detailUserId.value;
+  if (!uid) return;
+  detailModelsLoading.value = true;
+  try {
+    const data = await fetchAdminAgentBoundModels(
+      uid,
+      detailModelPager.page,
+      detailModelPager.pageSize
+    );
+    detailModelsList.value = data.list || [];
+    detailModelsTotal.value = data.total ?? 0;
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "模特列表加载失败");
+    detailModelsList.value = [];
+    detailModelsTotal.value = 0;
+  } finally {
+    detailModelsLoading.value = false;
+  }
+}
+
+async function loadDetailLedgerPage(): Promise<void> {
+  const uid = detailUserId.value;
+  if (!uid) return;
+  detailLedgerLoading.value = true;
+  try {
+    const data = await fetchAdminAgentIncomeLedger(
+      uid,
+      detailLedgerPager.page,
+      detailLedgerPager.pageSize
+    );
+    detailLedgerList.value = data.list || [];
+    detailLedgerTotal.value = data.total ?? 0;
+    detailWallet.value = data.wallet ?? {
+      availableYuan: 0,
+      frozenYuan: 0,
+      ledgerTableReady: false,
+      allTimeIncomeYuan: 0
+    };
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "收入明细加载失败");
+    detailLedgerList.value = [];
+    detailLedgerTotal.value = 0;
+  } finally {
+    detailLedgerLoading.value = false;
+  }
+}
+
+async function onViewDetail(row: AdminAgentRow): Promise<void> {
+  detailVisible.value = true;
+  detailLoading.value = true;
+  detailAgent.value = null;
+  detailUserId.value = row.userId;
+  detailModelPager.page = 1;
+  detailLedgerPager.page = 1;
+  detailModelsList.value = [];
+  detailModelsTotal.value = 0;
+  detailLedgerList.value = [];
+  detailLedgerTotal.value = 0;
+  detailWallet.value = {
+    availableYuan: 0,
+    frozenYuan: 0,
+    ledgerTableReady: false,
+    allTimeIncomeYuan: 0
+  };
+  try {
+    const [info, models, ledger] = await Promise.all([
+      fetchAdminAgentDetail(row.userId),
+      fetchAdminAgentBoundModels(row.userId, detailModelPager.page, detailModelPager.pageSize),
+      fetchAdminAgentIncomeLedger(row.userId, detailLedgerPager.page, detailLedgerPager.pageSize)
+    ]);
+    detailAgent.value = info;
+    detailModelsList.value = models.list || [];
+    detailModelsTotal.value = models.total ?? 0;
+    detailLedgerList.value = ledger.list || [];
+    detailLedgerTotal.value = ledger.total ?? 0;
+    detailWallet.value = ledger.wallet;
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "详情加载失败");
+    detailVisible.value = false;
+    detailUserId.value = null;
+  } finally {
+    detailLoading.value = false;
+  }
+}
+
+function onDetailModelPageChange(p: number): void {
+  detailModelPager.page = p;
+  void loadDetailModelsPage();
+}
+
+function onDetailModelSizeChange(s: number): void {
+  detailModelPager.pageSize = s;
+  detailModelPager.page = 1;
+  void loadDetailModelsPage();
+}
+
+function onDetailLedgerPageChange(p: number): void {
+  detailLedgerPager.page = p;
+  void loadDetailLedgerPage();
+}
+
+function onDetailLedgerSizeChange(s: number): void {
+  detailLedgerPager.pageSize = s;
+  detailLedgerPager.page = 1;
+  void loadDetailLedgerPage();
+}
+
 onMounted(() => {
   window.addEventListener("admin-token-changed", onTokenChanged);
   void loadList();
@@ -292,6 +486,18 @@ onUnmounted(() => {
             <span class="alv-amt">{{ row.boundModelCount ?? 0 }}</span>
           </template>
         </el-table-column>
+        <el-table-column label="平台合同" width="92">
+          <template #default="{ row }">
+            <el-tag
+              :type="contractSignedTagType(row.platformAgentContractSignedAt)"
+              size="small"
+              effect="light"
+              round
+            >
+              {{ contractSignedLabel(row.platformAgentContractSignedAt) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="88">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)" size="small" effect="light" round>
@@ -304,10 +510,20 @@ onUnmounted(() => {
             <span class="alv-time">{{ formatTime(row.createdAt) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="操作" min-width="220" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
-            <el-button type="danger" link @click="onDelete(row)">删除</el-button>
+            <div class="alv-actions-wrap">
+              <el-button type="primary" plain size="small" round @click="onViewDetail(row)">
+                <span class="alv-detail-btn-label">
+                  <span class="alv-detail-btn-text">详情</span>
+                  <el-icon class="alv-detail-ico el-icon--right" :size="14">
+                    <Right />
+                  </el-icon>
+                </span>
+              </el-button>
+              <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
+              <el-button type="danger" link @click="onDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -489,6 +705,263 @@ onUnmounted(() => {
           <el-button size="large" @click="dialogVisible = false">取消</el-button>
           <el-button type="primary" size="large" :loading="saving" @click="onSave">保存</el-button>
         </div>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="detailVisible" title="代理人详情" width="960px" destroy-on-close>
+      <el-skeleton v-if="detailLoading" :rows="8" animated />
+      <div v-else-if="detailAgent" class="detail-block">
+        <el-tabs type="border-card" class="detail-tabs">
+          <el-tab-pane label="基本信息">
+            <section class="module-card">
+              <div class="basic-header">
+                <el-avatar :size="52" :src="detailAgent.avatarUrl || undefined">
+                  {{ (detailAgent.companyName || detailAgent.nickname || "代").slice(0, 1) }}
+                </el-avatar>
+                <div class="basic-header-meta">
+                  <div class="basic-name">{{ detailAgent.companyName || detailAgent.nickname || "未命名" }}</div>
+                  <div class="basic-subline">
+                    <span>用户编号：{{ detailAgent.userNo }}</span>
+                    <span>用户 ID：{{ detailAgent.userId }}</span>
+                    <span>旗下模特 {{ detailAgent.boundModelCount ?? 0 }} 人</span>
+                  </div>
+                </div>
+              </div>
+
+              <el-descriptions :column="2" border size="default" class="detail-group">
+                <template #title>公司与联系</template>
+                <el-descriptions-item label="公司名称">
+                  {{ detailAgent.companyName || detailAgent.nickname || "—" }}
+                </el-descriptions-item>
+                <el-descriptions-item label="联系人">
+                  {{ detailAgent.contactName || detailAgent.realName || "—" }}
+                </el-descriptions-item>
+                <el-descriptions-item label="联系人电话">
+                  <span class="alv-mono">{{ detailAgent.contactPhone || detailAgent.phone || "—" }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="所在城市">{{ detailAgent.city || "—" }}</el-descriptions-item>
+                <el-descriptions-item label="紧急联系人">
+                  {{ detailAgent.emergencyContactName || "—" }}
+                </el-descriptions-item>
+                <el-descriptions-item label="紧急联系人电话">
+                  <span class="alv-mono">{{ detailAgent.emergencyContactPhone || "—" }}</span>
+                </el-descriptions-item>
+              </el-descriptions>
+
+              <div class="license-photo-wrap">
+                <div class="idcard-photo-title">营业执照</div>
+                <div class="license-photo-box">
+                  <el-image
+                    v-if="detailAgent.businessLicenseUrl && !isPdfUrl(detailAgent.businessLicenseUrl)"
+                    :src="detailAgent.businessLicenseUrl"
+                    fit="contain"
+                    class="license-photo-img"
+                    :preview-src-list="[detailAgent.businessLicenseUrl]"
+                    preview-teleported
+                  />
+                  <div
+                    v-else-if="detailAgent.businessLicenseUrl && isPdfUrl(detailAgent.businessLicenseUrl)"
+                    class="license-photo-pdf"
+                  >
+                    <el-link :href="detailAgent.businessLicenseUrl" target="_blank" type="primary">查看 PDF</el-link>
+                  </div>
+                  <div v-else class="license-photo-empty">未上传</div>
+                </div>
+              </div>
+
+              <el-descriptions :column="2" border size="default" class="detail-group">
+                <template #title>账号</template>
+                <el-descriptions-item label="账号状态">
+                  <el-tag :type="statusTagType(detailAgent.status)" size="small" effect="light" round>
+                    {{ statusLabel(detailAgent.status) }}
+                  </el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="实名认证">
+                  <el-tag :type="verifiedTagType(detailAgent.verifiedStatus)" size="small" effect="light" round>
+                    {{ verifiedLabel(detailAgent.verifiedStatus) }}
+                  </el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="注册时间">{{ formatTime(detailAgent.createdAt) }}</el-descriptions-item>
+                <el-descriptions-item label="最近更新">{{ formatTime(detailAgent.updatedAt) }}</el-descriptions-item>
+              </el-descriptions>
+            </section>
+          </el-tab-pane>
+
+          <el-tab-pane label="模特">
+            <section class="module-card merchant-orders-pane">
+              <el-table
+                v-loading="detailModelsLoading"
+                class="alv-table"
+                :data="detailModelsList"
+                empty-text="暂无绑定模特"
+                row-key="userId"
+                size="small"
+              >
+                <el-table-column label="编号" min-width="120" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span class="alv-mono">{{ row.userNo }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="头像" width="72">
+                  <template #default="{ row }">
+                    <el-avatar :size="32" :src="row.avatarUrl || undefined">
+                      {{ (row.nickname || "模").slice(0, 1) }}
+                    </el-avatar>
+                  </template>
+                </el-table-column>
+                <el-table-column label="昵称" min-width="100" show-overflow-tooltip>
+                  <template #default="{ row }">{{ displayCellName(row.nickname) }}</template>
+                </el-table-column>
+                <el-table-column label="手机" min-width="120" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span class="alv-mono">{{ row.phone || "—" }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="账号" width="88">
+                  <template #default="{ row }">
+                    <el-tag :type="statusTagType(row.status)" size="small" effect="light" round>
+                      {{ statusLabel(row.status) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="实名" width="88">
+                  <template #default="{ row }">
+                    <el-tag :type="verifiedTagType(row.verifiedStatus)" size="small" effect="light" round>
+                      {{ verifiedLabel(row.verifiedStatus) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="资料" width="92">
+                  <template #default="{ row }">
+                    <el-tag :type="profileAuditTagType(row.profileAuditStatus)" size="small" effect="light" round>
+                      {{ profileAuditLabel(row.profileAuditStatus) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="城市" min-width="88" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.city || "—" }}</template>
+                </el-table-column>
+                <el-table-column label="经纪合同" width="92">
+                  <template #default="{ row }">
+                    <el-tag
+                      :type="contractSignedTagType(row.modelContractSignedAt)"
+                      size="small"
+                      effect="light"
+                      round
+                    >
+                      {{ contractSignedLabel(row.modelContractSignedAt) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="注册时间" min-width="148">
+                  <template #default="{ row }">
+                    <span class="alv-time">{{ formatTime(row.createdAt) }}</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <div class="alv-pager merchant-orders-pager">
+                <el-pagination
+                  background
+                  layout="total, prev, pager, next, sizes"
+                  :total="detailModelsTotal"
+                  :page-size="detailModelPager.pageSize"
+                  :current-page="detailModelPager.page"
+                  :page-sizes="[10, 20, 50]"
+                  @current-change="onDetailModelPageChange"
+                  @size-change="onDetailModelSizeChange"
+                />
+              </div>
+            </section>
+          </el-tab-pane>
+
+          <el-tab-pane label="收入明细">
+            <section class="module-card merchant-orders-pane">
+              <div class="income-summary">
+                <div class="income-summary-item">
+                  <span class="income-summary-label">累计入账</span>
+                  <span class="income-summary-value">¥ {{ formatYuan(detailWallet.allTimeIncomeYuan) }}</span>
+                </div>
+                <div class="income-summary-item">
+                  <span class="income-summary-label">可用余额</span>
+                  <span class="income-summary-value">¥ {{ formatYuan(detailWallet.availableYuan) }}</span>
+                </div>
+                <div class="income-summary-item">
+                  <span class="income-summary-label">冻结</span>
+                  <span class="income-summary-value">¥ {{ formatYuan(detailWallet.frozenYuan) }}</span>
+                </div>
+                <span v-if="!detailWallet.ledgerTableReady" class="income-summary-hint">账户流水表未就绪</span>
+              </div>
+              <el-table
+                v-loading="detailLedgerLoading"
+                class="alv-table"
+                :data="detailLedgerList"
+                empty-text="暂无收入流水"
+                row-key="id"
+                size="small"
+              >
+                <el-table-column label="时间" min-width="168">
+                  <template #default="{ row }">
+                    <span class="alv-time">{{ formatTime(row.createdAt) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="类型" min-width="160" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.bizTypeLabel || row.bizType || "—" }}</template>
+                </el-table-column>
+                <el-table-column label="金额（元）" width="120" align="right">
+                  <template #default="{ row }">
+                    <span class="alv-amt" :class="{ 'alv-amt--pos': row.amountYuan > 0 }">
+                      <span class="alv-amt-cny">{{ row.amountYuan >= 0 ? "+" : "" }}</span
+                      >{{ formatYuan(row.amountYuan) }}
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="余额后" width="112" align="right">
+                  <template #default="{ row }">
+                    <span v-if="row.balanceAfterYuan != null" class="alv-amt">
+                      <span class="alv-amt-cny">¥</span>{{ formatYuan(row.balanceAfterYuan) }}
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="订单" width="96" align="center">
+                  <template #default="{ row }">
+                    <router-link
+                      v-if="row.orderId"
+                      class="alv-detail-link"
+                      :to="`/orders/${row.orderId}`"
+                    >
+                      <span class="alv-id-badge">{{ row.orderId }}</span>
+                    </router-link>
+                    <span v-else>—</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="订单号" min-width="168" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span class="alv-mono">{{ row.orderNo || "—" }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="说明" min-width="140" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.title || "—" }}</template>
+                </el-table-column>
+              </el-table>
+              <div class="alv-pager merchant-orders-pager">
+                <el-pagination
+                  background
+                  layout="total, prev, pager, next, sizes"
+                  :total="detailLedgerTotal"
+                  :page-size="detailLedgerPager.pageSize"
+                  :current-page="detailLedgerPager.page"
+                  :page-sizes="[10, 20, 50]"
+                  @current-change="onDetailLedgerPageChange"
+                  @size-change="onDetailLedgerSizeChange"
+                />
+              </div>
+            </section>
+          </el-tab-pane>
+        </el-tabs>
+      </div>
+      <template #footer>
+        <el-button @click="detailVisible = false">关闭</el-button>
       </template>
     </el-dialog>
   </div>
@@ -707,5 +1180,159 @@ onUnmounted(() => {
 :deep(.agent-dialog .el-dialog__footer) {
   padding: 16px 28px 22px;
   border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.alv-card :deep(.el-table .el-table__fixed-right .el-table__cell .cell) {
+  overflow: visible;
+}
+
+.alv-actions-wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.alv-detail-btn-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.alv-detail-btn-text {
+  line-height: 1;
+}
+
+.detail-block {
+  margin-top: 4px;
+}
+
+.detail-tabs {
+  border-radius: 12px;
+}
+
+.module-card {
+  padding: 8px 4px 4px;
+  background: #fff;
+}
+
+.basic-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  background: var(--el-fill-color-lighter);
+}
+
+.basic-header-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.basic-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.basic-subline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+.detail-group {
+  margin-bottom: 12px;
+}
+
+.detail-group:last-child {
+  margin-bottom: 0;
+}
+
+.license-photo-wrap {
+  margin-bottom: 12px;
+}
+
+.idcard-photo-title {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.license-photo-box {
+  min-height: 120px;
+  padding: 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  background: var(--el-fill-color-blank);
+}
+
+.license-photo-img {
+  max-width: 100%;
+  max-height: 240px;
+}
+
+.license-photo-empty,
+.license-photo-pdf {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+.merchant-orders-pane {
+  padding-top: 4px;
+}
+
+.merchant-orders-pager {
+  margin-top: 12px;
+}
+
+.income-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 24px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--el-fill-color-lighter);
+  border: 1px solid var(--el-border-color-lighter);
+}
+
+.income-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.income-summary-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.income-summary-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.income-summary-hint {
+  font-size: 12px;
+  color: var(--el-color-warning);
+}
+
+.alv-amt--pos {
+  color: var(--el-color-success);
 }
 </style>

@@ -8,6 +8,7 @@ export type AdminOrderListRow = RowDataPacket & {
   order_no: string;
   merchant_user_id: number;
   model_user_id: number;
+  service_type?: string;
   broker_user_id?: number | null;
   agent_user_id?: number | null;
   /** 订单完成时锁定的分账比例 JSON；无则分账时回退读 platform_split_rules */
@@ -30,14 +31,62 @@ export type AdminOrderListRow = RowDataPacket & {
   created_at: Date | string;
   merchant_user_no: string | null;
   merchant_nickname: string | null;
+  merchant_phone?: string | null;
   model_user_no: string | null;
   model_nickname: string | null;
+  model_phone?: string | null;
+  broker_user_no?: string | null;
+  broker_nickname?: string | null;
+  broker_real_name?: string | null;
+  broker_phone?: string | null;
+  agent_user_no?: string | null;
+  agent_nickname?: string | null;
+  agent_real_name?: string | null;
+  agent_company_name?: string | null;
+  agent_phone?: string | null;
 };
+
+/** 订单列表/详情参与方关联（含经纪人、代理人解析） */
+export const ORDER_PARTY_SELECT = `
+            mu.phone AS merchant_phone,
+            mdl.phone AS model_phone,
+            brk.user_no AS broker_user_no,
+            brk.nickname AS broker_nickname,
+            brkp.real_name AS broker_real_name,
+            brk.phone AS broker_phone,
+            ag.user_no AS agent_user_no,
+            ag.nickname AS agent_nickname,
+            COALESCE(agp.real_name, ag.real_name) AS agent_real_name,
+            agp.company_name AS agent_company_name,
+            ag.phone AS agent_phone`;
+
+export const ORDER_PARTY_JOINS = `
+     LEFT JOIN users mu ON mu.id = o.merchant_user_id AND mu.deleted_at IS NULL
+     LEFT JOIN users mref ON mref.id = mu.referrer_id AND mref.role = 3 AND mref.deleted_at IS NULL
+     LEFT JOIN users mdl ON mdl.id = o.model_user_id AND mdl.deleted_at IS NULL
+     LEFT JOIN users brk
+       ON brk.id = COALESCE(o.broker_user_id, mref.id) AND brk.deleted_at IS NULL AND brk.role = 3
+     LEFT JOIN broker_profiles brkp ON brkp.user_id = brk.id
+     LEFT JOIN users ag
+       ON ag.id = COALESCE(o.agent_user_id, mdl.agent_user_id)
+       AND ag.deleted_at IS NULL AND ag.role = 4
+     LEFT JOIN agent_profiles agp ON agp.user_id = ag.id`;
 
 export type AdminOrderDetailDbRow = AdminOrderListRow & {
   remark: string | null;
   updated_at: Date | string;
   split_config_snapshot: unknown;
+  merchant_phone: string | null;
+  model_phone: string | null;
+  broker_user_no: string | null;
+  broker_nickname: string | null;
+  broker_real_name: string | null;
+  broker_phone: string | null;
+  agent_user_no: string | null;
+  agent_nickname: string | null;
+  agent_real_name: string | null;
+  agent_company_name: string | null;
+  agent_phone: string | null;
 };
 
 export async function countOrdersForAdmin(): Promise<number> {
@@ -131,6 +180,7 @@ export async function findOrdersPageForAdmin(
   const [rows] = await dbPool.query<AdminOrderListRow[]>(
     `SELECT o.id, o.order_no, o.merchant_user_id, o.model_user_id,
             o.broker_user_id, o.agent_user_id,
+            COALESCE(o.service_type, 'ordinary') AS service_type,
             o.booking_date, o.duration_kind, o.hour_count,
             o.unit_price_snapshot, o.service_amount, o.platform_fee, o.payable_amount,
             o.model_income, o.broker_income, o.agent_income, o.split_calculated_at,
@@ -138,10 +188,10 @@ export async function findOrdersPageForAdmin(
             mu.user_no AS merchant_user_no,
             mu.nickname AS merchant_nickname,
             mdl.user_no AS model_user_no,
-            mdl.nickname AS model_nickname
+            mdl.nickname AS model_nickname,
+            ${ORDER_PARTY_SELECT}
      FROM orders o
-     LEFT JOIN users mu ON mu.id = o.merchant_user_id
-     LEFT JOIN users mdl ON mdl.id = o.model_user_id
+     ${ORDER_PARTY_JOINS}
      ORDER BY o.id DESC
      LIMIT ? OFFSET ?`,
     [safeLimit, safeOffset]
@@ -171,6 +221,7 @@ export async function findOrdersPageForAdminByMerchantUserId(
   const [rows] = await dbPool.query<AdminOrderListRow[]>(
     `SELECT o.id, o.order_no, o.merchant_user_id, o.model_user_id,
             o.broker_user_id, o.agent_user_id,
+            COALESCE(o.service_type, 'ordinary') AS service_type,
             o.booking_date, o.duration_kind, o.hour_count,
             o.unit_price_snapshot, o.service_amount, o.platform_fee, o.payable_amount,
             o.model_income, o.broker_income, o.agent_income, o.split_calculated_at,
@@ -212,6 +263,7 @@ export async function findOrdersPageForAdminByModelUserId(
   const [rows] = await dbPool.query<AdminOrderListRow[]>(
     `SELECT o.id, o.order_no, o.merchant_user_id, o.model_user_id,
             o.broker_user_id, o.agent_user_id,
+            COALESCE(o.service_type, 'ordinary') AS service_type,
             o.booking_date, o.duration_kind, o.hour_count,
             o.unit_price_snapshot, o.service_amount, o.platform_fee, o.payable_amount,
             o.model_income, o.broker_income, o.agent_income, o.split_calculated_at,
@@ -237,6 +289,7 @@ export async function findOrderByIdForAdmin(orderId: number): Promise<AdminOrder
   const [rows] = await dbPool.query<AdminOrderDetailDbRow[]>(
     `SELECT o.id, o.order_no, o.merchant_user_id, o.model_user_id,
             o.broker_user_id, o.agent_user_id,
+            COALESCE(o.service_type, 'ordinary') AS service_type,
             o.split_rules_snapshot,
             o.booking_date, o.duration_kind, o.hour_count,
             o.unit_price_snapshot, o.service_amount, o.platform_fee, o.payable_amount,
@@ -245,11 +298,21 @@ export async function findOrderByIdForAdmin(orderId: number): Promise<AdminOrder
             o.remark, o.updated_at, o.split_config_snapshot,
             mu.user_no AS merchant_user_no,
             mu.nickname AS merchant_nickname,
+            mu.phone AS merchant_phone,
             mdl.user_no AS model_user_no,
-            mdl.nickname AS model_nickname
+            mdl.nickname AS model_nickname,
+            mdl.phone AS model_phone,
+            brk.user_no AS broker_user_no,
+            brk.nickname AS broker_nickname,
+            brkp.real_name AS broker_real_name,
+            brk.phone AS broker_phone,
+            ag.user_no AS agent_user_no,
+            ag.nickname AS agent_nickname,
+            COALESCE(agp.real_name, ag.real_name) AS agent_real_name,
+            agp.company_name AS agent_company_name,
+            ag.phone AS agent_phone
      FROM orders o
-     LEFT JOIN users mu ON mu.id = o.merchant_user_id
-     LEFT JOIN users mdl ON mdl.id = o.model_user_id
+     ${ORDER_PARTY_JOINS}
      WHERE o.id = ?
      LIMIT 1`,
     [id]
@@ -266,6 +329,7 @@ export type OrderRowForSplitLock = RowDataPacket & {
   broker_user_id: number | null;
   agent_user_id: number | null;
   split_rules_snapshot?: unknown;
+  service_type?: string;
   payable_amount: string | number;
   order_status: number;
   payment_status: number;
@@ -281,6 +345,7 @@ export async function lockOrderRowForSplit(
   const [rows] = await conn.query<OrderRowForSplitLock[]>(
     `SELECT o.id, o.order_no, o.merchant_user_id, o.model_user_id,
             o.broker_user_id, o.agent_user_id,
+            COALESCE(o.service_type, 'ordinary') AS service_type,
             o.split_rules_snapshot,
             o.payable_amount, o.order_status, o.payment_status, o.split_calculated_at
      FROM orders o

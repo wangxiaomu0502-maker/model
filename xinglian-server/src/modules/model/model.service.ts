@@ -263,6 +263,45 @@ function parseJsonField(value: unknown): Record<string, unknown> | null {
   return parsed as Record<string, unknown>;
 }
 
+function normalizeStylePositionFromStorage(value: unknown): { photos: Array<{ id: string; url: string }> } {
+  const parsed = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  const rawPhotos = Array.isArray(parsed.photos) ? parsed.photos : [];
+  return {
+    photos: rawPhotos
+      .filter((item) => item && typeof item === "object")
+      .map((item, index) => {
+        const row = item as Record<string, unknown>;
+        const url = String(row.url || "").trim();
+        if (!url) return null;
+        return {
+          id: String(row.id || `style_${index}`),
+          url
+        };
+      })
+      .filter((item): item is { id: string; url: string } => Boolean(item))
+      .slice(0, 100)
+  };
+}
+
+function normalizeStylePositionForPersist(payload: Record<string, unknown>): { photos: Array<{ id: string; url: string }> } {
+  const rawPhotos = Array.isArray(payload.photos) ? payload.photos : [];
+  return {
+    photos: rawPhotos
+      .filter((item) => item && typeof item === "object")
+      .map((item, index) => {
+        const row = item as Record<string, unknown>;
+        const url = String(row.url || "").trim();
+        if (!url) return null;
+        return {
+          id: String(row.id || `style_${Date.now()}_${index}`).slice(0, 80),
+          url
+        };
+      })
+      .filter((item): item is { id: string; url: string } => Boolean(item))
+      .slice(0, 100)
+  };
+}
+
 type ProfileBodyFallback = {
   height?: number | null;
   weight?: number | null;
@@ -330,8 +369,8 @@ export async function getModelPublicDetail(
     throw new AppError("model not found", 404, ErrorCodes.NOT_FOUND);
   }
 
-  /** 商家端仅可浏览资料审核已通过（2）的模特，与 /api/models/list 口径一致 */
-  if (Number(options?.viewerRole) === 2 && Number(row.profile_audit_status ?? 0) !== 2) {
+  /** 公开浏览仅展示资料审核已通过（2）的模特，与 /api/models/list 口径一致 */
+  if (Number(options?.viewerRole ?? 0) !== 1 && Number(row.profile_audit_status ?? 0) !== 2) {
     throw new AppError("model not found", 404, ErrorCodes.NOT_FOUND);
   }
 
@@ -339,6 +378,7 @@ export async function getModelPublicDetail(
   const portfolio = normalizePortfolioFromStorage(parseJsonField(row.portfolio_json), {
     stripNonRemoteUrls: true
   });
+  const stylePosition = normalizeStylePositionFromStorage(parseJsonField(row.style_position_json));
   const scheduleRaw = parseJsonField(row.schedule_json) || { scheduleMap: {} };
   const scheduleMap = normalizeScheduleMap(scheduleRaw.scheduleMap);
   const orderSettingsRaw = parseJsonField(row.order_settings_json);
@@ -378,6 +418,7 @@ export async function getModelPublicDetail(
       skin_tone: row.skin_tone
     }),
     portfolio,
+    stylePosition,
     schedule: {
       scheduleMap
     },
@@ -403,6 +444,7 @@ export async function getModelData(userId: number): Promise<Record<string, unkno
   const portfolio = normalizePortfolioFromStorage(parseJsonColumn(extra?.portfolio_json), {
     stripNonRemoteUrls: false
   });
+  const stylePosition = normalizeStylePositionFromStorage(parseJsonColumn(extra?.style_position_json));
   const scheduleRaw =
     (parseJsonColumn(extra?.schedule_json) as Record<string, unknown> | null) || { scheduleMap: {} };
   const schedule = {
@@ -435,6 +477,7 @@ export async function getModelData(userId: number): Promise<Record<string, unkno
     categories: { categoryIds },
     card,
     portfolio,
+    stylePosition,
     schedule,
     orderSettings
   };
@@ -463,6 +506,12 @@ export async function savePortfolio(userId: number, payload: Record<string, unkn
   await ensureModelExtra(userId);
   const canonical = normalizePortfolioForPersist(payload);
   await updateExtraJson(userId, "portfolio_json", canonical);
+}
+
+export async function saveStylePosition(userId: number, payload: Record<string, unknown>): Promise<void> {
+  await ensureModelExtra(userId);
+  const canonical = normalizeStylePositionForPersist(payload);
+  await updateExtraJson(userId, "style_position_json", canonical);
 }
 
 export async function savePricing(userId: number, payload: Record<string, unknown>): Promise<void> {

@@ -3,6 +3,7 @@ import type { SplitRulesRow } from "../admin/split-rules.repository";
 /** 与 orders.split_rules_snapshot 存库结构一致（v2） */
 export type OrderSplitRulesSnapshotV2 = {
   version: "v2";
+  service_type?: "ordinary" | "agent";
   model_share_bp: number;
   platform_fee_rate_bp: number;
   platform_share_of_fee_bp: number;
@@ -14,6 +15,7 @@ export type OrderSplitRulesSnapshotV2 = {
 export function buildSplitRulesSnapshotJson(rules: SplitRulesRow): string {
   const payload: OrderSplitRulesSnapshotV2 = {
     version: "v2",
+    service_type: rules.service_type === "agent" ? "agent" : "ordinary",
     model_share_bp: Number(rules.model_share_bp),
     platform_fee_rate_bp: Number(rules.platform_fee_rate_bp),
     platform_share_of_fee_bp: Number(rules.platform_share_of_fee_bp),
@@ -45,6 +47,7 @@ function legacyV1ToRow(o: Record<string, unknown>): SplitRulesRow | null {
   const serviceBp = 10000 - m;
   return {
     id: 1,
+    service_type: "ordinary",
     platform_fee_rate_bp: r,
     model_share_bp: m,
     platform_share_of_fee_bp: Math.round((Number(o.platform_share_of_fee_bp) || 3400)),
@@ -92,6 +95,7 @@ export function parseOrderSplitRulesSnapshot(row: {
 
   return {
     id: 1,
+    service_type: o.service_type === "agent" ? "agent" : "ordinary",
     platform_fee_rate_bp: r,
     model_share_bp: m,
     platform_share_of_fee_bp: pf,

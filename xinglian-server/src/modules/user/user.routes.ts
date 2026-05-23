@@ -7,11 +7,9 @@ import { signContractBodySchema } from "./user.contract-signature.types";
 
 import { avatarUploader } from "./user.avatar.middleware";
 import { contractSignatureUploader } from "./user.contract-signature.middleware";
-import { putMyReferrerBodySchema, type PutMyReferrerBody } from "./user.referrer.types";
 
 import {
   getMeController,
-  putMyReferrerController,
   signMyContractController,
   uploadAvatarController,
   uploadContractSignatureController
@@ -29,12 +27,6 @@ userRouter.post(
 userRouter.get("/me", requireAuth, getMeController);
 /** 与 GET /api/wallet 等价，便于网关/前端统一走 users 前缀 */
 userRouter.get("/me/wallet", requireAuth, getWalletOverviewController);
-userRouter.put(
-  "/me/referrer",
-  requireAuth,
-  validate(putMyReferrerBodySchema),
-  putMyReferrerController
-);
 userRouter.post(
   "/me/contracts/:contractKind/sign",
   requireAuth,

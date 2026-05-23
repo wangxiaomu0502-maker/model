@@ -128,6 +128,9 @@ Page({
         return;
       }
       wx.showToast({ title: "保存成功", icon: "success" });
+      setTimeout(() => {
+        wx.navigateBack({ delta: 1 });
+      }, 700);
     } catch (_error) {
       wx.showToast({ title: "网络异常", icon: "none" });
     } finally {

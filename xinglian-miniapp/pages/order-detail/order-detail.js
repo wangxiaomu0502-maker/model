@@ -20,7 +20,7 @@ function enrichOrder(o) {
   if (!o) return null;
   const payText =
     o.paymentStatusText ||
-    { 0: "未支付", 1: "已支付", 2: "退款中", 3: "已退款" }[o.paymentStatus] ||
+    { 0: "未支付", 1: "已支付", 2: "退款中", 3: "已退款", 4: "退款失败" }[o.paymentStatus] ||
     `支付${o.paymentStatus}`;
   return Object.assign({}, o, {
     paymentStatusText: payText,
@@ -29,7 +29,8 @@ function enrichOrder(o) {
     updatedAtDisplay: fmtCn(o.updatedAt),
     splitCalculatedAtDisplay: fmtCn(o.splitCalculatedAt),
     paymentChannelLabel: channelLabel(o.paymentChannel),
-    remarkDisplay: o.remark && String(o.remark).trim() ? String(o.remark).trim() : "无"
+    remarkDisplay: o.remark && String(o.remark).trim() ? String(o.remark).trim() : "无",
+    csContact: o.csContact && o.csContact.visible ? o.csContact : null
   });
 }
 
@@ -53,6 +54,8 @@ Page({
     order: null,
     loading: true,
     acting: false,
+    syncPayChecked: false,
+    syncRefundChecked: false,
     showActions: false,
     bottomBarDual: false,
     showCancelReasonSheet: false,
@@ -96,12 +99,26 @@ Page({
           a.modelConfirmService ||
           a.modelCancel ||
           a.merchantConfirmComplete ||
-          a.merchantCancel
+          a.merchantCancel ||
+          a.merchantPay
         );
         const bottomBarDual =
           !!(a.modelConfirmAccept && a.modelCancel) &&
           !(a.modelConfirmService || a.merchantConfirmComplete || a.merchantCancel);
         this.setData({ order: o, showActions, bottomBarDual });
+        if (
+          !brokerView &&
+          !this.data.syncPayChecked &&
+          Number(o.paymentStatus) === 0 &&
+          o.actions?.merchantPay
+        ) {
+          this.setData({ syncPayChecked: true });
+          void this.syncOrderPayment({ silent: true });
+        }
+        if (!brokerView && !this.data.syncRefundChecked && Number(o.paymentStatus) === 2) {
+          this.setData({ syncRefundChecked: true });
+          void this.syncOrderRefund({ silent: true });
+        }
       },
       fail: () => wx.showToast({ title: "网络异常", icon: "none" }),
       complete: () => this.setData({ loading: false })
@@ -149,6 +166,154 @@ Page({
       },
       fail: () => wx.showToast({ title: "网络异常", icon: "none" }),
       complete: () => this.setData({ acting: false })
+    });
+  },
+
+  cancelOrderAfterPaymentCancel() {
+    const app = getApp();
+    const token = app.globalData.token;
+    const id = this.data.orderId;
+    return new Promise((resolve) => {
+      wx.request({
+        url: `${app.globalData.apiBaseUrl}/api/orders/${id}/cancel`,
+        method: "POST",
+        data: { reason: "用户取消支付" },
+        header: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        success: (res) => resolve(res.statusCode >= 200 && res.statusCode < 300 && !!res.data?.ok),
+        fail: () => resolve(false)
+      });
+    });
+  },
+
+  syncOrderPayment(options) {
+    const silent = !!(options && options.silent);
+    const app = getApp();
+    const token = app.globalData.token;
+    const id = this.data.orderId;
+    return new Promise((resolve) => {
+      wx.request({
+        url: `${app.globalData.apiBaseUrl}/api/orders/${id}/sync-pay`,
+        method: "POST",
+        header: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        success: (res) => {
+          const d = res.data || {};
+          const paid = res.statusCode >= 200 && res.statusCode < 300 && d.ok && Number(d.paymentStatus) === 1;
+          if (paid) {
+            if (!silent) wx.showToast({ title: "支付成功", icon: "success" });
+            this.loadDetail();
+          }
+          resolve(d);
+        },
+        fail: () => resolve(null)
+      });
+    });
+  },
+
+  syncOrderRefund(options) {
+    const silent = !!(options && options.silent);
+    const app = getApp();
+    const token = app.globalData.token;
+    const id = this.data.orderId;
+    return new Promise((resolve) => {
+      wx.request({
+        url: `${app.globalData.apiBaseUrl}/api/orders/${id}/sync-refund`,
+        method: "POST",
+        header: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        success: (res) => {
+          const d = res.data || {};
+          const changed =
+            res.statusCode >= 200 &&
+            res.statusCode < 300 &&
+            d.ok &&
+            (Number(d.paymentStatus) === 3 || Number(d.paymentStatus) === 4);
+          if (changed) {
+            if (!silent) wx.showToast({ title: Number(d.paymentStatus) === 3 ? "退款成功" : "退款失败", icon: "none" });
+            this.loadDetail();
+          }
+          resolve(d);
+        },
+        fail: () => resolve(null)
+      });
+    });
+  },
+
+  async requestWechatPay() {
+    if (this.data.acting) return;
+    const app = getApp();
+    const token = app.globalData.token;
+    const id = this.data.orderId;
+    this.setData({ acting: true });
+    wx.showLoading({ title: "调起支付", mask: true });
+    try {
+      const payRes = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${app.globalData.apiBaseUrl}/api/orders/${id}/pay`,
+          method: "POST",
+          header: {
+            "content-type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          success: (res) => {
+            if (res.statusCode >= 200 && res.statusCode < 300) resolve(res.data);
+            else reject(res.data || res);
+          },
+          fail: reject
+        });
+      });
+      wx.hideLoading();
+      if (!payRes?.ok || !payRes.payment) {
+        wx.showToast({ title: payRes?.message || "获取支付参数失败", icon: "none" });
+        return;
+      }
+      const p = payRes.payment;
+      await new Promise((resolve, reject) => {
+        wx.requestPayment({
+          timeStamp: p.timeStamp,
+          nonceStr: p.nonceStr,
+          package: p.package,
+          signType: p.signType || "RSA",
+          paySign: p.paySign,
+          success: resolve,
+          fail: reject
+        });
+      });
+      const synced = await this.syncOrderPayment();
+      if (!synced || Number(synced.paymentStatus) !== 1) {
+        wx.showToast({ title: "支付处理中", icon: "none" });
+        this.loadDetail();
+      }
+    } catch (err) {
+      wx.hideLoading();
+      const msg = (err && err.errMsg) || (err && err.message) || "支付未完成";
+      if (String(msg).indexOf("cancel") < 0 && String(msg).indexOf("取消") < 0) {
+        wx.showToast({ title: String(msg), icon: "none" });
+      } else {
+        const closed = await this.cancelOrderAfterPaymentCancel();
+        wx.showToast({ title: closed ? "已取消支付，订单已关闭" : "已取消支付", icon: "none" });
+        this.loadDetail();
+      }
+    } finally {
+      this.setData({ acting: false });
+    }
+  },
+
+  onPayOrder() {
+    wx.showModal({
+      title: "微信支付",
+      content: "确认使用微信支付完成该订单？",
+      confirmText: "去支付",
+      success: (r) => {
+        if (r.confirm) void this.requestWechatPay();
+      }
     });
   },
 
@@ -246,5 +411,14 @@ Page({
       }
     });
   },
+
+  onCallCs() {
+    const phone = this.data.order && this.data.order.csContact && this.data.order.csContact.phone;
+    if (!phone) {
+      wx.showToast({ title: "暂无客服电话", icon: "none" });
+      return;
+    }
+    wx.makePhoneCall({ phoneNumber: String(phone) });
+  }
 
 });

@@ -3,7 +3,7 @@ import * as echarts from "echarts";
 import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
-import { ArrowRight, Connection, List, Money, Shop, UserFilled } from "@element-plus/icons-vue";
+import { ArrowRight, Briefcase, Connection, List, Money, Shop, UserFilled } from "@element-plus/icons-vue";
 
 import { fetchAdminDashboardStats, type AdminDashboardDailyOrderPoint } from "@/api/admin";
 
@@ -17,7 +17,8 @@ const stats = ref({
   ordersByStatus: [] as Array<{ orderStatus: number; count: number }>,
   modelCount: 0,
   merchantCount: 0,
-  brokerCount: 0
+  brokerCount: 0,
+  agentCount: 0
 });
 
 const ORDER_STATUS_LABELS: Record<number, string> = {
@@ -137,7 +138,8 @@ onMounted(async () => {
       ordersByStatus: data.ordersByStatus,
       modelCount: data.modelCount,
       merchantCount: data.merchantCount,
-      brokerCount: data.brokerCount
+      brokerCount: data.brokerCount,
+      agentCount: data.agentCount
     };
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : "加载统计失败");
@@ -236,6 +238,16 @@ function go(path: string): void {
           <div class="stat-body">
             <span class="stat-value">{{ stats.brokerCount }}</span>
             <span class="stat-label">经纪人</span>
+          </div>
+          <el-icon class="stat-arrow"><ArrowRight /></el-icon>
+        </button>
+        <button type="button" class="stat-card stat-agents" @click="go('/agents')">
+          <div class="stat-icon-wrap">
+            <el-icon class="stat-icon"><Briefcase /></el-icon>
+          </div>
+          <div class="stat-body">
+            <span class="stat-value">{{ stats.agentCount }}</span>
+            <span class="stat-label">代理人</span>
           </div>
           <el-icon class="stat-arrow"><ArrowRight /></el-icon>
         </button>
@@ -357,10 +369,16 @@ function go(path: string): void {
 }
 
 .stats-row--users {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
+  .stats-row--users {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
   .stats-row--users {
     grid-template-columns: 1fr;
   }
@@ -435,6 +453,11 @@ function go(path: string): void {
 .stat-brokers .stat-icon-wrap {
   background: rgba(16, 185, 129, 0.12);
   color: #059669;
+}
+
+.stat-agents .stat-icon-wrap {
+  background: rgba(168, 85, 247, 0.12);
+  color: #7c3aed;
 }
 
 .stat-icon {

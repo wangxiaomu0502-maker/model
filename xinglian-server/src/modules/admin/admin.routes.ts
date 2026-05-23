@@ -1,6 +1,10 @@
 import { Router } from "express";
 
-import { requireAdminAuth } from "../../middlewares/require-admin-auth";
+import {
+  requireAdminAuth,
+  requireBackofficeAuth,
+  requireCsAuth
+} from "../../middlewares/require-admin-auth";
 import { validate } from "../../middlewares/validate";
 
 import { adminLoginController } from "../admin-auth/admin-auth.controller";
@@ -20,6 +24,7 @@ import {
   adminListBrokerBoundModelsController,
   adminReviewModelProfileAuditController,
   adminSetModelAgentController,
+  adminSetMerchantBrokerController,
   adminListOrdersController,
   adminListUsersWithRoleQueryController,
   adminPostOrderSplitController,
@@ -31,6 +36,7 @@ import {
 } from "./admin.controller";
 import {
   adminModelAgentBodySchema,
+  adminMerchantBrokerBodySchema,
   adminModelProfileAuditBodySchema,
   adminOrderIdParamSchema,
   adminPlatformLedgerQuerySchema,
@@ -60,6 +66,30 @@ import {
   adminAgentCreateBodySchema,
   adminAgentUpdateBodySchema
 } from "./admin-agent.types";
+import {
+  addPendingOrderNoteHandler,
+  completePendingOrderHandler,
+  getPendingOrderDetailHandler,
+  listPendingOrdersHandler,
+  startPendingOrderHandler
+} from "../admin-cs-order/admin-cs-order.controller";
+import {
+  csOrderIdParamSchema,
+  csOrderNoteBodySchema,
+  csPendingOrderListQuerySchema
+} from "../admin-cs-order/admin-cs-order.types";
+import {
+  createCsUserHandler,
+  deleteCsUserHandler,
+  listCsUsersHandler,
+  updateCsUserHandler
+} from "../admin-cs-user/admin-cs-user.controller";
+import {
+  createCsUserSchema,
+  csUserIdParamSchema,
+  csUserListQuerySchema,
+  updateCsUserSchema
+} from "../admin-cs-user/admin-cs-user.types";
 
 const adminRouter = Router();
 
@@ -80,6 +110,63 @@ adminRouter.get(
 /** 兼容旧路径，返回字段含 dashboard 全量 */
 adminRouter.get("/stats/users", requireAdminAuth, adminDashboardStatsController);
 adminRouter.post("/login", validate(adminLoginSchema), adminLoginController);
+
+adminRouter.get(
+  "/cs-users",
+  requireAdminAuth,
+  validate(csUserListQuerySchema, "query"),
+  listCsUsersHandler
+);
+adminRouter.post(
+  "/cs-users",
+  requireAdminAuth,
+  validate(createCsUserSchema),
+  createCsUserHandler
+);
+adminRouter.patch(
+  "/cs-users/:id",
+  requireAdminAuth,
+  validate(csUserIdParamSchema, "params"),
+  validate(updateCsUserSchema),
+  updateCsUserHandler
+);
+adminRouter.delete(
+  "/cs-users/:id",
+  requireAdminAuth,
+  validate(csUserIdParamSchema, "params"),
+  deleteCsUserHandler
+);
+adminRouter.get(
+  "/pending-orders",
+  requireBackofficeAuth,
+  validate(csPendingOrderListQuerySchema, "query"),
+  listPendingOrdersHandler
+);
+adminRouter.get(
+  "/pending-orders/:orderId",
+  requireBackofficeAuth,
+  validate(csOrderIdParamSchema, "params"),
+  getPendingOrderDetailHandler
+);
+adminRouter.post(
+  "/pending-orders/:orderId/start",
+  requireCsAuth,
+  validate(csOrderIdParamSchema, "params"),
+  startPendingOrderHandler
+);
+adminRouter.post(
+  "/pending-orders/:orderId/complete",
+  requireCsAuth,
+  validate(csOrderIdParamSchema, "params"),
+  completePendingOrderHandler
+);
+adminRouter.post(
+  "/pending-orders/:orderId/notes",
+  requireCsAuth,
+  validate(csOrderIdParamSchema, "params"),
+  validate(csOrderNoteBodySchema),
+  addPendingOrderNoteHandler
+);
 adminRouter.get(
   "/users",
   requireAdminAuth,
@@ -181,6 +268,13 @@ adminRouter.get(
   requireAdminAuth,
   validate(adminUserIdParamSchema, "params"),
   adminGetMerchantDetailController
+);
+adminRouter.patch(
+  "/merchants/:userId/broker",
+  requireAdminAuth,
+  validate(adminUserIdParamSchema, "params"),
+  validate(adminMerchantBrokerBodySchema),
+  adminSetMerchantBrokerController
 );
 adminRouter.get(
   "/merchants/:userId/expense-stats",

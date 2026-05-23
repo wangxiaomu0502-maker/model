@@ -10,6 +10,7 @@ function issueBpWholePct(path: string, ctx: z.RefinementCtx): void {
 
 export const splitRulesUpdateSchema = z
   .object({
+    serviceType: z.enum(["ordinary", "agent"]).default("ordinary"),
     platformFeeRateBp: z.number().int().min(0).max(10000),
     modelShareBp: z.number().int().min(0).max(10000),
     platformShareOfFeeBp: z.number().int().min(0).max(10000),
@@ -17,7 +18,7 @@ export const splitRulesUpdateSchema = z
     brokerShareOfFeeBp: z.number().int().min(0).max(10000)
   })
   .superRefine((data, ctx) => {
-    for (const [key, val] of Object.entries(data) as [string, number][]) {
+    for (const [key, val] of Object.entries(data).filter(([key]) => key !== "serviceType") as [string, number][]) {
       if (val % 100 !== 0) issueBpWholePct(key, ctx);
     }
     if (data.modelShareBp + data.platformFeeRateBp !== 10000) {

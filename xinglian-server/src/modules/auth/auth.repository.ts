@@ -1,5 +1,5 @@
 import type { PoolConnection } from "mysql2/promise";
-import { ResultSetHeader } from "mysql2";
+import { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { dbPool } from "../../config/db";
 import { ExistingUserRow, LoginUserRow } from "./auth.types";
@@ -37,6 +37,15 @@ export async function updateUnionid(
   );
 }
 
+export async function findOpenidByUserId(userId: number): Promise<string | null> {
+  const [rows] = await dbPool.query<RowDataPacket[]>(
+    "SELECT openid FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1",
+    [userId]
+  );
+  const openid = rows[0]?.openid;
+  return openid ? String(openid) : null;
+}
+
 export async function findLoginUserByOpenid(
   openid: string
 ): Promise<LoginUserRow[]> {
@@ -71,7 +80,8 @@ export async function completeRegistrationByUserId(
     idCardBackUrl: string;
     idCardIssueAuthority: string;
     idCardValidDate: string;
-  }
+  },
+  referrerBrokerUserId: number | null = null
 ): Promise<void> {
   await dbPool.query(
     `UPDATE users
@@ -88,12 +98,15 @@ export async function completeRegistrationByUserId(
          id_card_valid_date = ?,
          verified_status = 2,
          profile_audit_status = 0,
+         referrer_id = IF(? IS NOT NULL, COALESCE(referrer_id, ?), referrer_id),
          contract_platform_broker_signed_at = NULL,
          contract_platform_merchant_signed_at = NULL,
          contract_broker_model_signed_at = NULL,
+         contract_platform_agent_signed_at = NULL,
          contract_platform_broker_signature_url = NULL,
          contract_platform_merchant_signature_url = NULL,
          contract_broker_model_signature_url = NULL,
+         contract_platform_agent_signature_url = NULL,
          updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,
     [
@@ -107,6 +120,8 @@ export async function completeRegistrationByUserId(
       profile.idCardBackUrl,
       profile.idCardIssueAuthority,
       profile.idCardValidDate,
+      referrerBrokerUserId,
+      referrerBrokerUserId,
       userId
     ]
   );
@@ -165,9 +180,11 @@ export async function revertAccountToVisitorByUserIdAndOpenid(
            contract_platform_broker_signed_at = NULL,
            contract_platform_merchant_signed_at = NULL,
            contract_broker_model_signed_at = NULL,
+           contract_platform_agent_signed_at = NULL,
            contract_platform_broker_signature_url = NULL,
            contract_platform_merchant_signature_url = NULL,
            contract_broker_model_signature_url = NULL,
+           contract_platform_agent_signature_url = NULL,
            referrer_id = NULL,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ? AND openid = ?`,

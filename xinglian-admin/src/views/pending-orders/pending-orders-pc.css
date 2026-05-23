@@ -1,0 +1,150 @@
+/* 待处理订单 — PC 端 */
+
+.pending-orders-root--pc .po-pc-head {
+  margin-bottom: 20px;
+}
+
+.pending-orders-root--pc .po-pc-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pending-orders-root--pc .po-pc-desc {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.pending-orders-root--pc .po-pc-card {
+  width: 100%;
+  border-radius: 12px;
+}
+
+.pending-orders-root--pc .po-readonly-alert {
+  margin-bottom: 12px;
+}
+
+.pending-orders-root--pc .po-status-tabs {
+  margin-bottom: 4px;
+}
+
+.pending-orders-root--pc .po-pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.po-drawer.pending-orders-root--pc :deep(.el-drawer__body) {
+  padding: 16px 20px 24px;
+}
+
+.pending-orders-root--pc .po-drawer-body {
+  min-height: 200px;
+}
+
+.pending-orders-root--pc .po-section {
+  margin-bottom: 24px;
+}
+
+.pending-orders-root--pc .po-section-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.pending-orders-root--pc .po-info-grid {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 10px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.pending-orders-root--pc .po-info-grid dt {
+  margin: 0;
+  color: #64748b;
+}
+
+.pending-orders-root--pc .po-info-grid dd {
+  margin: 0;
+  color: #0f172a;
+}
+
+.pending-orders-root--pc .po-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pending-orders-root--pc .po-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  max-height: min(48vh, 420px);
+  overflow-y: auto;
+}
+
+.pending-orders-root--pc .po-note-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.pending-orders-root--pc .po-note-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.pending-orders-root--pc .po-note-author {
+  font-weight: 600;
+  color: #475569;
+}
+
+.pending-orders-root--pc .po-note-content {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #0f172a;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.pending-orders-root--pc .po-note-form {
+  margin-top: 12px;
+}
+
+.pending-orders-root--pc .po-note-submit {
+  margin-top: 10px;
+}
+
+.pending-orders-root--pc .po-party-table {
+  width: 100%;
+}
+
+.pending-orders-root--pc .po-party-table :deep(.el-table__cell) {
+  font-size: 14px;
+}
+
+.pending-orders-root--pc .po-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.pending-orders-root--pc .po-phone {
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.pending-orders-root--pc .po-muted {
+  color: #94a3b8;
+  font-size: 13px;
+}

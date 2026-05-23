@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { identityRoleMap } from "./auth.types";
-
 export const wechatLoginSchema = z.object({
   code: z.string().min(1)
 });
@@ -10,15 +8,7 @@ export const bindPhoneSchema = z.object({
   code: z.string().min(1)
 });
 
-function resolveTargetRole(value: { role?: number; identity?: string }): number {
-  let targetRole = Number(value.role || 0);
-  if (!targetRole && value.identity) {
-    targetRole = identityRoleMap[value.identity] || 0;
-  }
-  return targetRole;
-}
-
-/** 允许缺省转空串；商家可不传身份证 OCR 字段 */
+/** 允许缺省转空串，统一在 superRefine 中给出业务字段错误 */
 const trimMax = (max: number) =>
   z.preprocess(
     (val) => (val === undefined || val === null ? "" : String(val)).trim(),
@@ -38,14 +28,14 @@ export const completeRegistrationSchema = z
     idCardFrontUrl: trimMax(512),
     idCardBackUrl: trimMax(512),
     idCardIssueAuthority: trimMax(120),
-    idCardValidDate: trimMax(64)
+    idCardValidDate: trimMax(64),
+    /** 经纪人推广链接携带的转介绍码（平台用户 ID / user_no） */
+    brokerUserNo: trimMax(64).optional()
   })
   .refine((value) => value.role !== undefined || value.identity !== undefined, {
     message: "role or identity is required"
   })
   .superRefine((value, ctx) => {
-    const r = resolveTargetRole(value);
-    if (r === 2) return;
     if (!value.realName) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "real name required", path: ["realName"] });
     }

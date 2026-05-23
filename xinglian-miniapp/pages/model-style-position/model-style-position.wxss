@@ -1,0 +1,180 @@
+@import "../../styles/xl-theme.wxss";
+
+.top-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.top-bar-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.top-title {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #111827;
+}
+
+.top-sub {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+  line-height: 1.45;
+}
+
+.top-add-photo {
+  flex-shrink: 0;
+  padding: 14rpx 22rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #fff;
+  border-radius: 999rpx;
+}
+
+.empty-card {
+  padding: 48rpx 32rpx;
+  border-radius: 22rpx;
+  border-width: 1rpx;
+  border-style: dashed;
+  text-align: center;
+}
+
+.empty-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #374151;
+}
+
+.empty-desc {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+
+.empty-btn {
+  margin-top: 28rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  padding: 0 40rpx;
+  font-size: 28rpx;
+  color: #fff;
+  border-radius: 999rpx;
+  border: none;
+}
+
+.empty-btn::after {
+  border: none;
+}
+
+.style-card {
+  padding: 24rpx;
+}
+
+.style-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 18rpx;
+}
+
+.style-card-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.style-card-meta {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #9ca3af;
+}
+
+.style-card-action {
+  flex-shrink: 0;
+  font-size: 24rpx;
+}
+
+.photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.photo-tile {
+  position: relative;
+  width: calc((100% - 24rpx) / 3);
+  height: 200rpx;
+  border-radius: 14rpx;
+  overflow: hidden;
+  background: #e5e7eb;
+}
+
+.photo-thumb {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.delete-hit {
+  position: absolute;
+  right: 8rpx;
+  top: 8rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.58);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-mark {
+  color: #fff;
+  font-size: 34rpx;
+  line-height: 1;
+  transform: translateY(-2rpx);
+}
+
+.add-tile {
+  border-width: 2rpx;
+  border-style: dashed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  box-sizing: border-box;
+}
+
+.add-plus {
+  font-size: 44rpx;
+  font-weight: 300;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.add-label {
+  font-size: 22rpx;
+  color: #64748b;
+}
+
+.bottom-tip {
+  margin-top: 8rpx;
+  padding: 16rpx 8rpx;
+  font-size: 22rpx;
+  color: #9ca3af;
+  line-height: 1.45;
+  text-align: center;
+}

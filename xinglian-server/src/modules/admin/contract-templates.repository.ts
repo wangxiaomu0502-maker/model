@@ -16,7 +16,8 @@ export async function insertDefaultContractTemplates(): Promise<void> {
     `INSERT IGNORE INTO contract_templates (contract_kind, title, content_html) VALUES
        ('platform_broker', '平台与经纪人服务合同', ''),
        ('platform_merchant', '平台与商家服务合同', ''),
-       ('broker_model', '经纪人与模特合作协议', '')`
+       ('broker_model', '经纪人与模特合作协议', ''),
+       ('platform_agent', '平台与代理人服务合同', '')`
   );
 }
 

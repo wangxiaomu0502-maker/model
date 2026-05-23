@@ -7,6 +7,7 @@ import { AuthenticatedRequest } from "../../middlewares/auth";
 import { listMyMerchantsForBroker, listMyModelsForBroker } from "./broker-bindings.service";
 import { getBrokerDashboard } from "./broker-dashboard.service";
 import { getBrokerRelatedOrderDetail, listBrokerRelatedOrders } from "./broker-order.service";
+import { createBrokerPromoUrlLink } from "./broker-promo.service";
 import type { BrokerBoundListQuery, BrokerOrderListQuery } from "./broker.types";
 import type { OrderIdParams } from "../order/order.types";
 
@@ -88,6 +89,26 @@ export async function listBrokerOrdersController(
     assertBrokerRole(auth.role);
     const q = req.query as unknown as BrokerOrderListQuery;
     const payload = await listBrokerRelatedOrders(userId, q);
+    success(res, payload);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getBrokerPromoUrlLinkController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const auth = (req as AuthenticatedRequest).auth;
+    const userId = auth?.userId;
+    if (!userId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    assertBrokerRole(auth.role);
+    const payload = await createBrokerPromoUrlLink(userId, Number(auth.role));
     success(res, payload);
   } catch (error) {
     next(error);

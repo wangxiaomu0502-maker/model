@@ -18,10 +18,15 @@ import {
   saveOrderSettings,
   savePortfolio,
   savePricing,
-  saveSchedule
+  saveSchedule,
+  saveStylePosition
 } from "./model.service";
 import { getModelDashboard } from "./model-dashboard.service";
-import { uploadModelCardImageToCos, uploadModelPortfolioImageToCos } from "./model.card-upload.storage";
+import {
+  uploadModelCardImageToCos,
+  uploadModelPortfolioImageToCos,
+  uploadModelStylePositionImageToCos
+} from "./model.card-upload.storage";
 
 function getUserId(req: Request): number | null {
   return (req as AuthenticatedRequest).auth?.userId ?? null;
@@ -137,10 +142,6 @@ export async function getMerchantModelListController(req: Request, res: Response
 export async function getModelPublicDetailController(req: Request, res: Response, next: NextFunction) {
   try {
     const authReq = req as AuthenticatedRequest;
-    const userId = getUserId(req);
-    if (!userId) {
-      return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
-    }
     const q = req.query as { userNo?: string; userId?: number };
     const viewerRole =
       authReq.auth?.role !== undefined && authReq.auth.role !== null ? Number(authReq.auth.role) : 0;
@@ -165,6 +166,7 @@ export async function saveCardController(req: Request, res: Response, next: Next
 const CARD_IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const PORTFOLIO_IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
+const STYLE_POSITION_IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export async function uploadModelPortfolioImageController(
   req: Request,
@@ -182,6 +184,32 @@ export async function uploadModelPortfolioImageController(
     }
 
     const url = await uploadModelPortfolioImageToCos({
+      userId,
+      body: file.buffer,
+      mimetype: file.mimetype
+    });
+    return success(res, { url });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function uploadModelStylePositionImageController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+    }
+    const file = (req as AuthenticatedRequest & { file?: Express.Multer.File }).file;
+    if (!file || !STYLE_POSITION_IMAGE_MIME.has(file.mimetype)) {
+      throw new AppError("invalid style position image", 400, ErrorCodes.VALIDATION_ERROR);
+    }
+
+    const url = await uploadModelStylePositionImageToCos({
       userId,
       body: file.buffer,
       mimetype: file.mimetype
@@ -223,6 +251,17 @@ export async function savePortfolioController(req: Request, res: Response, next:
     const userId = getUserId(req);
     if (!userId) return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
     await savePortfolio(userId, req.body as Record<string, unknown>);
+    return success(res);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function saveStylePositionController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+    await saveStylePosition(userId, req.body as Record<string, unknown>);
     return success(res);
   } catch (error) {
     return next(error);

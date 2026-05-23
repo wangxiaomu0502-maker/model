@@ -11,6 +11,23 @@
   color: #111827;
 }
 
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.batch-upload-btn {
+  flex-shrink: 0;
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 600;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+}
+
 .hint {
   margin-top: 10rpx;
   display: block;

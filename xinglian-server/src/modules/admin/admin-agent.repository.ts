@@ -25,13 +25,14 @@ export type AdminAgentListRow = RowDataPacket & {
   created_at: Date | string;
   updated_at: Date | string;
   bound_model_count: number | string | null;
+  contract_platform_agent_signed_at: Date | string | null;
 };
 
 export type AdminAgentDetailRow = AdminAgentListRow;
 
 const AGENT_SELECT = `
   u.id, u.user_no, u.nickname, u.avatar_url, u.phone, u.status,
-  u.verified_status, u.real_name,
+  u.verified_status, u.real_name, u.contract_platform_agent_signed_at,
   ap.company_name, ap.contact_name, ap.emergency_contact_name, ap.emergency_contact_phone,
   ap.city, ap.business_license_url,
   u.created_at, u.updated_at,

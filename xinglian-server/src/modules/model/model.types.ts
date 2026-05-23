@@ -79,6 +79,15 @@ export const portfolioSchema = z.object({
   photos: z.array(portfolioPhotoInput).max(100).default([])
 });
 
+const stylePositionPhotoInput = z.object({
+  id: z.string().max(80).optional(),
+  url: z.string().min(1).max(2048)
+});
+
+export const stylePositionSchema = z.object({
+  photos: z.array(stylePositionPhotoInput).max(100).default([])
+});
+
 export const pricingSchema = z.object({
   hourly: z.coerce.number().int().positive().optional().nullable(),
   halfDay: z.coerce.number().int().positive().optional().nullable(),

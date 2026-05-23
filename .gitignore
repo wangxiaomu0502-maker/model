@@ -7,6 +7,11 @@
 !.env.example
 服务器.txt
 秘钥.txt
+支付.txt
+支付证书目录/
+xinglian-server/certs/*.pem
+xinglian-server/certs/*.p12
+xinglian-server/certs/*.key
 
 # Dependencies & build output
 node_modules/

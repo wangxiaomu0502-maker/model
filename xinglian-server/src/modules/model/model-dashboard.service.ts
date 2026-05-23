@@ -1,5 +1,10 @@
 import type { SplitRulesRow } from "../admin/split-rules.repository";
-import { findSplitRulesById, insertDefaultSplitRulesRow, fallbackSplitRulesRowForEstimate } from "../admin/split-rules.repository";
+import {
+  fallbackSplitRulesRowForEstimate,
+  findSplitRulesByServiceType,
+  insertDefaultSplitRulesRow,
+  type SplitServiceType
+} from "../admin/split-rules.repository";
 import {
   findModelInTransitOrdersForPendingEstimate,
   findUnsplitPaidCompletedOrdersForModel,
@@ -18,18 +23,18 @@ import {
 } from "./shanghai-calendar";
 import { computeOrderSplit } from "../split/settlement-calculator";
 
-const SPLIT_RULES_ID = 1;
-
 function estimateModelIncomeYuanForOrder(
   order: {
     payableAmountYuan: number;
+    serviceType?: SplitServiceType;
     brokerUserId: number | null;
     agentUserId: number | null;
   },
-  rules: SplitRulesRow
+  rulesByServiceType: Record<SplitServiceType, SplitRulesRow>
 ): number {
   const p = order.payableAmountYuan;
   if (!Number.isFinite(p) || p <= 0) return 0;
+  const rules = rulesByServiceType[order.serviceType === "agent" ? "agent" : "ordinary"];
   return computeOrderSplit({
     payableAmountYuan: p,
     modelShareBp: Number(rules.model_share_bp),
@@ -48,8 +53,13 @@ export type ModelDashboardPeriod = {
 /** 钱包用：全量待结算 = 在途(1～2) lifetime + 未完成分账 backlog 估算 */
 export async function computeModelLifetimePendingSettlementYuan(modelUserId: number): Promise<number> {
   await insertDefaultSplitRulesRow();
-  const splitRules = await findSplitRulesById(SPLIT_RULES_ID);
-  const rulesForEstimate = splitRules ?? fallbackSplitRulesRowForEstimate();
+  const fallback = fallbackSplitRulesRowForEstimate();
+  const ordinaryRules = await findSplitRulesByServiceType("ordinary");
+  const agentRules = await findSplitRulesByServiceType("agent");
+  const rulesForEstimate = {
+    ordinary: ordinaryRules ?? fallback,
+    agent: agentRules ?? ordinaryRules ?? fallback
+  };
 
   const [inTransitRows, unsplitRows] = await Promise.all([
     findModelInTransitOrdersForPendingEstimate(modelUserId, null, null),
@@ -78,7 +88,7 @@ async function periodMetrics(
   modelUserId: number,
   start: Date,
   endExclusive: Date,
-  rulesForEstimate: SplitRulesRow,
+  rulesForEstimate: Record<SplitServiceType, SplitRulesRow>,
   unsplitModelEst: number
 ): Promise<ModelDashboardPeriod> {
   const [orderCount, income, inTransitRows] = await Promise.all([
@@ -123,8 +133,13 @@ export async function getModelDashboard(modelUserId: number): Promise<{
   const trendR = rangeUtc(trendStartKey, tomorrowKey);
 
   await insertDefaultSplitRulesRow();
-  const splitRules = await findSplitRulesById(SPLIT_RULES_ID);
-  const rulesForEstimate = splitRules ?? fallbackSplitRulesRowForEstimate();
+  const fallback = fallbackSplitRulesRowForEstimate();
+  const ordinaryRules = await findSplitRulesByServiceType("ordinary");
+  const agentRules = await findSplitRulesByServiceType("agent");
+  const rulesForEstimate = {
+    ordinary: ordinaryRules ?? fallback,
+    agent: agentRules ?? ordinaryRules ?? fallback
+  };
 
   const unsplitRows = await findUnsplitPaidCompletedOrdersForModel(modelUserId);
   let unsplitModelEst = 0;

@@ -4,7 +4,8 @@ import type { ContractKind } from "../admin/contract-templates.types";
 export const CONTRACT_KIND_FOR_ROLE: Partial<Record<number, ContractKind>> = {
   1: "broker_model",
   2: "platform_merchant",
-  3: "platform_broker"
+  3: "platform_broker",
+  4: "platform_agent"
 };
 
 export function contractKindAllowedForRole(role: number): ContractKind | null {

@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -20,6 +23,13 @@ const dbPort = Number(process.env.DB_PORT ?? 3306);
 const dbConnectionLimit = Number(process.env.DB_CONNECTION_LIMIT ?? 10);
 const wechatAppId = normalizedEnvValue(process.env.WECHAT_APP_ID);
 const wechatAppSecret = normalizedEnvValue(process.env.WECHAT_APP_SECRET);
+const wechatMiniProgramEnv = normalizedEnvValue(process.env.WECHAT_MINI_PROGRAM_ENV);
+const wechatMiniProgramEnvResolved =
+  wechatMiniProgramEnv === "develop" ||
+  wechatMiniProgramEnv === "trial" ||
+  wechatMiniProgramEnv === "release"
+    ? wechatMiniProgramEnv
+    : "release";
 const jwtSecret = normalizedEnvValue(process.env.JWT_SECRET);
 const jwtExpiresIn = normalizedEnvValue(process.env.JWT_EXPIRES_IN) ?? "7d";
 const cosSecretId = normalizedEnvValue(process.env.TENCENT_SECRET_ID);
@@ -85,13 +95,68 @@ if (!cosPublicBaseUrl) {
   throw new Error("COS_PUBLIC_BASE_URL is required.");
 }
 
+const wechatPayMchId = normalizedEnvValue(process.env.WECHAT_PAY_MCH_ID);
+const wechatPayApiV3Key = normalizedEnvValue(process.env.WECHAT_PAY_API_V3_KEY);
+const wechatPaySerialNo = normalizedEnvValue(process.env.WECHAT_PAY_SERIAL_NO);
+const wechatPayPrivateKeyPath = normalizedEnvValue(process.env.WECHAT_PAY_PRIVATE_KEY_PATH);
+const wechatPayPublicKeyId = normalizedEnvValue(process.env.WECHAT_PAY_PUBLIC_KEY_ID);
+const wechatPayPublicKeyPath = normalizedEnvValue(process.env.WECHAT_PAY_PUBLIC_KEY_PATH);
+const wechatPayPublicKeyPem = normalizedEnvValue(process.env.WECHAT_PAY_PUBLIC_KEY)?.replace(
+  /\\n/g,
+  "\n"
+);
+const wechatPayNotifyUrl = normalizedEnvValue(process.env.WECHAT_PAY_NOTIFY_URL);
+const wechatPayMode = normalizedEnvValue(process.env.WECHAT_PAY_MODE) ?? "auto";
+
+function wechatPayPublicKeyReady(): boolean {
+  if (wechatPayPublicKeyPem && wechatPayPublicKeyPem.includes("BEGIN")) return true;
+  if (!wechatPayPublicKeyPath) return false;
+  try {
+    return fs.existsSync(path.resolve(wechatPayPublicKeyPath));
+  } catch {
+    return false;
+  }
+}
+
+function resolveWechatPayEnabled(): boolean {
+  if (wechatPayMode === "mock") return false;
+  const core = Boolean(
+    wechatPayMchId &&
+      wechatPayApiV3Key &&
+      wechatPaySerialNo &&
+      wechatPayPrivateKeyPath &&
+      wechatPayPublicKeyId &&
+      wechatPayNotifyUrl &&
+      wechatPayPublicKeyReady()
+  );
+  if (wechatPayMode === "wechat") return core;
+  return core;
+}
+
+const wechatPayEnabled = resolveWechatPayEnabled();
+
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port,
   wechat: {
     appId: wechatAppId,
-    appSecret: wechatAppSecret
+    appSecret: wechatAppSecret,
+    /** URL Link 打开的小程序版本，默认正式版 release */
+    miniProgramEnv: wechatMiniProgramEnvResolved
   },
+  wechatPay: wechatPayEnabled
+    ? {
+        enabled: true as const,
+        mchId: wechatPayMchId as string,
+        apiV3Key: wechatPayApiV3Key as string,
+        serialNo: wechatPaySerialNo as string,
+        privateKeyPath: wechatPayPrivateKeyPath as string,
+        publicKeyId: wechatPayPublicKeyId as string,
+        publicKeyPath: (wechatPayPublicKeyPath || "./certs/wechatpay_public.pem") as string,
+        publicKeyPem: wechatPayPublicKeyPem,
+        notifyUrl: wechatPayNotifyUrl as string
+      }
+    : { enabled: false as const },
   jwt: {
     secret: jwtSecret,
     expiresIn: jwtExpiresIn

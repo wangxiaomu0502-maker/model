@@ -4,11 +4,24 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html,
 body,
 #app {
   height: 100%;
   margin: 0;
+}
+
+/* 移动端禁止双指/双击缩放（配合 viewport user-scalable=no） */
+@media (max-width: 768px) {
+  html,
+  body {
+    touch-action: manipulation;
+  }
 }
 
 body {

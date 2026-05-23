@@ -32,6 +32,7 @@ type ModelExtraRow = RowDataPacket & {
   user_id: number;
   card_json: string | null;
   portfolio_json: string | null;
+  style_position_json: string | null;
   schedule_json: string | null;
   order_settings_json: string | null;
 };
@@ -86,6 +87,7 @@ type PublicModelDetailRow = RowDataPacket & {
   only_female_clients: number;
   card_json: string | null;
   portfolio_json: string | null;
+  style_position_json: string | null;
   order_settings_json: string | null;
   schedule_json: string | null;
 };
@@ -111,6 +113,7 @@ const publicModelDetailSelect = `SELECT u.id,
             mp.only_female_clients,
             mex.card_json,
             mex.portfolio_json,
+            mex.style_position_json,
             mex.order_settings_json,
             mex.schedule_json
      FROM users u
@@ -265,7 +268,7 @@ export async function updateOrderSettings(userId: number, settings: Record<strin
 
 export async function updateExtraJson(
   userId: number,
-  column: "card_json" | "portfolio_json" | "schedule_json",
+  column: "card_json" | "portfolio_json" | "style_position_json" | "schedule_json",
   payload: unknown
 ): Promise<void> {
   await dbPool.query(
@@ -370,7 +373,8 @@ export async function findMerchantModelList(limit = 50): Promise<MerchantModelLi
               mp.price_allday,
               mp.is_available,
               u.profile_audit_status
-     ORDER BY u.id DESC
+     ORDER BY COALESCE(u.is_mock, 0) ASC,
+              u.id DESC
      LIMIT ?`,
     [safeLimit]
   );

@@ -43,9 +43,11 @@ type UserProfileRow = RowDataPacket & {
   contract_platform_broker_signed_at?: Date | string | null;
   contract_platform_merchant_signed_at?: Date | string | null;
   contract_broker_model_signed_at?: Date | string | null;
+  contract_platform_agent_signed_at?: Date | string | null;
   contract_platform_broker_signature_url?: string | null;
   contract_platform_merchant_signature_url?: string | null;
   contract_broker_model_signature_url?: string | null;
+  contract_platform_agent_signature_url?: string | null;
 };
 
 function normalizeProfileRow(row: UserProfileRow): UserProfileRow {
@@ -56,7 +58,9 @@ function normalizeProfileRow(row: UserProfileRow): UserProfileRow {
     contract_platform_merchant_signed_at:
       row.contract_platform_merchant_signed_at ?? null,
     contract_broker_model_signed_at:
-      row.contract_broker_model_signed_at ?? null
+      row.contract_broker_model_signed_at ?? null,
+    contract_platform_agent_signed_at:
+      row.contract_platform_agent_signed_at ?? null
   };
 }
 
@@ -90,6 +94,10 @@ export async function updateUserContractSignedAt(
       sql =
         "UPDATE users SET contract_broker_model_signed_at = CURRENT_TIMESTAMP, contract_broker_model_signature_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
       break;
+    case "platform_agent":
+      sql =
+        "UPDATE users SET contract_platform_agent_signed_at = CURRENT_TIMESTAMP, contract_platform_agent_signature_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+      break;
     default:
       return false;
   }
@@ -99,7 +107,7 @@ export async function updateUserContractSignedAt(
   } catch (err) {
     if (isUnknownColumnError(err)) {
       throw new AppError(
-        "数据库缺少合同签署/签名字段，请执行 sql/alter-users-contract-signed-at.sql 与 sql/alter-users-contract-signature-url.sql",
+        "数据库缺少合同签署/签名字段，请执行 sql/alter-users-contract-signed-at.sql、sql/alter-users-contract-signature-url.sql 与 sql/alter-users-contract-platform-agent.sql",
         503,
         ErrorCodes.UPSTREAM_ERROR
       );

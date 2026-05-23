@@ -4,7 +4,8 @@ import type { ContractKind } from "./contract-templates.types";
 export const CONTRACT_KIND_ORDER: ContractKind[] = [
   "platform_broker",
   "platform_merchant",
-  "broker_model"
+  "broker_model",
+  "platform_agent"
 ];
 
 /** 展示文案（不与 DB title 混用：title 为合同标题可编辑） */
@@ -23,5 +24,9 @@ export const CONTRACT_KIND_LABELS: Record<
   broker_model: {
     label: "经纪人与模特",
     partiesLine: "经纪人和模特订立，由模特签署"
+  },
+  platform_agent: {
+    label: "平台与代理人",
+    partiesLine: "平台和代理人订立，由代理人签署"
   }
 };

@@ -10,7 +10,7 @@ import { AdminLoginDto } from "./admin-auth.types";
 export async function adminLoginController(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = req.body as AdminLoginDto;
-    const result = await loginAdmin(body.username, body.password);
+    const result = await loginAdmin(body.username, body.password, body.loginType);
     success(res, {
       token: result.token,
       admin: result.admin

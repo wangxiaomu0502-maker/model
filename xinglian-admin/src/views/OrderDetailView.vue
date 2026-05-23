@@ -8,6 +8,7 @@ import {
   fetchAdminOrderSplitPreview,
   postAdminOrderSplit,
   type AdminOrderDetail,
+  type AdminOrderPartyItem,
   type AdminOrderSplitPreview
 } from "@/api/admin";
 import { getAdminToken } from "@/composables/useAdminToken";
@@ -29,7 +30,8 @@ const PAYMENT_LABELS: Record<number, string> = {
   0: "未支付",
   1: "已支付",
   2: "退款中",
-  3: "已退款"
+  3: "已退款",
+  4: "退款失败"
 };
 
 const ORDER_STATUS_LABELS: Record<number, string> = {
@@ -58,6 +60,7 @@ function paymentTagType(
   if (status === 1) return "success";
   if (status === 2) return "warning";
   if (status === 3) return "danger";
+  if (status === 4) return "danger";
   return "info";
 }
 
@@ -84,9 +87,54 @@ function formatAmt(v: number | null | undefined): string {
   return Number(v).toFixed(2);
 }
 
-function formatId(v: number | null | undefined): string {
-  if (v == null || Number.isNaN(Number(v))) return "—";
-  return String(v);
+function formatPhone(v: string | null | undefined): string {
+  const s = v?.trim();
+  return s ? s : "—";
+}
+
+const orderParties = computed((): AdminOrderPartyItem[] => {
+  const o = order.value;
+  if (!o) return [];
+  if (o.parties?.length) return o.parties;
+  return [
+    {
+      role: "merchant",
+      roleLabel: "商家",
+      userNo: o.merchantUserNo || null,
+      nickname: o.merchantNickname || null,
+      realName: null,
+      phone: o.merchantPhone ?? o.merchant?.phone ?? null
+    },
+    {
+      role: "model",
+      roleLabel: "模特",
+      userNo: o.modelUserNo || null,
+      nickname: o.modelNickname || null,
+      realName: null,
+      phone: o.modelPhone ?? o.model?.phone ?? null
+    },
+    {
+      role: "broker",
+      roleLabel: "经纪人",
+      userNo: o.broker?.userNo ?? null,
+      nickname: o.broker?.nickname ?? null,
+      realName: o.broker?.realName ?? null,
+      phone: o.broker?.phone ?? null
+    },
+    {
+      role: "agent",
+      roleLabel: "代理人",
+      userNo: o.agent?.userNo ?? null,
+      nickname: o.agent?.nickname ?? null,
+      realName: o.agent?.realName ?? null,
+      phone: o.agent?.phone ?? null,
+      companyName: o.agent?.companyName ?? null
+    }
+  ];
+});
+
+function partyUnbound(p: AdminOrderPartyItem): boolean {
+  return !p.userNo?.trim() && !p.phone?.trim() && !p.nickname?.trim();
 }
 
 const orderIdParam = computed(() => {
@@ -405,25 +453,33 @@ watch(orderIdParam, () => {
       </el-card>
 
       <el-card shadow="never" class="alv-card block od-card">
-        <template #header><span class="card-h">参与方</span></template>
-        <el-descriptions :column="2" border class="od-desc">
-          <el-descriptions-item label="商家 userId">{{ order.merchantUserId }}</el-descriptions-item>
-          <el-descriptions-item label="商家编号 / 昵称">
-            <span class="alv-mono">{{ order.merchantUserNo }}</span>
-            <span v-if="order.merchantNickname" class="sub"> / {{ order.merchantNickname }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="模特 userId">{{ order.modelUserId }}</el-descriptions-item>
-          <el-descriptions-item label="模特编号 / 昵称">
-            <span class="alv-mono">{{ order.modelUserNo }}</span>
-            <span v-if="order.modelNickname" class="sub"> / {{ order.modelNickname }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="经纪人 userId">
-            {{ formatId(order.brokerUserId) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="代理人 userId">
-            {{ formatId(order.agentUserId) }}
-          </el-descriptions-item>
-        </el-descriptions>
+        <template #header><span class="card-h">参与方（4方）</span></template>
+        <el-table :data="orderParties" border stripe class="od-party-table" style="width: 100%">
+          <el-table-column prop="roleLabel" label="角色" width="88" />
+          <el-table-column label="平台ID" min-width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="alv-mono">{{ row.userNo?.trim() || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="昵称" min-width="100" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.nickname?.trim() || "—" }}</template>
+          </el-table-column>
+          <el-table-column label="实名/姓名" min-width="100" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.realName?.trim() || "—" }}</template>
+          </el-table-column>
+          <el-table-column label="手机号" width="130">
+            <template #default="{ row }">
+              <span class="alv-mono">{{ formatPhone(row.phone) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="备注" min-width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span v-if="row.role === 'agent' && row.companyName?.trim()">{{ row.companyName.trim() }}</span>
+              <span v-else-if="partyUnbound(row)" class="od-party-muted">未绑定</span>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
+        </el-table>
       </el-card>
 
       <el-card v-if="showSplitAction" shadow="never" class="alv-card block od-card od-split-card">
@@ -634,6 +690,49 @@ watch(orderIdParam, () => {
   font-size: 14px;
   line-height: 1.55;
   color: var(--el-text-color-regular);
+}
+
+.od-party-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .od-party-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.od-party-block {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  background: linear-gradient(180deg, #fafbff 0%, #f8fafc 100%);
+}
+
+.od-party-role {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+  letter-spacing: 0.02em;
+}
+
+.od-party-desc :deep(.el-descriptions__label) {
+  width: 108px;
+}
+
+.od-party-muted {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.od-party-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--el-text-color-placeholder);
+  line-height: 1.5;
 }
 </style>
 

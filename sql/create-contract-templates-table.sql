@@ -1,5 +1,5 @@
 -- 合同模板（运营后台富文本配置，用户端只读展示）
--- 三种固定类型：platform_broker（经纪人签署）、platform_merchant（商家签署）、broker_model（模特签署）
+-- 四种固定类型：platform_broker（经纪人签署）、platform_merchant（商家签署）、broker_model（模特签署）、platform_agent（代理人签署）
 --
 -- 执行本文件时请使用 utf8mb4 客户端字符集，否则 INSERT 里的中文标题可能乱码，例如：
 --   mysql --no-defaults --default-character-set=utf8mb4 ... < sql/create-contract-templates-table.sql
@@ -7,7 +7,7 @@
 
 CREATE TABLE IF NOT EXISTS contract_templates (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  contract_kind VARCHAR(32) NOT NULL COMMENT 'platform_broker | platform_merchant | broker_model',
+  contract_kind VARCHAR(32) NOT NULL COMMENT 'platform_broker | platform_merchant | broker_model | platform_agent',
   title VARCHAR(200) NOT NULL DEFAULT '',
   content_html MEDIUMTEXT NOT NULL COMMENT '富文本 HTML，服务端存储前做基础净化',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -19,4 +19,5 @@ CREATE TABLE IF NOT EXISTS contract_templates (
 INSERT IGNORE INTO contract_templates (contract_kind, title, content_html) VALUES
 ('platform_broker', '平台与经纪人服务合同', ''),
 ('platform_merchant', '平台与商家服务合同', ''),
-('broker_model', '经纪人与模特合作协议', '');
+('broker_model', '经纪人与模特合作协议', ''),
+('platform_agent', '平台与代理人服务合同', '');

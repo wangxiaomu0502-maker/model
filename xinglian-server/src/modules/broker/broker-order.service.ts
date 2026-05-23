@@ -1,11 +1,13 @@
 import { AppError } from "../../core/errors/app-error";
 import { ErrorCodes } from "../../core/constants/error-codes";
 import {
-  findSplitRulesById,
+  findSplitRulesByServiceType,
   insertDefaultSplitRulesRow,
   fallbackSplitRulesRowForEstimate,
+  type SplitServiceType,
   type SplitRulesRow
 } from "../admin/split-rules.repository";
+import { resolveOrderCsContactForApp } from "../order/order-cs-contact.service";
 import { durationKindLabel, orderStatusLabel, paymentStatusLabel } from "../order/order-status";
 import { computeOrderSplit } from "../split/settlement-calculator";
 import type { BrokerOrderListQuery } from "./broker.types";
@@ -16,8 +18,6 @@ import {
   findUnsettledCompletedBrokerReferrerOrders
 } from "./broker-order.repository";
 import type { BrokerOrderListRow } from "./broker-order.repository";
-
-const SPLIT_RULES_ID = 1;
 
 function num(v: unknown): number {
   const n = Number(v);
@@ -67,10 +67,15 @@ function estimateBrokerCommissionYuan(
   return Number(split.brokerIncomeYuan.toFixed(2));
 }
 
-async function resolveRulesForEstimate(): Promise<SplitRulesRow> {
+async function resolveRulesForEstimate(): Promise<Record<SplitServiceType, SplitRulesRow>> {
   await insertDefaultSplitRulesRow();
-  const splitRules = await findSplitRulesById(SPLIT_RULES_ID);
-  return splitRules ?? fallbackSplitRulesRowForEstimate();
+  const fallback = fallbackSplitRulesRowForEstimate();
+  const ordinary = await findSplitRulesByServiceType("ordinary");
+  const agent = await findSplitRulesByServiceType("agent");
+  return {
+    ordinary: ordinary ?? fallback,
+    agent: agent ?? ordinary ?? fallback
+  };
 }
 
 function resolveMyCommission(
@@ -78,6 +83,7 @@ function resolveMyCommission(
   row: Pick<
     BrokerOrderListRow,
     | "payable_amount"
+    | "service_type"
     | "order_status"
     | "broker_user_id"
     | "agent_user_id"
@@ -85,7 +91,7 @@ function resolveMyCommission(
     | "agent_income"
     | "split_calculated_at"
   >,
-  rules: SplitRulesRow
+  rulesByServiceType: Record<SplitServiceType, SplitRulesRow>
 ): { amount: number; settled: boolean; estimate: boolean } {
   const splitAt = isoDateOrNull(row.split_calculated_at);
   const orderBrokerId =
@@ -101,6 +107,7 @@ function resolveMyCommission(
   }
 
   if (Number(row.order_status) === 4) {
+    const rules = rulesByServiceType[row.service_type === "agent" ? "agent" : "ordinary"];
     const est = estimateBrokerCommissionYuan(
       brokerUserId,
       num(row.payable_amount),
@@ -116,7 +123,7 @@ function resolveMyCommission(
 function mapListItem(
   row: BrokerOrderListRow,
   brokerUserId: number,
-  rules: SplitRulesRow
+  rules: Record<SplitServiceType, SplitRulesRow>
 ) {
   const bd = isoDateOrNull(row.booking_date as Date | string);
   const orderBrokerId =
@@ -160,7 +167,7 @@ function mapListItem(
 async function countBrokerCommissionOrders(
   brokerUserId: number,
   status: number | undefined,
-  rules: SplitRulesRow
+  rules: Record<SplitServiceType, SplitRulesRow>
 ): Promise<number> {
   const candidateTotal = await countOrdersForBroker(brokerUserId, status);
   if (candidateTotal === 0) return 0;
@@ -221,6 +228,7 @@ export async function getBrokerRelatedOrderDetail(
     row.agent_user_id != null ? Number(row.agent_user_id) : null;
   const payableAmount = num(row.payable_amount);
   const relationLabels = brokerRelationLabels(brokerUserId, orderMRef);
+  const csContact = await resolveOrderCsContactForApp(orderId);
 
   return {
     orderId: row.id,
@@ -272,6 +280,7 @@ export async function getBrokerRelatedOrderDetail(
       modelCancel: false,
       merchantConfirmComplete: false,
       merchantCancel: false
-    }
+    },
+    csContact
   };
 }

@@ -1,5 +1,9 @@
 <view class="page-root">
   <view class="nav" style="padding-top: {{navPaddingTop}}px;">
+    <view class="nav-back" bindtap="goBack" aria-role="button" aria-label="返回">
+      <text class="nav-back-icon">‹</text>
+      <text class="nav-back-text">返回</text>
+    </view>
     <text class="nav-badge">星链模库</text>
   </view>
 

@@ -75,7 +75,8 @@ export async function completeRegistrationController(
       idCardFrontUrl,
       idCardBackUrl,
       idCardIssueAuthority,
-      idCardValidDate
+      idCardValidDate,
+      brokerUserNo
     } = req.body as {
       role?: number;
       identity?: string;
@@ -89,6 +90,7 @@ export async function completeRegistrationController(
       idCardBackUrl: string;
       idCardIssueAuthority: string;
       idCardValidDate: string;
+      brokerUserNo?: string;
     };
 
     if (!userId || !openid) {
@@ -111,7 +113,8 @@ export async function completeRegistrationController(
       idCardFrontUrl,
       idCardBackUrl,
       idCardIssueAuthority,
-      idCardValidDate
+      idCardValidDate,
+      brokerUserNo
     });
 
     const token = issueUserAccessToken(userId, openid, result.role);

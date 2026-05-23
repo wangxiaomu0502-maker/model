@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS users (
   contract_platform_merchant_signature_url VARCHAR(255) NULL COMMENT '平台与商家合同手写签名图URL platform_merchant',
   contract_broker_model_signed_at DATETIME NULL COMMENT '经纪人与模特合作协议签署时间 broker_model，NULL=未签',
   contract_broker_model_signature_url VARCHAR(255) NULL COMMENT '经纪人与模特合同手写签名图URL broker_model',
+  contract_platform_agent_signed_at DATETIME NULL COMMENT '平台与代理人服务合同签署时间 platform_agent，NULL=未签',
+  contract_platform_agent_signature_url VARCHAR(255) NULL COMMENT '平台与代理人合同手写签名图URL platform_agent',
   status TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1正常 2禁用 3注销中 4已注销',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -153,6 +155,7 @@ CREATE TABLE IF NOT EXISTS model_extra_data (
   user_id BIGINT UNSIGNED PRIMARY KEY COMMENT '关联users.id',
   card_json JSON NULL COMMENT '模卡照片与身材数据',
   portfolio_json JSON NULL COMMENT '作品集：{folders:[{id,name,coverPhotoId?}],photos:[{id,folderId,url}]}，封面在各文件夹 coverPhotoId；兼容旧版 photos[].isCover',
+  style_position_json JSON NULL COMMENT '风格定位图片：{photos:[{id,url}]}',
   schedule_json JSON NULL COMMENT '未来档期数据',
   order_settings_json JSON NULL COMMENT '接单偏好与开关',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -211,6 +214,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
 业务说明：
 - 商家向模特发起预约；**仅支付成功后产生订单**（首期：`POST /api/orders` 内联 mock 支付）。入库即 `payment_status=1`、`order_status=1`（待模特确认接单）。
 - `order_status`：`1`待模特确认接单 → 模特接单 → `2`进行中 → 模特确认服务完成 → `3`模特已完成 → 商家确认服务完成 → `4`已完成；商家在 `1`/`2`/`3` 时可取消为 `9`（边界策略可后续细化）。
+- `service_type`：`ordinary` 普通服务；`agent` 代理服务（提供影棚），用于订单分账选择对应比例配置。
 - 接口层时长枚举：`fullDay` / `halfDay` / `hourly`；库内存：`full_day` / `half_day` / `hourly`。
 - `unit_price_snapshot`：全天/半天存对应一口价；按小时存「每小时单价」。`service_amount`：本条订单服务费合计（按小时 = 单价 × hour_count）。
 - `platform_fee` 预留；首期常为 0。`payable_amount` = service_amount + platform_fee。
@@ -220,19 +224,20 @@ CREATE TABLE IF NOT EXISTS admin_users (
 2) order_no：对外订单号，VARCHAR(32)，唯一
 3) merchant_user_id：下单商家 users.id
 4) model_user_id：接单模特 users.id
-5) booking_date：预约服务日期，DATE
-6) duration_kind：ENUM full_day / half_day / hourly
-7) hour_count：按小时时为 1–8；全天/半天为 NULL
-8) unit_price_snapshot：单价快照 DECIMAL(10,2)
-9) service_amount：服务费合计 DECIMAL(10,2)
-10) platform_fee：平台费 DECIMAL(10,2)，默认 0
-11) payable_amount：应付总额 DECIMAL(10,2)
-12) payment_status：0未支付 1已支付 2退款中 3已退款（首期创建即为 1）
-13) payment_channel：mock / wechat 等
-14) paid_at：支付完成时间（首期 mock 即下单时间）
-15) order_status：1待模特确认接单 2进行中 3模特已完成 4已完成 9已取消
-16) remark：备注 VARCHAR(500) 可空
-17) created_at / updated_at：时间戳
+5) service_type：ordinary 普通服务 / agent 代理服务（提供影棚）
+6) booking_date：预约服务日期，DATE
+7) duration_kind：ENUM full_day / half_day / hourly
+8) hour_count：按小时时为 1–8；全天/半天为 NULL
+9) unit_price_snapshot：单价快照 DECIMAL(10,2)
+10) service_amount：服务费合计 DECIMAL(10,2)
+11) platform_fee：平台费 DECIMAL(10,2)，默认 0
+12) payable_amount：应付总额 DECIMAL(10,2)
+13) payment_status：0未支付 1已支付 2退款中 3已退款（首期创建即为 1）
+14) payment_channel：mock / wechat 等
+15) paid_at：支付完成时间（首期 mock 即下单时间）
+16) order_status：1待模特确认接单 2进行中 3模特已完成 4已完成 9已取消
+17) remark：备注 VARCHAR(500) 可空
+18) created_at / updated_at：时间戳
 
 建表 SQL（与仓库 `sql/create-orders-table.sql` 保持一致，以下可直接执行）：
 
@@ -241,6 +246,7 @@ CREATE TABLE IF NOT EXISTS orders (
   order_no VARCHAR(32) NOT NULL COMMENT '对外订单号',
   merchant_user_id BIGINT UNSIGNED NOT NULL COMMENT '下单商家 users.id',
   model_user_id BIGINT UNSIGNED NOT NULL COMMENT '接单模特 users.id',
+  service_type ENUM('ordinary','agent') NOT NULL DEFAULT 'ordinary' COMMENT 'ordinary普通服务 agent代理服务(提供影棚)',
   booking_date DATE NOT NULL COMMENT '预约服务日期',
   duration_kind ENUM('full_day', 'half_day', 'hourly') NOT NULL COMMENT '时长类型',
   hour_count TINYINT UNSIGNED NULL COMMENT '按小时时 1-8，其它类型为 NULL',

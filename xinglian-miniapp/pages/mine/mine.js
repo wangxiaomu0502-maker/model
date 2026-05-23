@@ -361,6 +361,7 @@ Page({
         { name: "基础信息", icon: "基", menuKey: "basicInfo" },
         { name: "分类选择", icon: "类", menuKey: "categorySelect" },
         { name: "模卡管理", icon: "卡", menuKey: "modelCard" },
+        { name: "风格定位", icon: "风", menuKey: "stylePosition" },
         { name: "作品集", icon: "集", menuKey: "portfolio" },
         { name: "服务价格", icon: "价", menuKey: "pricing" },
         { name: "接单设置", icon: "开", menuKey: "orderSettings" },
@@ -382,7 +383,8 @@ Page({
     }
     if (r === 3) {
       return [
-        { name: "我的二维码", icon: "码", menuKey: "brokerQrCode" },
+        { name: "二维码推广", icon: "码", menuKey: "brokerQrCode" },
+        { name: "链接推广", icon: "链", menuKey: "brokerLinkPromo" },
         { name: "我的商家", icon: "商", menuKey: "brokerMyMerchants" },
         { name: "关联订单", icon: "单", menuKey: "brokerOrders" },
         { name: "收入明细", icon: "收", menuKey: "incomeDetail" },
@@ -417,6 +419,10 @@ Page({
     }
     if (key === "modelCard") {
       wx.navigateTo({ url: "/pages/model-card/model-card" });
+      return;
+    }
+    if (key === "stylePosition") {
+      wx.navigateTo({ url: "/pages/model-style-position/model-style-position" });
       return;
     }
     if (key === "portfolio") {
@@ -469,6 +475,10 @@ Page({
     }
     if (key === "brokerQrCode") {
       wx.navigateTo({ url: "/pages/broker-qrcode/broker-qrcode" });
+      return;
+    }
+    if (key === "brokerLinkPromo") {
+      wx.navigateTo({ url: "/pages/broker-link-promo/broker-link-promo" });
       return;
     }
     if (key === "brokerMyModels") {

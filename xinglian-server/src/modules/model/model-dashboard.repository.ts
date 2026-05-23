@@ -48,6 +48,7 @@ export async function modelCompletedIncomeSum(
 
 export type ModelOrderSplitEstimateRow = {
   payableAmountYuan: number;
+  serviceType: "ordinary" | "agent";
   brokerUserId: number | null;
   agentUserId: number | null;
 };
@@ -62,7 +63,7 @@ export async function findModelInTransitOrdersForPendingEstimate(
   start: Date | null,
   endExclusive: Date | null
 ): Promise<ModelOrderSplitEstimateRow[]> {
-  let sql = `SELECT payable_amount, broker_user_id, agent_user_id
+  let sql = `SELECT payable_amount, COALESCE(service_type, 'ordinary') AS service_type, broker_user_id, agent_user_id
      FROM orders
      WHERE model_user_id = ?
        AND order_status IN (1, 2)
@@ -74,12 +75,14 @@ export async function findModelInTransitOrdersForPendingEstimate(
   }
   type R = RowDataPacket & {
     payable_amount: string | number;
+    service_type: string;
     broker_user_id: number | null;
     agent_user_id: number | null;
   };
   const [rows] = await dbPool.query<R[]>(sql, params);
   return rows.map((row) => ({
     payableAmountYuan: Number(row.payable_amount),
+    serviceType: row.service_type === "agent" ? "agent" : "ordinary",
     brokerUserId:
       row.broker_user_id != null ? Number(row.broker_user_id) : null,
     agentUserId: row.agent_user_id != null ? Number(row.agent_user_id) : null
@@ -95,17 +98,19 @@ export async function findModelInTransitOrdersForPendingEstimate(
 export async function findUnsplitPaidCompletedOrdersForModel(modelUserId: number): Promise<
   Array<{
     payableAmountYuan: number;
+    serviceType: "ordinary" | "agent";
     brokerUserId: number | null;
     agentUserId: number | null;
   }>
 > {
   type R = RowDataPacket & {
     payable_amount: string | number;
+    service_type: string;
     broker_user_id: number | null;
     agent_user_id: number | null;
   };
   const [rows] = await dbPool.query<R[]>(
-    `SELECT payable_amount, broker_user_id, agent_user_id
+    `SELECT payable_amount, COALESCE(service_type, 'ordinary') AS service_type, broker_user_id, agent_user_id
      FROM orders
      WHERE model_user_id = ?
        AND order_status IN (3, 4)
@@ -115,6 +120,7 @@ export async function findUnsplitPaidCompletedOrdersForModel(modelUserId: number
   );
   return rows.map((row) => ({
     payableAmountYuan: Number(row.payable_amount),
+    serviceType: row.service_type === "agent" ? "agent" : "ordinary",
     brokerUserId:
       row.broker_user_id != null ? Number(row.broker_user_id) : null,
     agentUserId: row.agent_user_id != null ? Number(row.agent_user_id) : null

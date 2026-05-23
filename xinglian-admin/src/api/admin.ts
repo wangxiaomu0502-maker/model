@@ -1,4 +1,8 @@
-import { getAdminToken, type AdminProfile } from "@/composables/useAdminToken";
+import {
+  getAdminToken,
+  type AdminBackofficeRole,
+  type AdminProfile
+} from "@/composables/useAdminToken";
 
 const API_ORIGIN = (
   import.meta.env.VITE_API_BASE_URL as string | undefined
@@ -14,12 +18,13 @@ export function adminApiUrl(pathWithQuery: string): string {
 
 export async function loginAdmin(
   username: string,
-  password: string
+  password: string,
+  loginType: AdminBackofficeRole = "admin"
 ): Promise<{ token: string; admin: AdminProfile }> {
   const res = await fetch(adminApiUrl("/api/admin/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username, password, loginType })
   });
   const data = (await res.json()) as {
     ok?: boolean;
@@ -31,7 +36,280 @@ export async function loginAdmin(
   if (!res.ok || data.ok === false || !data.token || !data.admin) {
     throw new Error(data.message || data.code || `登录失败 (${res.status})`);
   }
-  return { token: data.token, admin: data.admin };
+  const admin = data.admin;
+  return {
+    token: data.token,
+    admin: {
+      ...admin,
+      role: admin.role === "cs" ? "cs" : "admin"
+    }
+  };
+}
+
+export type CsUserRow = {
+  id: number;
+  username: string;
+  displayName: string | null;
+  phone: string | null;
+  status: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type CsUserListResponse = {
+  ok?: boolean;
+  list?: CsUserRow[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  message?: string;
+  code?: string;
+};
+
+export async function fetchCsUsers(
+  page: number,
+  pageSize: number
+): Promise<{ list: CsUserRow[]; total: number; page: number; pageSize: number }> {
+  const token = getAdminToken();
+  const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  const res = await fetch(adminApiUrl(`/api/admin/cs-users?${qs}`), {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  });
+  const data = (await res.json()) as CsUserListResponse;
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `请求失败 (${res.status})`);
+  }
+  return {
+    list: Array.isArray(data.list) ? data.list : [],
+    total: typeof data.total === "number" ? data.total : 0,
+    page: typeof data.page === "number" ? data.page : page,
+    pageSize: typeof data.pageSize === "number" ? data.pageSize : pageSize
+  };
+}
+
+export type CsUserFormBody = {
+  username: string;
+  password?: string;
+  displayName?: string | null;
+  phone?: string;
+  status?: number;
+};
+
+export async function createCsUser(body: CsUserFormBody & { password: string }): Promise<CsUserRow> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl("/api/admin/cs-users"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as CsUserRow & { ok?: boolean; message?: string; code?: string };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `创建失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function updateCsUser(id: number, body: CsUserFormBody): Promise<CsUserRow> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/cs-users/${id}`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as CsUserRow & { ok?: boolean; message?: string; code?: string };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `更新失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function deleteCsUser(id: number): Promise<void> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/cs-users/${id}`), {
+    method: "DELETE",
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  });
+  const data = (await res.json()) as { ok?: boolean; message?: string; code?: string };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `删除失败 (${res.status})`);
+  }
+}
+
+export type CsPendingOrderRow = {
+  orderId: number;
+  orderNo: string;
+  bookingDate: string;
+  durationKind: string;
+  durationKindText: string;
+  hourCount: number | null;
+  payableAmount: number;
+  orderStatus: number;
+  orderStatusText: string;
+  csStatus: number;
+  csStatusText: string;
+  csQueuedAt: string | null;
+  csStartedAt: string | null;
+  csCompletedAt: string | null;
+  merchantUserNo: string;
+  merchantNickname: string;
+  modelUserNo: string;
+  modelNickname: string;
+  noteCount: number;
+};
+
+export type CsOrderNote = {
+  id: number;
+  orderId: number;
+  adminUserId: number;
+  adminUsername: string;
+  adminDisplayName: string | null;
+  content: string;
+  createdAt: string;
+};
+
+export type CsOrderParty = {
+  role: "merchant" | "model" | "broker" | "agent";
+  roleLabel: string;
+  userId: number | null;
+  userNo: string | null;
+  nickname: string | null;
+  realName: string | null;
+  phone: string | null;
+  companyName: string | null;
+};
+
+export type CsPendingOrderDetail = CsPendingOrderRow & {
+  serviceAmount: number;
+  platformFee: number;
+  paymentStatus: number;
+  paidAt: string | null;
+  createdAt: string;
+  handlerUsername: string | null;
+  handlerDisplayName: string | null;
+  notes: CsOrderNote[];
+  parties?: CsOrderParty[];
+  readOnly?: boolean;
+  actions: {
+    canStart: boolean;
+    canComplete: boolean;
+    canAddNote: boolean;
+  };
+};
+
+type CsPendingOrderListResponse = {
+  ok?: boolean;
+  list?: CsPendingOrderRow[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  message?: string;
+  code?: string;
+};
+
+function csAuthHeaders(): Record<string, string> {
+  const token = getAdminToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function fetchPendingOrders(
+  page: number,
+  pageSize: number,
+  csStatus?: number
+): Promise<{ list: CsPendingOrderRow[]; total: number; page: number; pageSize: number }> {
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize)
+  });
+  if (csStatus != null) params.set("csStatus", String(csStatus));
+  const res = await fetch(adminApiUrl(`/api/admin/pending-orders?${params}`), {
+    headers: csAuthHeaders()
+  });
+  const data = (await res.json()) as CsPendingOrderListResponse;
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `请求失败 (${res.status})`);
+  }
+  return {
+    list: Array.isArray(data.list) ? data.list : [],
+    total: typeof data.total === "number" ? data.total : 0,
+    page: typeof data.page === "number" ? data.page : page,
+    pageSize: typeof data.pageSize === "number" ? data.pageSize : pageSize
+  };
+}
+
+export async function fetchPendingOrderDetail(orderId: number): Promise<CsPendingOrderDetail> {
+  const res = await fetch(adminApiUrl(`/api/admin/pending-orders/${orderId}`), {
+    headers: csAuthHeaders()
+  });
+  const data = (await res.json()) as CsPendingOrderDetail & {
+    ok?: boolean;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `请求失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function startPendingOrder(orderId: number): Promise<CsPendingOrderDetail> {
+  const res = await fetch(adminApiUrl(`/api/admin/pending-orders/${orderId}/start`), {
+    method: "POST",
+    headers: csAuthHeaders()
+  });
+  const data = (await res.json()) as CsPendingOrderDetail & {
+    ok?: boolean;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `操作失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function completePendingOrder(orderId: number): Promise<CsPendingOrderDetail> {
+  const res = await fetch(adminApiUrl(`/api/admin/pending-orders/${orderId}/complete`), {
+    method: "POST",
+    headers: csAuthHeaders()
+  });
+  const data = (await res.json()) as CsPendingOrderDetail & {
+    ok?: boolean;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `操作失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function addPendingOrderNote(
+  orderId: number,
+  content: string
+): Promise<CsOrderNote> {
+  const res = await fetch(adminApiUrl(`/api/admin/pending-orders/${orderId}/notes`), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...csAuthHeaders()
+    },
+    body: JSON.stringify({ content })
+  });
+  const data = (await res.json()) as CsOrderNote & {
+    ok?: boolean;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `添加备注失败 (${res.status})`);
+  }
+  return data;
 }
 
 export type AdminUserRow = {
@@ -61,6 +339,8 @@ export type AdminUserRow = {
   updatedAt: string;
   /** 商家：绑定经纪人展示文案 */
   referrerBrokerLabel?: string | null;
+  /** 商家：绑定经纪人 users.id */
+  referrerBrokerUserId?: number | null;
   /** 模特：所属代理人展示文案 */
   agentUserLabel?: string | null;
 };
@@ -92,6 +372,7 @@ export type AdminMerchantBasicInfo = {
   createdAt: string;
   updatedAt: string;
   referrerBroker: {
+    userId: number | null;
     userNo: string | null;
     nickname: string | null;
     realName: string | null;
@@ -230,6 +511,10 @@ export type AdminModelBasicInfo = {
     folders: Array<{ id: string; name: string; coverPhotoId?: string }>;
     photos: Array<{ id: string; folderId: string; url: string }>;
   };
+  /** 风格定位图片 */
+  stylePosition?: {
+    photos: Array<{ id: string; url: string }>;
+  };
   schedule: {
     scheduleMap: Record<string, "available" | "full" | "rest">;
   };
@@ -258,6 +543,7 @@ export type AdminDashboardStatsResponse = {
   modelCount: number;
   merchantCount: number;
   brokerCount: number;
+  agentCount: number;
   message?: string;
   code?: string;
 };
@@ -271,6 +557,7 @@ export async function fetchAdminDashboardStats(): Promise<{
   modelCount: number;
   merchantCount: number;
   brokerCount: number;
+  agentCount: number;
 }> {
   const token = getAdminToken();
   const res = await fetch(adminApiUrl("/api/admin/stats/dashboard"), {
@@ -303,7 +590,8 @@ export async function fetchAdminDashboardStats(): Promise<{
     ordersByStatus,
     modelCount: data.modelCount,
     merchantCount: data.merchantCount,
-    brokerCount: data.brokerCount
+    brokerCount: data.brokerCount,
+    agentCount: typeof data.agentCount === "number" ? data.agentCount : 0
   };
 }
 
@@ -317,7 +605,18 @@ const ADMIN_LIST_PATH: Record<AdminListKind, string> = {
   brokers: "/api/admin/brokers"
 };
 
+export type AdminOrderPartyItem = {
+  role: "merchant" | "model" | "broker" | "agent";
+  roleLabel: string;
+  userNo: string | null;
+  nickname: string | null;
+  realName: string | null;
+  phone: string | null;
+  companyName?: string | null;
+};
+
 export type AdminOrderRow = {
+  parties?: AdminOrderPartyItem[];
   orderId: number;
   orderNo: string;
   merchantUserId: number;
@@ -348,10 +647,25 @@ export type AdminOrderRow = {
   createdAt: string;
 };
 
+export type AdminOrderParty = {
+  userId: number | null;
+  userNo: string | null;
+  nickname: string | null;
+  realName: string | null;
+  phone: string | null;
+  companyName?: string | null;
+};
+
 export type AdminOrderDetail = AdminOrderRow & {
   remark: string | null;
   updatedAt: string;
   splitConfigSnapshot: unknown;
+  merchantPhone?: string | null;
+  modelPhone?: string | null;
+  merchant?: AdminOrderParty;
+  model?: AdminOrderParty;
+  broker?: AdminOrderParty | null;
+  agent?: AdminOrderParty | null;
 };
 
 export type AdminOrderDetailResponse = {
@@ -364,6 +678,7 @@ export type AdminOrderDetailResponse = {
 export type AdminSplitRules = {
   ok?: boolean;
   id: number;
+  serviceType?: "ordinary" | "agent";
   platformFeeRateBp: number;
   modelShareBp: number;
   platformShareOfFeeBp: number;
@@ -376,6 +691,7 @@ export type AdminSplitRules = {
 };
 
 export type AdminSplitRulesUpdateBody = {
+  serviceType?: "ordinary" | "agent";
   platformFeeRateBp: number;
   modelShareBp: number;
   platformShareOfFeeBp: number;
@@ -383,9 +699,10 @@ export type AdminSplitRulesUpdateBody = {
   brokerShareOfFeeBp: number;
 };
 
-export async function fetchAdminSplitRules(): Promise<AdminSplitRules> {
+export async function fetchAdminSplitRules(serviceType: "ordinary" | "agent" = "ordinary"): Promise<AdminSplitRules> {
   const token = getAdminToken();
-  const res = await fetch(adminApiUrl("/api/admin/split-rules"), {
+  const qs = new URLSearchParams({ serviceType });
+  const res = await fetch(adminApiUrl(`/api/admin/split-rules?${qs}`), {
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
   });
   const data = (await res.json()) as AdminSplitRules;
@@ -413,7 +730,11 @@ export async function updateAdminSplitRules(body: AdminSplitRulesUpdateBody): Pr
 }
 
 /** 合同模板类型（与库 `contract_templates.contract_kind` 一致） */
-export type AdminContractKind = "platform_broker" | "platform_merchant" | "broker_model";
+export type AdminContractKind =
+  | "platform_broker"
+  | "platform_merchant"
+  | "broker_model"
+  | "platform_agent";
 
 export type AdminContractTemplateItem = {
   contractKind: AdminContractKind;
@@ -914,6 +1235,7 @@ export type AdminAgentRow = {
   city: string | null;
   businessLicenseUrl: string | null;
   boundModelCount: number;
+  platformAgentContractSignedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -1191,6 +1513,51 @@ export async function patchAdminModelAgent(
   }
   return {
     agentUserId: data.agentUserId ?? null
+  };
+}
+
+export async function patchAdminMerchantBroker(
+  merchantUserId: number,
+  brokerUserId: number | null
+): Promise<{ brokerUserId: number | null }> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/merchants/${merchantUserId}/broker`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ brokerUserId })
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    brokerUserId?: number | null;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `保存失败 (${res.status})`);
+  }
+  return {
+    brokerUserId: data.brokerUserId ?? null
+  };
+}
+
+/** 商家绑定经纪人下拉：拉取全部经纪人（接口 pageSize 上限 100） */
+export async function fetchAdminBrokerUsers(): Promise<{ list: AdminUserRow[]; total: number }> {
+  const pageSize = 100;
+  const first = await fetchAdminUsersByRole("brokers", 1, pageSize);
+  const brokers = [...(first.list || [])];
+  let page = 2;
+  while (brokers.length < (first.total ?? 0)) {
+    const next = await fetchAdminUsersByRole("brokers", page, pageSize);
+    if (!next.list?.length) break;
+    brokers.push(...next.list);
+    page += 1;
+  }
+  return {
+    total: first.total ?? brokers.length,
+    list: brokers
   };
 }
 

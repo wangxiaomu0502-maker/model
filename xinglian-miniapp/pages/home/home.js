@@ -308,6 +308,13 @@ Page({
       return;
     }
 
+    if (role === 0) {
+      wx.navigateTo({
+        url: "/pages/model-intro/model-intro"
+      });
+      return;
+    }
+
     if (role !== 2) return;
     try {
       const data = await this.requestWithAuth("/api/models/list", "GET");

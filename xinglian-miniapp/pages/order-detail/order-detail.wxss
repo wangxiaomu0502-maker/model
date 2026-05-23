@@ -538,3 +538,53 @@
 .ghost-btn--sheet {
   border-radius: 999rpx !important;
 }
+
+.cs-contact-card {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: linear-gradient(135deg, rgba(240, 253, 244, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
+}
+
+.cs-contact-hint {
+  display: block;
+  font-size: 26rpx;
+  line-height: 1.55;
+  color: #475569;
+  margin-bottom: 20rpx;
+}
+
+.cs-contact-phone-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.cs-contact-label {
+  font-size: 24rpx;
+  color: #64748b;
+}
+
+.cs-contact-phone {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #15803d;
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.06em;
+}
+
+.cs-call-btn {
+  margin: 0 !important;
+  padding: 0 24rpx !important;
+  height: 56rpx !important;
+  line-height: 56rpx !important;
+  font-size: 24rpx !important;
+  color: #fff !important;
+  background: #16a34a !important;
+  border: none !important;
+  border-radius: 999rpx !important;
+}
+
+.cs-contact-no-phone {
+  font-size: 24rpx;
+  color: #94a3b8;
+}

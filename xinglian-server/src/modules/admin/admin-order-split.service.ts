@@ -22,7 +22,9 @@ import {
 import { findOrderByIdForAdmin } from "./admin-order.repository";
 import {
   findSplitRulesById,
+  findSplitRulesByServiceType,
   insertDefaultSplitRulesRow,
+  normalizeSplitServiceType,
   type SplitRulesRow
 } from "./split-rules.repository";
 import { getOrderDetailForAdmin, type AdminOrderDetailDto } from "./admin-order.service";
@@ -88,6 +90,7 @@ function buildSplitInput(payableYuan: number, rules: SplitRulesRow): SplitComput
 
 async function resolveSplitRulesForAdminOrder(row: {
   split_rules_snapshot?: unknown;
+  service_type?: unknown;
 }): Promise<{ rules: SplitRulesRow; source: "order_complete_snapshot" | "platform_table_live" }> {
   const parsed = parseOrderSplitRulesSnapshot(row);
   if (parsed) {
@@ -95,7 +98,8 @@ async function resolveSplitRulesForAdminOrder(row: {
     return { rules: parsed, source: "order_complete_snapshot" };
   }
   await insertDefaultSplitRulesRow();
-  const live = await findSplitRulesById(SPLIT_RULES_ID);
+  const live = await findSplitRulesByServiceType(normalizeSplitServiceType(row.service_type)) ||
+    await findSplitRulesById(SPLIT_RULES_ID);
   if (!live) {
     throw new AppError("分账规则不存在", 500, ErrorCodes.INTERNAL_ERROR);
   }
@@ -176,6 +180,7 @@ async function appendSplitLedgers(
 export type AdminOrderSplitPreviewDto = {
   orderId: number;
   orderNo: string;
+  serviceType: "ordinary" | "agent";
   payableAmountYuan: number;
   platformFeeRateBp: number;
   modelShareBp: number;
@@ -241,6 +246,7 @@ export async function previewOrderSplitForAdmin(orderId: number): Promise<AdminO
     orderId: row.id,
     orderNo: String(row.order_no),
     payableAmountYuan: payableYuan,
+    serviceType: normalizeSplitServiceType(row.service_type),
     platformFeeRateBp: Number(rules.platform_fee_rate_bp),
     modelShareBp: Number(rules.model_share_bp),
     platformShareOfFeeBp: Number(rules.platform_share_of_fee_bp),
@@ -315,6 +321,7 @@ export async function runManualOrderSplitForAdmin(
       rulesResolvedFrom: source,
       orderId: locked.id,
       orderNo: locked.order_no,
+      serviceType: normalizeSplitServiceType(locked.service_type),
       payableAmountYuan: payableYuan,
       platformFeeRateBp: Number(rules.platform_fee_rate_bp),
       modelShareBp: Number(rules.model_share_bp),

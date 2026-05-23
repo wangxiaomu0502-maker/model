@@ -27,10 +27,12 @@ import {
   listBoundModelsForBrokerAdmin,
   listUsersForAdminByRole,
   reviewModelProfileAuditForAdmin,
-  setModelAgentUserForAdmin
+  setModelAgentUserForAdmin,
+  setMerchantBrokerForAdmin
 } from "./admin.service";
 import {
   AdminModelAgentBody,
+  AdminMerchantBrokerBody,
   AdminModelProfileAuditBody,
   AdminPlatformLedgerQuery,
   AdminUserIdParam,
@@ -435,6 +437,26 @@ export async function adminSetModelAgentController(
     const { userId } = req.params as unknown as AdminUserIdParam;
     const body = req.body as AdminModelAgentBody;
     const result = await setModelAgentUserForAdmin(userId, body.agentUserId);
+    success(res, result as Record<string, unknown>);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function adminSetMerchantBrokerController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const adminAuth = (req as AdminAuthenticatedRequest).adminAuth;
+    if (!adminAuth?.adminUserId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { userId } = req.params as unknown as AdminUserIdParam;
+    const body = req.body as AdminMerchantBrokerBody;
+    const result = await setMerchantBrokerForAdmin(userId, body.brokerUserId);
     success(res, result as Record<string, unknown>);
   } catch (error) {
     next(error);

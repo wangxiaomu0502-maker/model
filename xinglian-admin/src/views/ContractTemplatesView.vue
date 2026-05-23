@@ -4,6 +4,7 @@ import { QuillEditor } from "@vueup/vue-quill";
 import {
   Connection,
   Document,
+  OfficeBuilding,
   Shop,
   UserFilled
 } from "@element-plus/icons-vue";
@@ -23,7 +24,8 @@ const KIND_VISUAL: Record<
 > = {
   platform_broker: { icon: Connection, iconClass: "kind-card-icon--broker" },
   platform_merchant: { icon: Shop, iconClass: "kind-card-icon--merchant" },
-  broker_model: { icon: UserFilled, iconClass: "kind-card-icon--model" }
+  broker_model: { icon: UserFilled, iconClass: "kind-card-icon--model" },
+  platform_agent: { icon: OfficeBuilding, iconClass: "kind-card-icon--agent" }
 };
 
 const loading = ref(true);
@@ -346,11 +348,17 @@ onMounted(() => {
 
 .kind-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
 
-@media (max-width: 840px) {
+@media (max-width: 1100px) {
+  .kind-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
   .kind-cards {
     grid-template-columns: 1fr;
   }
@@ -414,6 +422,11 @@ onMounted(() => {
 .kind-card-icon--model {
   background: rgba(99, 102, 241, 0.12);
   color: #4f46e5;
+}
+
+.kind-card-icon--agent {
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
 }
 
 .kind-card-elicon {

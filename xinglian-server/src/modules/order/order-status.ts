@@ -1,6 +1,8 @@
-/** orders.order_status：待模特确认接单 | 进行中 | 模特已完成 | 已完成 | 已取消 */
+/** orders.order_status：待支付 | 待模特确认接单 | 进行中 | 模特已完成 | 已完成 | 已取消 */
 export const OrderStatus = {
-  /** 仅支付成功后落库的首态 */
+  /** 已下单未支付（微信支付模式） */
+  AWAITING_PAYMENT: 0,
+  /** 支付成功后的首态 */
   PENDING_MODEL_ACCEPT: 1,
   /** 模特已确认接单，履约中 */
   IN_PROGRESS: 2,
@@ -15,6 +17,8 @@ export type OrderStatusCode = (typeof OrderStatus)[keyof typeof OrderStatus];
 
 export function orderStatusLabel(code: number): string {
   switch (code) {
+    case OrderStatus.AWAITING_PAYMENT:
+      return "待支付";
     case OrderStatus.PENDING_MODEL_ACCEPT:
       return "待模特确认接单";
     case OrderStatus.IN_PROGRESS:
@@ -48,6 +52,8 @@ export function paymentStatusLabel(code: number): string {
       return "退款中";
     case 3:
       return "已退款";
+    case 4:
+      return "退款失败";
     default:
       return `支付${code}`;
   }

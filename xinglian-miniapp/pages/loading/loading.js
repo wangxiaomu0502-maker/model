@@ -1,3 +1,5 @@
+const { savePendingBrokerUserNo } = require("../../utils/broker-promo.js");
+
 Page({
   getIdentityByRole(role) {
     const map = {
@@ -33,7 +35,15 @@ Page({
     });
   },
 
-  onLoad() {
+  onLoad(options) {
+    const raw = options && options.brokerUserNo != null ? String(options.brokerUserNo) : "";
+    if (raw) {
+      try {
+        savePendingBrokerUserNo(decodeURIComponent(raw.trim()));
+      } catch (_e) {
+        savePendingBrokerUserNo(raw.trim());
+      }
+    }
     wx.login({
       success: async (res) => {
         if (res.code) {
@@ -62,7 +72,7 @@ Page({
             const targetUrl =
               Number(responseData.user.role || 0) !== 0
                 ? "/pages/home/home"
-                : "/pages/intro/intro";
+                : "/pages/model-intro/model-intro";
 
             setTimeout(() => {
               if (targetUrl === "/pages/home/home") {

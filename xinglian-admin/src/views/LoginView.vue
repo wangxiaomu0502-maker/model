@@ -13,6 +13,7 @@ const router = useRouter();
 const route = useRoute();
 
 const loading = ref(false);
+const loginType = ref<"admin" | "cs">("admin");
 const form = reactive({
   username: "",
   password: ""
@@ -25,12 +26,13 @@ async function onSubmit(): Promise<void> {
   }
   loading.value = true;
   try {
-    const data = await loginAdmin(form.username.trim(), form.password);
+    const data = await loginAdmin(form.username.trim(), form.password, loginType.value);
     setAdminToken(data.token);
     setAdminProfile(data.admin);
     ElMessage.success("登录成功");
     window.dispatchEvent(new CustomEvent("admin-token-changed"));
-    const redirect = (route.query.redirect as string) || "/dashboard";
+    const defaultPath = data.admin.role === "cs" ? "/pending-orders" : "/dashboard";
+    const redirect = (route.query.redirect as string) || defaultPath;
     await router.replace(redirect);
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : "登录失败");
@@ -74,12 +76,24 @@ async function onSubmit(): Promise<void> {
       <section class="form-panel">
         <header class="form-header">
           <h2 class="form-title">欢迎回来</h2>
-          <p class="form-lead">使用管理员账号登录以继续操作</p>
+          <p class="form-lead">
+            {{ loginType === "admin" ? "使用管理员账号登录以继续操作" : "使用客服账号登录处理订单" }}
+          </p>
         </header>
+
+        <el-tabs v-model="loginType" class="login-tabs" stretch>
+          <el-tab-pane label="管理员登录" name="admin" />
+          <el-tab-pane label="客服登录" name="cs" />
+        </el-tabs>
 
         <el-form class="login-form" label-position="top" size="large" @submit.prevent>
           <el-form-item label="账号">
-            <el-input v-model="form.username" autocomplete="username" placeholder="管理员账号" clearable>
+            <el-input
+              v-model="form.username"
+              autocomplete="username"
+              :placeholder="loginType === 'admin' ? '管理员账号' : '客服账号'"
+              clearable
+            >
               <template #prefix>
                 <el-icon class="input-affix"><User /></el-icon>
               </template>
@@ -410,6 +424,14 @@ async function onSubmit(): Promise<void> {
   .form-panel {
     border-left: 1px solid rgba(148, 163, 184, 0.18);
   }
+}
+
+.login-tabs {
+  margin-bottom: 8px;
+}
+
+.login-tabs :deep(.el-tabs__header) {
+  margin-bottom: 18px;
 }
 
 .form-header {

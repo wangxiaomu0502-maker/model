@@ -282,7 +282,8 @@
   "nickname": "展示昵称",
   "avatarUrl": "cos:pending",
   "realName": "待OCR核验",
-  "idCardNo": "000000000000000000"
+  "idCardNo": "000000000000000000",
+  "brokerUserNo": "经纪人平台用户编号（可选；role=2 商家注册且来自推广链接时传入，服务端写入 users.referrer_id，无效码静默忽略）"
 }
 - 返回示例：
 {

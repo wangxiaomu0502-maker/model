@@ -1,0 +1,53 @@
+<view class="page page-themed-root">
+  <view class="top-bar">
+    <view class="top-bar-text">
+      <text class="top-title">风格定位</text>
+      <text class="top-sub">上传能代表个人风格、气质和商业拍摄方向的图片，最多 100 张，一次最多 9 张。</text>
+    </view>
+    <view class="top-add-photo" bindtap="choosePhotos">+ 图片</view>
+  </view>
+
+  <view wx:if="{{!photos.length}}" class="empty-card">
+    <text class="empty-title">还没有风格定位图片</text>
+    <text class="empty-desc">请上传 1-100 张图片，用于展示你的风格定位和拍摄方向；一次最多 9 张。</text>
+    <button class="empty-btn" bindtap="choosePhotos">上传第一批图片</button>
+  </view>
+
+  <view wx:else class="style-card">
+    <view class="style-card-head">
+      <view>
+        <text class="style-card-title">定位图片</text>
+        <text class="style-card-meta">{{totalPhotos}} / 100 张{{saving ? ' · 保存中' : ''}}</text>
+      </view>
+      <text class="style-card-action" bindtap="choosePhotos">继续上传</text>
+    </view>
+
+    <view class="photo-grid">
+      <view class="photo-tile" wx:for="{{photos}}" wx:key="id">
+        <image
+          class="photo-thumb"
+          src="{{item.url}}"
+          mode="aspectFill"
+          data-photo-id="{{item.id}}"
+          bindtap="previewPhoto"
+        />
+        <view
+          class="delete-hit"
+          catchtap="removePhoto"
+          data-photo-id="{{item.id}}"
+        >
+          <text class="delete-mark">×</text>
+        </view>
+      </view>
+
+      <view wx:if="{{totalPhotos < 100}}" class="photo-tile add-tile" bindtap="choosePhotos">
+        <text class="add-plus">+</text>
+        <text class="add-label">添加图片</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-tip">
+    建议上传风格统一、画面清晰的图片；支持 JPG / PNG，单张不超过 10MB，一次最多 9 张。
+  </view>
+</view>

@@ -53,6 +53,19 @@ tar --exclude="node_modules" --exclude="dist" -czf /tmp/xinglian-server.tar.gz .
 sshpass -p "$PASSWORD" scp -o StrictHostKeyChecking=no /tmp/xinglian-server.tar.gz "${USER_NAME}@${HOST}:/srv/xinglian-server/"
 sshpass -p "$PASSWORD" scp -o StrictHostKeyChecking=no "$SERVER_DIR/.env" "${USER_NAME}@${HOST}:/srv/xinglian-server/.env"
 
+if [[ -d "$SERVER_DIR/certs" ]]; then
+  echo "==> Upload wechat pay certs (if present)"
+  sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "${USER_NAME}@${HOST}" "mkdir -p /srv/xinglian-server/certs"
+  for f in apiclient_key.pem apiclient_cert.pem wechatpay_public.pem; do
+    if [[ -f "$SERVER_DIR/certs/$f" ]]; then
+      sshpass -p "$PASSWORD" scp -o StrictHostKeyChecking=no \
+        "$SERVER_DIR/certs/$f" "${USER_NAME}@${HOST}:/srv/xinglian-server/certs/$f"
+    fi
+  done
+  sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "${USER_NAME}@${HOST}" \
+    "chmod 600 /srv/xinglian-server/certs/*.pem 2>/dev/null || true"
+fi
+
 echo "==> Deploy and restart backend on server"
 sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "${USER_NAME}@${HOST}" "\
   set -e && cd /srv/xinglian-server && \

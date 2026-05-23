@@ -4,11 +4,9 @@ import type { ContractKind } from "../admin/contract-templates.types";
 
 import { contractKindAllowedForRole } from "./user.contract-sign";
 import {
-  findActiveBrokerIdByUserNo,
   findAgentPublicDisplayById,
   findBrokerPublicDisplayById,
   findUserProfileById,
-  updateReferrerIdForMerchant,
   updateUserContractSignedAt
 } from "./user.repository";
 
@@ -50,9 +48,11 @@ export type CurrentUserProfileDto = {
   contractPlatformBrokerSignedAt: string | null;
   contractPlatformMerchantSignedAt: string | null;
   contractBrokerModelSignedAt: string | null;
+  contractPlatformAgentSignedAt: string | null;
   contractPlatformBrokerSignatureUrl: string | null;
   contractPlatformMerchantSignatureUrl: string | null;
   contractBrokerModelSignatureUrl: string | null;
+  contractPlatformAgentSignatureUrl: string | null;
   /** 商家绑定的经纪人（referrer_id → role=3） */
   referrerBroker: {
     userId: number;
@@ -153,9 +153,11 @@ export async function getCurrentUserProfile(userId: number): Promise<CurrentUser
     contractPlatformBrokerSignedAt: dateFieldToIso(user.contract_platform_broker_signed_at),
     contractPlatformMerchantSignedAt: dateFieldToIso(user.contract_platform_merchant_signed_at),
     contractBrokerModelSignedAt: dateFieldToIso(user.contract_broker_model_signed_at),
+    contractPlatformAgentSignedAt: dateFieldToIso(user.contract_platform_agent_signed_at),
     contractPlatformBrokerSignatureUrl: user.contract_platform_broker_signature_url ?? null,
     contractPlatformMerchantSignatureUrl: user.contract_platform_merchant_signature_url ?? null,
     contractBrokerModelSignatureUrl: user.contract_broker_model_signature_url ?? null,
+    contractPlatformAgentSignatureUrl: user.contract_platform_agent_signature_url ?? null,
     referrerBroker: refRow
       ? {
           userId: refRow.id,
@@ -175,58 +177,6 @@ export async function getCurrentUserProfile(userId: number): Promise<CurrentUser
         }
       : null
   };
-}
-
-export async function setMyReferrerBrokerByUserNo(
-  userId: number,
-  brokerUserNoTrimmed: string
-): Promise<CurrentUserProfileDto> {
-  const user = await findUserProfileById(userId);
-  if (!user) {
-    throw new AppError("user not found", 404, ErrorCodes.NOT_FOUND);
-  }
-  const role = Number(user.role);
-  if (role !== 2) {
-    throw new AppError("仅商家可绑定经纪人", 403, ErrorCodes.FORBIDDEN);
-  }
-
-  if (!brokerUserNoTrimmed) {
-    const ok = await updateReferrerIdForMerchant(userId, null);
-    if (!ok) {
-      throw new AppError("更新失败", 500, ErrorCodes.INTERNAL_ERROR);
-    }
-    return getCurrentUserProfile(userId);
-  }
-
-  const brokerId = await findActiveBrokerIdByUserNo(brokerUserNoTrimmed);
-  if (brokerId == null) {
-    throw new AppError("未找到该经纪人 ID，请核对后重试", 400, ErrorCodes.VALIDATION_ERROR);
-  }
-  if (brokerId === userId) {
-    throw new AppError("不能绑定本人为经纪人", 400, ErrorCodes.VALIDATION_ERROR);
-  }
-
-  const brokerProfile = await findUserProfileById(brokerId);
-  if (!brokerProfile) {
-    throw new AppError("未找到该经纪人信息", 400, ErrorCodes.VALIDATION_ERROR);
-  }
-  const brokerSignedAt = brokerProfile.contract_platform_broker_signed_at;
-  if (
-    brokerSignedAt == null ||
-    !String(brokerSignedAt).trim()
-  ) {
-    throw new AppError(
-      "该经纪人尚未签署平台与经纪人合同，暂不可绑定",
-      400,
-      ErrorCodes.VALIDATION_ERROR
-    );
-  }
-
-  const ok = await updateReferrerIdForMerchant(userId, brokerId);
-  if (!ok) {
-    throw new AppError("更新失败", 500, ErrorCodes.INTERNAL_ERROR);
-  }
-  return getCurrentUserProfile(userId);
 }
 
 export async function signContractForCurrentUser(
@@ -259,6 +209,9 @@ export async function signContractForCurrentUser(
   }
   if (contractKind === "platform_merchant") {
     return refreshed.contractPlatformMerchantSignedAt ?? new Date().toISOString();
+  }
+  if (contractKind === "platform_agent") {
+    return refreshed.contractPlatformAgentSignedAt ?? new Date().toISOString();
   }
   return refreshed.contractBrokerModelSignedAt ?? new Date().toISOString();
 }

@@ -14,12 +14,47 @@
 }
 
 .nav {
+  position: relative;
   padding-bottom: 16rpx;
   padding-left: 28rpx;
   padding-right: 28rpx;
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.nav-back {
+  position: absolute;
+  left: 28rpx;
+  bottom: 14rpx;
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  height: 56rpx;
+  padding: 0 20rpx 0 14rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(199, 210, 254, 0.95);
+  box-shadow: 0 8rpx 22rpx rgba(67, 56, 202, 0.08);
+  box-sizing: border-box;
+}
+
+.nav-back:active {
+  opacity: 0.86;
+}
+
+.nav-back-icon {
+  font-size: 40rpx;
+  line-height: 1;
+  color: #4338ca;
+  transform: translateY(-1rpx);
+}
+
+.nav-back-text {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #4338ca;
+  letter-spacing: 0.04em;
 }
 
 .nav-badge {

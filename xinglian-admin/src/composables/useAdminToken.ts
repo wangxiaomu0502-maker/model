@@ -1,11 +1,18 @@
 const STORAGE_KEY = "xinglian_admin_token";
 const PROFILE_KEY = "xinglian_admin_profile";
 
+export type AdminBackofficeRole = "admin" | "cs";
+
 export type AdminProfile = {
   id: number;
   username: string;
   displayName: string | null;
+  role: AdminBackofficeRole;
 };
+
+export function getAdminRole(): AdminBackofficeRole {
+  return getAdminProfile()?.role ?? "admin";
+}
 
 export function getAdminToken(): string {
   return sessionStorage.getItem(STORAGE_KEY) || "";

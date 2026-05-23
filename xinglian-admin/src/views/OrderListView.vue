@@ -2,7 +2,7 @@
 import { Right } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
-import { fetchAdminOrders, type AdminOrderRow } from "@/api/admin";
+import { fetchAdminOrders, type AdminOrderPartyItem, type AdminOrderRow } from "@/api/admin";
 import { getAdminToken } from "@/composables/useAdminToken";
 
 const loading = ref(false);
@@ -18,7 +18,8 @@ const PAYMENT_LABELS: Record<number, string> = {
   0: "未支付",
   1: "已支付",
   2: "退款中",
-  3: "已退款"
+  3: "已退款",
+  4: "退款失败"
 };
 
 const ORDER_STATUS_LABELS: Record<number, string> = {
@@ -43,6 +44,7 @@ function paymentTagType(
   if (status === 1) return "success";
   if (status === 2) return "warning";
   if (status === 3) return "danger";
+  if (status === 4) return "danger";
   return "info";
 }
 
@@ -83,21 +85,37 @@ function formatAmt(v: number | null | undefined): string {
   return Number(v).toFixed(2);
 }
 
-function displayName(nickname: string | null | undefined): string {
-  const n = nickname?.trim();
-  return n ? n : "—";
+function formatPhone(v: string | null | undefined): string {
+  const s = v?.trim();
+  return s ? s : "—";
 }
 
-function partyInitial(name: string | null | undefined): string {
-  const n = name?.trim();
-  if (!n) return "?";
-  return n.slice(0, 1);
+function orderParties(row: AdminOrderRow): AdminOrderPartyItem[] {
+  if (row.parties?.length) return row.parties;
+  return [
+    {
+      role: "merchant",
+      roleLabel: "商家",
+      userNo: row.merchantUserNo || null,
+      nickname: row.merchantNickname || null,
+      realName: null,
+      phone: null
+    },
+    {
+      role: "model",
+      roleLabel: "模特",
+      userNo: row.modelUserNo || null,
+      nickname: row.modelNickname || null,
+      realName: null,
+      phone: null
+    },
+    { role: "broker", roleLabel: "经纪人", userNo: null, nickname: null, realName: null, phone: null },
+    { role: "agent", roleLabel: "代理人", userNo: null, nickname: null, realName: null, phone: null }
+  ];
 }
 
-function partyHue(seed: string): number {
-  let h = 0;
-  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return 200 + (h % 140);
+function partyUnbound(p: AdminOrderPartyItem): boolean {
+  return !p.userNo?.trim() && !p.phone?.trim() && !p.nickname?.trim();
 }
 
 const pageSummary = computed(() => {
@@ -212,34 +230,31 @@ onUnmounted(() => {
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="商家" min-width="140" show-overflow-tooltip>
+          <el-table-column label="参与方" min-width="480">
             <template #default="{ row }">
-              <div class="alv-party">
-                <span
-                  class="alv-party-dot"
-                  :style="{
-                    background: `linear-gradient(145deg, hsl(${partyHue(row.merchantUserNo || 'm')}, 72%, 88%), hsl(${partyHue(row.merchantNickname || '')}, 62%, 78%))`,
-                    color: `hsl(${partyHue(row.merchantUserNo || 'm')}, 42%, 28%)`
-                  }"
-                  >{{ partyInitial(row.merchantNickname) }}</span
-                >
-                <span class="alv-party-name">{{ displayName(row.merchantNickname) }}</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="模特" min-width="140" show-overflow-tooltip>
-            <template #default="{ row }">
-              <div class="alv-party">
-                <span
-                  class="alv-party-dot"
-                  :style="{
-                    background: `linear-gradient(145deg, hsl(${partyHue(row.modelUserNo || 'd')}, 72%, 90%), hsl(${partyHue(row.modelNickname || '')}, 62%, 80%))`,
-                    color: `hsl(${partyHue(row.modelUserNo || 'd')}, 42%, 28%)`
-                  }"
-                  >{{ partyInitial(row.modelNickname) }}</span
-                >
-                <span class="alv-party-name">{{ displayName(row.modelNickname) }}</span>
-              </div>
+              <el-table :data="orderParties(row)" border size="small" class="list-party-table">
+                <el-table-column prop="roleLabel" label="角色" width="72" />
+                <el-table-column label="平台ID" min-width="108" show-overflow-tooltip>
+                  <template #default="{ row: p }">
+                    <span class="list-party-mono">{{ p.userNo?.trim() || "—" }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="昵称" min-width="88" show-overflow-tooltip>
+                  <template #default="{ row: p }">{{ p.nickname?.trim() || "—" }}</template>
+                </el-table-column>
+                <el-table-column label="手机号" width="120">
+                  <template #default="{ row: p }">
+                    <span class="list-party-mono">{{ formatPhone(p.phone) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="备注" min-width="72" show-overflow-tooltip>
+                  <template #default="{ row: p }">
+                    <span v-if="p.role === 'agent' && p.companyName?.trim()">{{ p.companyName.trim() }}</span>
+                    <span v-else-if="partyUnbound(p)" class="list-party-muted">未绑定</span>
+                    <span v-else>—</span>
+                  </template>
+                </el-table-column>
+              </el-table>
             </template>
           </el-table-column>
           <el-table-column label="应付" width="120" align="right">
@@ -304,3 +319,19 @@ onUnmounted(() => {
     </el-card>
   </div>
 </template>
+
+<style scoped>
+.list-party-table {
+  width: 100%;
+}
+.list-party-table :deep(.el-table__cell) {
+  padding: 4px 0;
+  font-size: 12px;
+}
+.list-party-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.list-party-muted {
+  color: #94a3b8;
+}
+</style>

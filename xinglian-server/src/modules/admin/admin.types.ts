@@ -47,6 +47,13 @@ export const adminModelAgentBodySchema = z.object({
 
 export type AdminModelAgentBody = z.infer<typeof adminModelAgentBodySchema>;
 
+/** 后台为商家设置绑定经纪人；传 null 表示清除 */
+export const adminMerchantBrokerBodySchema = z.object({
+  brokerUserId: z.union([z.coerce.number().int().positive(), z.null()])
+});
+
+export type AdminMerchantBrokerBody = z.infer<typeof adminMerchantBrokerBodySchema>;
+
 const ymdRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Zod 4：勿用 preprocess + .optional()，缺省 query 会误报 nonoptional */

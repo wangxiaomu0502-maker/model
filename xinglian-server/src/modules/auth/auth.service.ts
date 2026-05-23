@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { ErrorCodes } from "../../core/constants/error-codes";
 import { AppError } from "../../core/errors/app-error";
 import { env } from "../../config/env";
+import { findActiveBrokerIdByUserNo } from "../user/user.repository";
 import {
   createVisitorUser,
   findLoginUserByOpenid,
@@ -13,28 +14,33 @@ import {
   revertAccountToVisitorByUserIdAndOpenid,
   updateUnionid
 } from "./auth.repository";
+import { getWechatAccessToken } from "../../integrations/wechat/client";
 import {
   identityRoleMap,
-  WechatAccessTokenResponse,
   WechatCode2SessionResponse,
   WechatPhoneResponse
 } from "./auth.types";
 
-let cachedAccessToken = "";
-let cachedAccessTokenExpireAt = 0;
 const BASE62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 const ROLE_MERCHANT = 2;
 
-/** 商家未做身份证 OCR 时入库占位（与小程序 app.js 提示文案一致） */
-const MERCHANT_ID_OCR_PENDING = {
-  realName: "待OCR核验",
-  idCardNo: "000000000000000000",
-  idCardFrontUrl: "cos:pending:id-card-front",
-  idCardBackUrl: "cos:pending:id-card-back",
-  issueAuthority: "待定",
-  validDate: "待定"
-} as const;
+function isDuplicatePhoneError(error: unknown): boolean {
+  const err = error as { code?: string; message?: string; sqlMessage?: string };
+  const message = `${err.message || ""} ${err.sqlMessage || ""}`;
+  return err.code === "ER_DUP_ENTRY" && message.includes("uk_users_phone");
+}
+
+function toDuplicatePhoneAppError(error: unknown): never {
+  if (isDuplicatePhoneError(error)) {
+    throw new AppError(
+      "该手机号已被其他账号使用，请更换手机号或联系客服",
+      409,
+      ErrorCodes.CONFLICT
+    );
+  }
+  throw error;
+}
 
 export function issueUserAccessToken(userId: number, openid: string, role: number): string {
   return jwt.sign(
@@ -53,37 +59,6 @@ function generateUserNo(length = 12): string {
     value += BASE62[bytes[i] % BASE62.length];
   }
   return value;
-}
-
-async function getWechatAccessToken(): Promise<string> {
-  const now = Date.now();
-  if (cachedAccessToken && now < cachedAccessTokenExpireAt) {
-    return cachedAccessToken;
-  }
-
-  const query = new URLSearchParams({
-    grant_type: "client_credential",
-    appid: env.wechat.appId,
-    secret: env.wechat.appSecret
-  });
-
-  const response = await fetch(
-    `https://api.weixin.qq.com/cgi-bin/token?${query.toString()}`,
-    { method: "GET" }
-  );
-  const result = (await response.json()) as WechatAccessTokenResponse;
-
-  if (!response.ok || !result.access_token || !result.expires_in) {
-    throw new AppError(
-      `get wechat access_token failed: ${result.errcode ?? ""} ${result.errmsg ?? ""}`.trim(),
-      502,
-      ErrorCodes.UPSTREAM_ERROR
-    );
-  }
-
-  cachedAccessToken = result.access_token;
-  cachedAccessTokenExpireAt = now + (result.expires_in - 300) * 1000;
-  return cachedAccessToken;
 }
 
 export async function loginByWechatCode(code: string): Promise<{
@@ -180,7 +155,11 @@ export async function bindPhone(
     );
   }
 
-  await bindPhoneByUserId(userId, phoneNumber);
+  try {
+    await bindPhoneByUserId(userId, phoneNumber);
+  } catch (error) {
+    toDuplicatePhoneAppError(error);
+  }
   return { phone: phoneNumber };
 }
 
@@ -199,6 +178,8 @@ export async function completeRegistration(input: {
   idCardBackUrl: string;
   idCardIssueAuthority: string;
   idCardValidDate: string;
+  /** 推广链接中的经纪人 user_no，仅商家注册时尝试绑定 referrer_id */
+  brokerUserNo?: string;
 }): Promise<{ role: number; verifiedStatus: number; profileAuditStatus: number }> {
   const {
     userId,
@@ -213,7 +194,8 @@ export async function completeRegistration(input: {
     idCardFrontUrl,
     idCardBackUrl,
     idCardIssueAuthority,
-    idCardValidDate
+    idCardValidDate,
+    brokerUserNo
   } = input;
 
   if (!faceVerified) {
@@ -236,25 +218,41 @@ export async function completeRegistration(input: {
   let issue = String(idCardIssueAuthority ?? "").trim();
   let valid = String(idCardValidDate ?? "").trim();
 
-  if (targetRole === ROLE_MERCHANT) {
-    if (!rn) rn = MERCHANT_ID_OCR_PENDING.realName;
-    if (!idNo || idNo.length < 15) idNo = MERCHANT_ID_OCR_PENDING.idCardNo;
-    if (!front) front = MERCHANT_ID_OCR_PENDING.idCardFrontUrl;
-    if (!back) back = MERCHANT_ID_OCR_PENDING.idCardBackUrl;
-    if (!issue) issue = MERCHANT_ID_OCR_PENDING.issueAuthority;
-    if (!valid) valid = MERCHANT_ID_OCR_PENDING.validDate;
+  if (!rn || !idNo || idNo.length < 15 || !front || !back || !issue || !valid) {
+    throw new AppError("id card verification is required", 400, ErrorCodes.VALIDATION_ERROR);
   }
 
-  await completeRegistrationByUserId(userId, targetRole, phone, {
-    nickname,
-    avatarUrl,
-    realName: rn,
-    idCardNo: idNo,
-    idCardFrontUrl: front,
-    idCardBackUrl: back,
-    idCardIssueAuthority: issue,
-    idCardValidDate: valid
-  });
+  let referrerBrokerUserId: number | null = null;
+  if (targetRole === ROLE_MERCHANT) {
+    const brokerNo = String(brokerUserNo ?? "").trim();
+    if (brokerNo) {
+      const brokerId = await findActiveBrokerIdByUserNo(brokerNo);
+      if (brokerId != null && brokerId !== userId) {
+        referrerBrokerUserId = brokerId;
+      }
+    }
+  }
+
+  try {
+    await completeRegistrationByUserId(
+      userId,
+      targetRole,
+      phone,
+      {
+        nickname,
+        avatarUrl,
+        realName: rn,
+        idCardNo: idNo,
+        idCardFrontUrl: front,
+        idCardBackUrl: back,
+        idCardIssueAuthority: issue,
+        idCardValidDate: valid
+      },
+      referrerBrokerUserId
+    );
+  } catch (error) {
+    toDuplicatePhoneAppError(error);
+  }
   return {
     role: targetRole,
     verifiedStatus: 2,

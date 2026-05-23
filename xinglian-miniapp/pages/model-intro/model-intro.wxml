@@ -1,0 +1,131 @@
+<view class="container model-intro-page">
+  <view class="model-dash">
+    <view class="dash-hero dash-hero--merchant intro-immersive-hero" style="padding-top: {{heroPaddingTop}}px;">
+      <view class="dash-hero-main">
+        <text class="dash-title">模特列表</text>
+        <text class="dash-desc">游客可先查看模特详情，注册后即可发起预约</text>
+      </view>
+      <view class="dash-hero-count">
+        <text class="dash-hero-count-num">{{modelList.length}}</text>
+        <text class="dash-hero-count-unit">位</text>
+      </view>
+    </view>
+
+    <view class="visitor-tip-card stats-card">
+      <view class="visitor-tip-main">
+        <text class="visitor-tip-title">先逛逛，喜欢再注册</text>
+        <text class="stats-hint visitor-tip-text">点击模特卡片可查看详情；注册成为商家后，可发起预约与管理订单。</text>
+      </view>
+      <button class="visitor-register-btn" size="mini" bindtap="goRegister">去注册</button>
+    </view>
+
+    <view wx:if="{{loading}}" class="stats-card merchant-empty-card">
+      <text class="stats-hint merchant-empty-hint">模特列表加载中…</text>
+    </view>
+
+    <view wx:elif="{{loadError}}" class="stats-card merchant-empty-card">
+      <text class="stats-hint merchant-empty-hint">{{loadError}}</text>
+    </view>
+
+    <view wx:elif="{{modelList.length === 0}}" class="stats-card merchant-empty-card">
+      <text class="stats-hint merchant-empty-hint">暂无可展示模特</text>
+    </view>
+
+    <block wx:else>
+    <view
+      wx:for="{{modelList}}"
+      wx:key="userNo"
+      class="stats-card merchant-item"
+      data-user-no="{{item.userNo}}"
+      bindtap="goModelDetail"
+    >
+      <view class="merchant-item-head">
+        <view class="merchant-av merchant-av--media">
+          <image
+            wx:if="{{item.showAvatarImg}}"
+            class="merchant-av-img"
+            src="{{item.avatarDisplayUrl}}"
+            mode="aspectFill"
+          />
+          <text wx:else class="merchant-av-fallback">{{item.avatarText}}</text>
+        </view>
+        <view class="merchant-item-meta">
+          <text class="merchant-item-name">{{item.nickname}}</text>
+          <text class="merchant-item-sub">所在 {{item.city || "未填写"}}</text>
+        </view>
+      </view>
+
+      <view class="merchant-chip-row" wx:if="{{item.categories && item.categories.length > 0}}">
+        <text wx:for="{{item.categories}}" wx:key="*this" class="merchant-chip">{{item}}</text>
+      </view>
+      <view class="merchant-chip-row" wx:else>
+        <text class="merchant-chip merchant-chip--muted">暂无类型标签</text>
+      </view>
+
+      <view wx:if="{{item.hasCardSection}}" class="merchant-model-card">
+        <view class="merchant-model-card-head">
+          <text class="merchant-model-card-label">模卡</text>
+          <text wx:if="{{item.cardThumbUrls.length}}" class="merchant-model-card-sub">照片</text>
+        </view>
+        <scroll-view
+          wx:if="{{item.cardThumbUrls.length}}"
+          scroll-x
+          class="merchant-card-scroll"
+          enhanced
+          show-scrollbar="{{false}}"
+          enable-flex
+        >
+          <image
+            wx:for="{{item.cardThumbUrls}}"
+            wx:for-index="idx"
+            wx:key="idx"
+            class="merchant-card-thumb"
+            src="{{item}}"
+            mode="aspectFill"
+          />
+        </scroll-view>
+        <view wx:if="{{item.cardMeasureChips.length}}" class="merchant-card-measure-wrap">
+          <text class="merchant-card-measure-title">身材数据</text>
+          <view class="merchant-card-chip-row">
+            <text
+              wx:for="{{item.cardMeasureChips}}"
+              wx:for-item="chip"
+              wx:key="key"
+              class="merchant-card-chip"
+            >{{chip.text}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="stat-row merchant-price-row">
+        <view class="stat-block">
+          <text class="stat-label">小时</text>
+          <view class="stat-value-row">
+            <text class="stat-value stat-money merchant-price-num">{{item.hourlyText}}</text>
+          </view>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-block">
+          <text class="stat-label">半天</text>
+          <view class="stat-value-row">
+            <text class="stat-value stat-money merchant-price-num">{{item.halfDayText}}</text>
+          </view>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-block">
+          <text class="stat-label">全天</text>
+          <view class="stat-value-row">
+            <text class="stat-value stat-money merchant-price-num">{{item.fullDayText}}</text>
+          </view>
+        </view>
+      </view>
+
+      <text class="stats-hint merchant-intro-clamp">简介：{{item.intro || "暂无简介"}}</text>
+
+      <view class="merchant-item-foot">
+        <text class="merchant-item-more">查看详情 · 注册后预约</text>
+      </view>
+    </view>
+    </block>
+  </view>
+</view>

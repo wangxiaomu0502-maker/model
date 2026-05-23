@@ -1,13 +1,15 @@
 const ROLE_TO_KIND = {
   1: "broker_model",
   2: "platform_merchant",
-  3: "platform_broker"
+  3: "platform_broker",
+  4: "platform_agent"
 };
 
 const KIND_TYPE_LABEL = {
   broker_model: "服务协议",
   platform_merchant: "平台协议",
-  platform_broker: "合作协议"
+  platform_broker: "合作协议",
+  platform_agent: "平台协议"
 };
 
 function pickSignedAt(user, kind) {
@@ -15,6 +17,7 @@ function pickSignedAt(user, kind) {
   if (kind === "platform_broker") return user.contractPlatformBrokerSignedAt || "";
   if (kind === "platform_merchant") return user.contractPlatformMerchantSignedAt || "";
   if (kind === "broker_model") return user.contractBrokerModelSignedAt || "";
+  if (kind === "platform_agent") return user.contractPlatformAgentSignedAt || "";
   return "";
 }
 

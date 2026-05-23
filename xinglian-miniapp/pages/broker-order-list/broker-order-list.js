@@ -2,7 +2,8 @@ const PAYMENT_STATUS_FALLBACK = {
   0: "未支付",
   1: "已支付",
   2: "退款中",
-  3: "已退款"
+  3: "已退款",
+  4: "退款失败"
 };
 
 Page({
@@ -16,9 +17,9 @@ Page({
     statusFilter: "",
     tabs: [
       { key: "", label: "全部" },
-      { key: "1", label: "待接单" },
+      { key: "1", label: "待模特确认接单" },
       { key: "2", label: "进行中" },
-      { key: "3", label: "待商家确认" },
+      { key: "3", label: "模特已完成" },
       { key: "4", label: "已完成" },
       { key: "9", label: "已取消" }
     ]

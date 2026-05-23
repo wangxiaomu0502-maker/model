@@ -9,6 +9,10 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "migrate:user-account-ledger": "tsx scripts/migrate-user-account-ledger.ts",
+    "migrate:contract-platform-agent": "tsx scripts/migrate-contract-platform-agent.ts",
+    "migrate:admin-users-role": "tsx scripts/migrate-admin-users-role.ts",
+    "migrate:admin-users-phone": "tsx scripts/migrate-admin-users-phone.ts",
+    "migrate:orders-cs": "tsx scripts/migrate-orders-cs.ts",
     "purge:users-orders": "tsx scripts/purge-users-and-orders.ts",
     "migrate:split-v2": "tsx scripts/migrate-split-v2.ts",
     "smoke:split-v2": "tsx scripts/smoke-split-v2.ts"

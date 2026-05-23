@@ -2,18 +2,19 @@ import { AppError } from "../../core/errors/app-error";
 import { ErrorCodes } from "../../core/constants/error-codes";
 
 import {
-  findSplitRulesById,
+  findSplitRulesByServiceType,
   insertDefaultSplitRulesRow,
+  normalizeSplitServiceType,
   SplitRulesRow,
+  SplitServiceType,
   updateSplitRulesRow
 } from "./split-rules.repository";
 import type { SplitRulesUpdateDto } from "./split-rules.types";
 
-const SPLIT_RULES_ID = 1;
-
 function rowToApi(row: SplitRulesRow): Record<string, unknown> {
   return {
     id: row.id,
+    serviceType: normalizeSplitServiceType(row.service_type),
     platformFeeRateBp: Number(row.platform_fee_rate_bp),
     modelShareBp: Number(row.model_share_bp),
     platformShareOfFeeBp: Number(row.platform_share_of_fee_bp),
@@ -29,9 +30,10 @@ export async function ensureSplitRulesSeed(): Promise<void> {
   await insertDefaultSplitRulesRow();
 }
 
-export async function getSplitRulesForAdmin(): Promise<Record<string, unknown>> {
+export async function getSplitRulesForAdmin(serviceTypeRaw?: unknown): Promise<Record<string, unknown>> {
+  const serviceType = normalizeSplitServiceType(serviceTypeRaw);
   await ensureSplitRulesSeed();
-  const row = await findSplitRulesById(SPLIT_RULES_ID);
+  const row = await findSplitRulesByServiceType(serviceType);
   if (!row) {
     throw new AppError("split rules not found", 500, ErrorCodes.INTERNAL_ERROR);
   }
@@ -39,6 +41,7 @@ export async function getSplitRulesForAdmin(): Promise<Record<string, unknown>> 
 }
 
 export async function updateSplitRulesForAdmin(body: SplitRulesUpdateDto): Promise<Record<string, unknown>> {
+  const serviceType: SplitServiceType = normalizeSplitServiceType(body.serviceType);
   const patch = {
     platformFeeRateBp: body.platformFeeRateBp,
     modelShareBp: body.modelShareBp,
@@ -46,13 +49,13 @@ export async function updateSplitRulesForAdmin(body: SplitRulesUpdateDto): Promi
     agentShareOfFeeBp: body.agentShareOfFeeBp,
     brokerShareOfFeeBp: body.brokerShareOfFeeBp
   };
-  let ok = await updateSplitRulesRow(SPLIT_RULES_ID, patch);
+  let ok = await updateSplitRulesRow(serviceType, patch);
   if (!ok) {
     await ensureSplitRulesSeed();
-    ok = await updateSplitRulesRow(SPLIT_RULES_ID, patch);
+    ok = await updateSplitRulesRow(serviceType, patch);
   }
   if (!ok) {
     throw new AppError("failed to update split rules", 500, ErrorCodes.INTERNAL_ERROR);
   }
-  return getSplitRulesForAdmin();
+  return getSplitRulesForAdmin(serviceType);
 }

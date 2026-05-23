@@ -4,6 +4,7 @@ import { dbPool } from "../../config/db";
 
 export type SplitRulesRow = RowDataPacket & {
   id: number;
+  service_type: "ordinary" | "agent";
   platform_fee_rate_bp: number;
   model_share_bp: number;
   platform_share_of_fee_bp: number;
@@ -13,9 +14,26 @@ export type SplitRulesRow = RowDataPacket & {
   updated_at: Date;
 };
 
+export type SplitServiceType = "ordinary" | "agent";
+
+export function normalizeSplitServiceType(value: unknown): SplitServiceType {
+  return value === "agent" ? "agent" : "ordinary";
+}
+
+export async function findSplitRulesByServiceType(serviceType: SplitServiceType): Promise<SplitRulesRow | null> {
+  const [rows] = await dbPool.query<SplitRulesRow[]>(
+    `SELECT id, service_type, platform_fee_rate_bp, model_share_bp,
+            platform_share_of_fee_bp, agent_share_of_fee_bp, broker_share_of_fee_bp,
+            remark, updated_at
+     FROM platform_split_rules WHERE service_type = ? LIMIT 1`,
+    [serviceType]
+  );
+  return rows[0] ?? null;
+}
+
 export async function findSplitRulesById(id: number): Promise<SplitRulesRow | null> {
   const [rows] = await dbPool.query<SplitRulesRow[]>(
-    `SELECT id, platform_fee_rate_bp, model_share_bp,
+    `SELECT id, COALESCE(service_type, 'ordinary') AS service_type, platform_fee_rate_bp, model_share_bp,
             platform_share_of_fee_bp, agent_share_of_fee_bp, broker_share_of_fee_bp,
             remark, updated_at
      FROM platform_split_rules WHERE id = ? LIMIT 1`,
@@ -27,15 +45,18 @@ export async function findSplitRulesById(id: number): Promise<SplitRulesRow | nu
 export async function insertDefaultSplitRulesRow(): Promise<void> {
   await dbPool.query(
     `INSERT IGNORE INTO platform_split_rules (
-       id, platform_fee_rate_bp, model_share_bp,
+       id, service_type, platform_fee_rate_bp, model_share_bp,
        platform_share_of_fee_bp, agent_share_of_fee_bp, broker_share_of_fee_bp
-     ) VALUES (1, 1500, 8500, 3400, 3300, 3300)`
+     ) VALUES
+       (1, 'ordinary', 1500, 8500, 3400, 3300, 3300),
+       (2, 'agent', 1500, 8500, 3400, 3300, 3300)`
   );
 }
 
 export function fallbackSplitRulesRowForEstimate(): SplitRulesRow {
   return {
     id: 1,
+    service_type: "ordinary",
     platform_fee_rate_bp: 1500,
     model_share_bp: 8500,
     platform_share_of_fee_bp: 3400,
@@ -47,7 +68,7 @@ export function fallbackSplitRulesRowForEstimate(): SplitRulesRow {
 }
 
 export async function updateSplitRulesRow(
-  id: number,
+  serviceType: SplitServiceType,
   patch: {
     platformFeeRateBp: number;
     modelShareBp: number;
@@ -64,14 +85,14 @@ export async function updateSplitRulesRow(
        agent_share_of_fee_bp = ?,
        broker_share_of_fee_bp = ?,
        updated_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
+     WHERE service_type = ?`,
     [
       patch.platformFeeRateBp,
       patch.modelShareBp,
       patch.platformShareOfFeeBp,
       patch.agentShareOfFeeBp,
       patch.brokerShareOfFeeBp,
-      id
+      serviceType
     ]
   );
   return result.affectedRows > 0;

@@ -7,10 +7,8 @@
       <view class="hero-inner">
         <text class="hero-kicker">账户安全</text>
         <text class="hero-title">实名认证</text>
-        <text class="hero-subtitle" wx:if="{{skipIdCardOcr}}">完成昵称、头像与手机号授权后即可提交注册。</text>
-        <text class="hero-subtitle" wx:else>完成昵称、头像、手机号与身份证识别后即可提交注册。</text>
-        <text class="hero-tip" wx:if="{{skipIdCardOcr}}">请按顺序完成以下 3 步</text>
-        <text class="hero-tip" wx:else>请按顺序完成以下 4 步</text>
+        <text class="hero-subtitle">完成昵称、头像、手机号与身份证识别后即可提交注册。</text>
+        <text class="hero-tip">请按顺序完成以下 4 步</text>
       </view>
     </view>
 
@@ -38,12 +36,11 @@
         <view class="step-num-wrap"><text class="step-num">2</text></view>
         <text class="step-title">设置头像</text>
       </view>
-      <text class="step-tip">选择头像后将自动上传并保存。</text>
+      <text class="step-tip">可从相册或拍照选择，选择后将自动上传并保存。</text>
       <view class="step-visual-center">
-        <button
+        <view
           class="avatar-btn"
-          open-type="chooseAvatar"
-          bind:chooseavatar="onChooseAvatar"
+          bindtap="onPickAvatar"
           hover-class="avatar-btn-hover"
         >
           <view class="avatar-circle">
@@ -57,13 +54,13 @@
               <text class="avatar-ph-main">点击选择头像</text>
             </view>
           </view>
-        </button>
+        </view>
       </view>
       <text wx:if="{{avatarStoredUrl}}" class="mini-success">头像已上传</text>
     </view>
 
     <!-- 3 手机号 -->
-    <view class="card {{skipIdCardOcr ? 'card-last' : ''}}">
+    <view class="card">
       <view class="step-head">
         <view class="step-num-wrap"><text class="step-num">3</text></view>
         <text class="step-title">手机号授权</text>
@@ -88,14 +85,13 @@
       </view>
     </view>
 
-    <!-- 4 OCR（商家不展示） -->
-    <view wx:if="{{!skipIdCardOcr}}" class="card card-last">
+    <!-- 4 OCR -->
+    <view class="card card-last">
       <view class="step-head">
         <view class="step-num-wrap"><text class="step-num">4</text></view>
-        <text class="step-title">身份证 OCR 识别{{skipIdCardOcr ? '（选填）' : ''}}</text>
+        <text class="step-title">身份证 OCR 识别</text>
       </view>
-      <text class="step-tip" wx:if="{{skipIdCardOcr}}">选填：需要时可上传人像面与国徽面并识别；不上传可直接点底部「完成注册」。</text>
-      <text class="step-tip" wx:else>请分别上传人像面与国徽面，两张就绪后点击「开始识别」。</text>
+      <text class="step-tip">请分别上传人像面与国徽面，两张就绪后点击「开始识别」。</text>
       <view class="upload-grid">
         <view class="upload-item" bindtap="onChooseIdCardFrontImage" hover-class="upload-item-hover">
           <image

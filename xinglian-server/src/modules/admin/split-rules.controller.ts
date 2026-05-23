@@ -18,7 +18,7 @@ export async function adminGetSplitRulesController(
       fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
       return;
     }
-    const data = await getSplitRulesForAdmin();
+    const data = await getSplitRulesForAdmin((req.query as { serviceType?: string }).serviceType);
     success(res, data as Record<string, unknown>);
   } catch (e) {
     next(e);

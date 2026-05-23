@@ -1,0 +1,73 @@
+<view class="page broker-page broker-link-page">
+  <view class="broker-dash-hero">
+    <view class="broker-hero-blob broker-hero-blob-1"></view>
+    <view class="broker-hero-blob broker-hero-blob-2"></view>
+    <view class="broker-hero-grid"></view>
+    <view class="broker-dash-hero-inner">
+      <view class="broker-dash-hero-main">
+        <text class="broker-dash-eyebrow">推广工具</text>
+        <text class="broker-dash-title">链接推广</text>
+        <text class="broker-dash-desc">复制 HTTPS 链接发给商家，点击即可打开小程序并自动绑定</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="hint">加载中…</view>
+
+  <block wx:else>
+    <view class="card link-card">
+      <text class="link-card-title">我的推广链接（HTTPS）</text>
+      <text class="link-card-sub" wx:if="{{urlLinkLoading}}">正在向微信申请链接…</text>
+      <text class="link-card-sub" wx:elif="{{urlLink}}">有效期 {{expireDays}} 天（微信最长 {{maxExpireDays}} 天，过期后请点「重新生成」）</text>
+      <text class="link-card-sub" wx:else>{{urlLinkErrorText || "待小程序正式上线后提供"}}</text>
+      <view class="link-box">
+        <text class="link-text" selectable>{{urlLink || '—'}}</text>
+      </view>
+      <view class="link-actions">
+        <button
+          class="link-btn link-btn--primary"
+          bindtap="onCopyLink"
+          disabled="{{!urlLink || urlLinkLoading}}"
+        >
+          复制 HTTPS 链接
+        </button>
+        <button
+          class="link-btn link-btn--ghost"
+          bindtap="onRefreshUrlLink"
+          loading="{{urlLinkLoading}}"
+          disabled="{{urlLinkLoading}}"
+        >
+          重新生成
+        </button>
+        <button class="link-btn link-btn--ghost" open-type="share" disabled="{{!promoPath}}">
+          分享给好友
+        </button>
+      </view>
+    </view>
+
+    <view class="card id-card">
+      <view class="id-head">
+        <text class="id-title">经纪人信息</text>
+        <text class="id-desc">商家以商户身份注册时将自动绑定您为推荐经纪人</text>
+      </view>
+      <view class="id-row">
+        <text class="id-label">我的昵称</text>
+        <text class="id-value">{{nickname || '—'}}</text>
+      </view>
+      <view class="id-row id-row--last">
+        <text class="id-label">用户 ID</text>
+        <text class="id-value id-mono" selectable>{{userNo || '—'}}</text>
+      </view>
+      <button class="id-copy-btn" bindtap="onCopyUserNo" disabled="{{!userNo}}">复制用户 ID</button>
+    </view>
+
+    <view class="tips card">
+      <text class="tips-title">使用说明</text>
+      <text class="tips-line">1. 复制上方 https://wxaurl.cn/… 链接，通过短信、微信等方式发给商家。</text>
+      <text class="tips-line">2. 对方打开后进入小程序；选择商户注册即自动绑定您的用户 ID。</text>
+      <text class="tips-line">3. 链接最长有效 30 天，过期后在本页重新生成；长期使用请用「二维码推广」。</text>
+    </view>
+  </block>
+
+  <view class="bottom-space"></view>
+</view>

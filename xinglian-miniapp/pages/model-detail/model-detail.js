@@ -20,9 +20,11 @@ Page({
     loadError: "",
     model: null,
     cardUrls: [],
+    stylePositionPhotos: [],
     portfolioSections: [],
     bookableDateOptions: [],
     selectedDateKey: "",
+    serviceType: "ordinary",
     durationKind: "",
     hourCount: 2,
     hourIndex: 1,
@@ -34,8 +36,13 @@ Page({
     showBookingPopup: false,
     showPortfolioPopup: false,
     portfolioPhotoCount: 0,
+    cardPhotoItems: [],
+    cardPrimaryMetrics: [],
+    cardSecondaryMetrics: [],
+    cardStyleTags: [],
     cardHairColor: "",
     cardSkinColor: "",
+    isVisitor: false,
     cardMeasureText: {
       height: "—",
       weight: "—",
@@ -76,6 +83,82 @@ Page({
   },
 
   /** 校验 HTTP 2xx，避免 400 仍走 success 导致误判成功 */
+  async cancelOrderAfterPaymentCancel(orderId) {
+    try {
+      await this.requestJson(`/api/orders/${orderId}/cancel`, "POST", { reason: "用户取消支付" });
+      return true;
+    } catch (err) {
+      console.warn("cancel unpaid order after payment cancel failed", err);
+      return false;
+    }
+  },
+
+  async syncOrderPayment(orderId) {
+    try {
+      return await this.requestJson(`/api/orders/${orderId}/sync-pay`, "POST", {});
+    } catch (err) {
+      console.warn("sync order payment failed", err);
+      return null;
+    }
+  },
+
+  async requestWechatPay(orderId) {
+    wx.showLoading({ title: "调起支付", mask: true });
+    try {
+      const data = await this.requestJson(`/api/orders/${orderId}/pay`, "POST", {});
+      wx.hideLoading();
+      if (!data?.ok || !data.payment) {
+        wx.showToast({ title: data?.message || "获取支付参数失败", icon: "none" });
+        setTimeout(
+          () =>
+            wx.redirectTo({
+              url: `/pages/order-detail/order-detail?id=${orderId}`
+            }),
+          800
+        );
+        return;
+      }
+      const p = data.payment;
+      await new Promise((resolve, reject) => {
+        wx.requestPayment({
+          timeStamp: p.timeStamp,
+          nonceStr: p.nonceStr,
+          package: p.package,
+          signType: p.signType || "RSA",
+          paySign: p.paySign,
+          success: resolve,
+          fail: reject
+        });
+      });
+      const synced = await this.syncOrderPayment(orderId);
+      const paid = synced?.ok && Number(synced.paymentStatus) === 1;
+      wx.showToast({ title: paid ? "支付成功" : "支付处理中", icon: paid ? "success" : "none" });
+      setTimeout(
+        () =>
+          wx.redirectTo({
+            url: `/pages/order-detail/order-detail?id=${orderId}`
+          }),
+        600
+      );
+    } catch (err) {
+      wx.hideLoading();
+      const msg = (err && err.errMsg) || (err && err.message) || "支付未完成";
+      if (String(msg).indexOf("cancel") >= 0 || String(msg).indexOf("取消") >= 0) {
+        const closed = await this.cancelOrderAfterPaymentCancel(orderId);
+        wx.showToast({ title: closed ? "已取消支付，订单已关闭" : "已取消支付", icon: "none" });
+      } else {
+        wx.showToast({ title: String(msg), icon: "none" });
+      }
+      setTimeout(
+        () =>
+          wx.redirectTo({
+            url: `/pages/order-detail/order-detail?id=${orderId}`
+          }),
+        800
+      );
+    }
+  },
+
   requestJson(url, method, data) {
     const app = getApp();
     return new Promise((resolve, reject) => {
@@ -99,6 +182,15 @@ Page({
     });
   },
 
+  isVisitorUser() {
+    const app = getApp();
+    return !app.globalData.token || Number(app.globalData.role || 0) === 0;
+  },
+
+  defaultOrderBtnTitle() {
+    return this.isVisitorUser() ? "注册后预约" : "预约";
+  },
+
   onLoad(options) {
     let userNo = options?.userNo || "";
     try {
@@ -106,7 +198,7 @@ Page({
     } catch (_e) {
       userNo = String(userNo).trim();
     }
-    this.setData({ userNo });
+    this.setData({ userNo, isVisitor: this.isVisitorUser(), orderBtnTitle: this.defaultOrderBtnTitle() });
     if (!userNo) {
       this.setData({ loading: false, loadError: "缺少模特编号" });
       return;
@@ -148,6 +240,12 @@ Page({
         };
       })
       .filter((s) => s.urls.length > 0);
+  },
+
+  buildStylePositionPhotos(model) {
+    const sp = model?.stylePosition || {};
+    const photos = Array.isArray(sp.photos) ? sp.photos : [];
+    return photos.map((p) => p && p.url).filter(Boolean);
   },
 
   buildBookableDateOptions(scheduleMap) {
@@ -210,11 +308,67 @@ Page({
     };
   },
 
+  measureFilled(v) {
+    return v != null && String(v).trim() !== "" && String(v) !== "—";
+  },
+
+  buildCardDisplayData(model, cardUrls) {
+    const tm = this.buildCardMeasureText(model);
+    const has = (key) => this.measureFilled(tm[key]);
+    const card = (model && model.card) || {};
+    const cardHairColor = String(card.hairColor || "").trim();
+    const cardSkinColor = String(card.skinColor || "").trim();
+    const cardPhotoItems = (cardUrls || []).map((url, index) => ({
+      url,
+      label: index === 0 ? "封面" : `${index + 1}`
+    }));
+    const cardPrimaryMetrics = [];
+    const addPrimary = (key, label, unit) => {
+      if (has(key)) {
+        cardPrimaryMetrics.push({ label, value: tm[key], unit });
+      }
+    };
+
+    addPrimary("height", "身高", "cm");
+    addPrimary("weight", "体重", "kg");
+    if (has("bust") || has("waist") || has("hip")) {
+      cardPrimaryMetrics.push({
+        label: "三围",
+        value: `${tm.bust}/${tm.waist}/${tm.hip}`,
+        unit: "cm"
+      });
+    }
+
+    const secondaryMap = [
+      ["shoulder", "肩宽", "cm"],
+      ["armSpan", "臂展", "cm"],
+      ["legLength", "腿长", "cm"],
+      ["shoeSize", "鞋码", ""]
+    ];
+    const cardSecondaryMetrics = secondaryMap
+      .filter(([key]) => has(key))
+      .map(([key, label, unit]) => ({ label, value: tm[key], unit }));
+    const cardStyleTags = [
+      cardHairColor ? `发色 ${cardHairColor}` : "",
+      cardSkinColor ? `肤色 ${cardSkinColor}` : ""
+    ].filter(Boolean);
+
+    return {
+      cardMeasureText: tm,
+      cardHairColor,
+      cardSkinColor,
+      cardPhotoItems,
+      cardPrimaryMetrics,
+      cardSecondaryMetrics,
+      cardStyleTags
+    };
+  },
+
   /** 根据当前时长选择更新底部报价文案与按钮金额（可不选日期先预览） */
   refreshQuoteDisplay() {
-    const { durationKind, hourCount, model, canSubmit } = this.data;
+    const { durationKind, hourCount, model, canSubmit, serviceType } = this.data;
     if (!model || !durationKind) {
-      this.setData({ quoteLine: "", orderBtnAmount: "", orderBtnTitle: "下单" });
+      this.setData({ quoteLine: "", orderBtnAmount: "", orderBtnTitle: this.defaultOrderBtnTitle() });
       return;
     }
     const p = model.price || {};
@@ -223,23 +377,26 @@ Page({
 
     if (durationKind === "fullDay" && p.fullDay != null) {
       const amt = this.fmtMoney(p.fullDay);
-      quoteLine = `单价（全天一口价）${amt} 元`;
+      quoteLine = `单价（全天一口价）${amt} 元 · ${serviceType === "agent" ? "代理服务" : "普通服务"}`;
       orderBtnAmount = amt;
     } else if (durationKind === "halfDay" && p.halfDay != null) {
       const amt = this.fmtMoney(p.halfDay);
-      quoteLine = `单价（半天一口价）${amt} 元`;
+      quoteLine = `单价（半天一口价）${amt} 元 · ${serviceType === "agent" ? "代理服务" : "普通服务"}`;
       orderBtnAmount = amt;
     } else if (durationKind === "hourly" && p.hourly != null) {
       const h = Math.min(Math.max(Number(hourCount) || 1, 1), HOUR_MAX);
       const unit = this.fmtMoney(p.hourly);
       const total = Math.round(Number(p.hourly) * h * 100) / 100;
       const totalStr = this.fmtMoney(total);
-      quoteLine = `单价 ${unit} 元/小时 · ${h} 小时 · 合计 ${totalStr} 元`;
+      quoteLine = `单价 ${unit} 元/小时 · ${h} 小时 · 合计 ${totalStr} 元 · ${serviceType === "agent" ? "代理服务" : "普通服务"}`;
       orderBtnAmount = totalStr;
     }
 
-    const orderBtnTitle =
+    let orderBtnTitle =
       orderBtnAmount && canSubmit ? `确认预约 ¥${orderBtnAmount}` : orderBtnAmount ? `¥${orderBtnAmount}` : "预约";
+    if (this.isVisitorUser()) {
+      orderBtnTitle = "注册后预约";
+    }
 
     this.setData({ quoteLine, orderBtnAmount, orderBtnTitle });
   },
@@ -298,13 +455,14 @@ Page({
       loading: true,
       loadError: "",
       selectedDateKey: "",
+      serviceType: "ordinary",
       durationKind: "",
       hourCount: 2,
       hourIndex: 1,
       canSubmit: false,
       quoteLine: "",
       orderBtnAmount: "",
-      orderBtnTitle: "预约",
+      orderBtnTitle: this.defaultOrderBtnTitle(),
       showBookingPopup: false,
       showPortfolioPopup: false
     });
@@ -316,11 +474,12 @@ Page({
           loadError: data?.message || "加载失败",
           model: null,
           cardUrls: [],
+          stylePositionPhotos: [],
           portfolioSections: [],
           bookableDateOptions: [],
           quoteLine: "",
           orderBtnAmount: "",
-          orderBtnTitle: "预约",
+          orderBtnTitle: this.defaultOrderBtnTitle(),
           showBookingPopup: false,
           showPortfolioPopup: false,
           portfolioPhotoCount: 0,
@@ -335,6 +494,7 @@ Page({
       const model = { ...data };
       delete model.ok;
       const { cardUrls } = this.collectImageUrls(model);
+      const stylePositionPhotos = this.buildStylePositionPhotos(model);
       const portfolioSections = this.buildPortfolioSections(model);
       const portfolioPhotoCount = portfolioSections.reduce(
         (n, s) => n + (s.urls ? s.urls.length : 0),
@@ -342,25 +502,21 @@ Page({
       );
       const scheduleMap = model.schedule && model.schedule.scheduleMap;
       const bookableDateOptions = this.buildBookableDateOptions(scheduleMap);
-      const cardMeasureText = this.buildCardMeasureText(model);
-      const card = (model && model.card) || {};
-      const cardHairColor = String(card.hairColor || "").trim();
-      const cardSkinColor = String(card.skinColor || "").trim();
+      const cardDisplay = this.buildCardDisplayData(model, cardUrls);
       const showCardPanel =
         (cardUrls && cardUrls.length > 0) ||
-        this.cardMeasureHasAny(cardMeasureText) ||
-        Boolean(cardHairColor || cardSkinColor);
+        this.cardMeasureHasAny(cardDisplay.cardMeasureText) ||
+        Boolean(cardDisplay.cardHairColor || cardDisplay.cardSkinColor);
       this.setData({
         loading: false,
         loadError: "",
         model,
         cardUrls,
+        stylePositionPhotos,
         portfolioSections,
         portfolioPhotoCount,
         bookableDateOptions,
-        cardMeasureText,
-        cardHairColor,
-        cardSkinColor,
+        ...cardDisplay,
         showCardPanel
       });
       this.syncDurationIfInvalid(model);
@@ -371,11 +527,12 @@ Page({
         loadError: "网络异常，请稍后重试",
         model: null,
         cardUrls: [],
+        stylePositionPhotos: [],
         portfolioSections: [],
         bookableDateOptions: [],
         quoteLine: "",
         orderBtnAmount: "",
-        orderBtnTitle: "预约",
+        orderBtnTitle: this.defaultOrderBtnTitle(),
         showBookingPopup: false,
         showPortfolioPopup: false,
         portfolioPhotoCount: 0,
@@ -393,6 +550,12 @@ Page({
     if (!key) return;
     this.setData({ selectedDateKey: key });
     this.updateCanSubmit();
+  },
+
+  onPickServiceType(e) {
+    const serviceType = e.currentTarget.dataset.serviceType || "";
+    if (serviceType !== "ordinary" && serviceType !== "agent") return;
+    this.setData({ serviceType }, () => this.refreshQuoteDisplay());
   },
 
   onPickDuration(e) {
@@ -466,6 +629,10 @@ Page({
 
   async onPlaceOrder() {
     if (!this.data.model) return;
+    if (this.isVisitorUser()) {
+      this.promptRegister();
+      return;
+    }
     if (this.isMerchantRole()) {
       wx.showLoading({ title: "校验中", mask: true });
       const signed = await this.fetchMerchantContractSigned();
@@ -480,6 +647,26 @@ Page({
 
   onCloseBookingPopup() {
     this.setData({ showBookingPopup: false });
+  },
+
+  goRegister() {
+    wx.navigateTo({
+      url: "/pages/intro/intro"
+    });
+  },
+
+  promptRegister() {
+    wx.showModal({
+      title: "注册后可预约",
+      content: "当前可先浏览模特详情。注册并选择身份后，即可发起预约与管理订单。",
+      confirmText: "去注册",
+      cancelText: "继续浏览",
+      success: (res) => {
+        if (res.confirm) {
+          this.goRegister();
+        }
+      }
+    });
   },
 
   /** 阻止弹窗打开时触摸穿透到底层 scroll-view */
@@ -508,6 +695,8 @@ Page({
     let urls = [];
     if (from === "card") {
       urls = this.data.cardUrls || [];
+    } else if (from === "stylePosition") {
+      urls = this.data.stylePositionPhotos || [];
     } else if (sectionId) {
       const sec = (this.data.portfolioSections || []).find((s) => s.id === sectionId);
       urls = sec && sec.urls ? sec.urls : [];
@@ -517,6 +706,10 @@ Page({
   },
 
   async onConfirmBooking() {
+    if (this.isVisitorUser()) {
+      this.promptRegister();
+      return;
+    }
     if (!this.data.canSubmit) {
       if (!this.data.selectedDateKey) {
         wx.showToast({ title: "请先选择预约日期", icon: "none" });
@@ -538,8 +731,9 @@ Page({
         return;
       }
     }
-    const { selectedDateKey: date, durationKind, hourCount, model } = this.data;
+    const { selectedDateKey: date, serviceType, durationKind, hourCount, model } = this.data;
     let summary = this.durationSummaryText();
+    summary = `${serviceType === "agent" ? "代理服务（提供影棚）" : "普通服务"}\n${summary}`;
     if (durationKind === "hourly" && model?.price?.hourly != null) {
       const h = Number(hourCount) || 0;
       const total = Math.round(Number(model.price.hourly) * h);
@@ -547,7 +741,7 @@ Page({
     }
     wx.showModal({
       title: "确认下单",
-      content: `${date}\n${summary}\n\n首期提交即模拟支付成功并生成订单；首态为待模特确认接单。`,
+      content: `${date}\n${summary}\n\n提交后将创建订单并调起微信支付；支付成功后待模特确认接单。`,
       confirmText: "提交订单",
       cancelText: "再想想",
       success: (modalRes) => {
@@ -560,13 +754,18 @@ Page({
   },
 
   async submitOrder() {
-    const { selectedDateKey: date, durationKind, hourCount, model } = this.data;
+    if (this.isVisitorUser()) {
+      this.promptRegister();
+      return;
+    }
+    const { selectedDateKey: date, serviceType, durationKind, hourCount, model } = this.data;
     if (!model?.userNo || !date || !durationKind) {
       return;
     }
     const body = {
       modelUserNo: model.userNo,
       bookingDate: date,
+      serviceType,
       durationKind
     };
     if (durationKind === "hourly") {
@@ -582,6 +781,10 @@ Page({
       }
       const o = data.order || {};
       const id = o.orderId;
+      if (o.needPay && o.paymentMode === "wechat" && id) {
+        await this.requestWechatPay(id);
+        return;
+      }
       wx.showToast({ title: "下单成功", icon: "success" });
       if (id) {
         setTimeout(

@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { Right } from "@element-plus/icons-vue";
 import {
   fetchAdminAgentUsers,
+  fetchAdminBrokerUsers,
   fetchAdminBrokerBoundMerchants,
   fetchAdminBrokerDetail,
   fetchAdminBrokerIncomeStats,
@@ -16,6 +17,7 @@ import {
   fetchAdminModelOrders,
   fetchAdminUsersByRole,
   patchAdminModelAgent,
+  patchAdminMerchantBroker,
   postAdminModelProfileAudit,
   type AdminListKind,
   type AdminBrokerBasicInfo,
@@ -44,6 +46,10 @@ const pageTitle = computed(() => (route.meta.title as string) || "列表");
 const isModelList = computed(() => listKind.value === "models");
 const isMerchantList = computed(() => listKind.value === "merchants");
 const isBrokerList = computed(() => listKind.value === "brokers");
+
+const bindBrokerDialogTitle = computed(() =>
+  bindBrokerMerchantRow.value?.referrerBrokerUserId ? "换绑经纪人" : "绑定经纪人"
+);
 
 function partyInitial(name: string | null | undefined): string {
   const n = name?.trim();
@@ -101,6 +107,16 @@ const bindAgentDialogVisible = ref(false);
 const bindAgentModelRow = ref<AdminUserRow | null>(null);
 const bindAgentDraft = ref<number | null>(null);
 const bindAgentSaving = ref(false);
+
+const brokerOptions = ref<AdminUserRow[]>([]);
+const brokerOptionsLoading = ref(false);
+const bindBrokerDialogVisible = ref(false);
+const bindBrokerMerchantRow = ref<AdminUserRow | null>(null);
+const bindBrokerDraft = ref<number | null>(null);
+const bindBrokerSaving = ref(false);
+
+const merchantBrokerDraft = ref<number | null>(null);
+const merchantBrokerSaving = ref(false);
 
 const merchantDetailVisible = ref(false);
 const merchantDetailLoading = ref(false);
@@ -248,7 +264,8 @@ const MERCHANT_PAYMENT_LABELS: Record<number, string> = {
   0: "未支付",
   1: "已支付",
   2: "退款中",
-  3: "已退款"
+  3: "已退款",
+  4: "退款失败"
 };
 
 const MERCHANT_ORDER_STATUS_LABELS: Record<number, string> = {
@@ -275,6 +292,7 @@ function merchantPaymentTagType(
   if (status === 1) return "success";
   if (status === 2) return "warning";
   if (status === 3) return "danger";
+  if (status === 4) return "danger";
   return "info";
 }
 
@@ -376,6 +394,10 @@ function formatAgentOptionLabel(row: AdminUserRow): string {
   return `${name} · ${row.userNo}`;
 }
 
+function formatBrokerOptionLabel(row: AdminUserRow): string {
+  return formatAgentOptionLabel(row);
+}
+
 async function loadAgentOptions(): Promise<void> {
   agentOptionsLoading.value = true;
   try {
@@ -439,6 +461,112 @@ async function onConfirmBindAgent(): Promise<void> {
     ElMessage.error(e instanceof Error ? e.message : "绑定失败");
   } finally {
     bindAgentSaving.value = false;
+  }
+}
+
+async function loadBrokerOptions(): Promise<void> {
+  brokerOptionsLoading.value = true;
+  try {
+    const data = await fetchAdminBrokerUsers();
+    brokerOptions.value = data.list || [];
+    if (!brokerOptions.value.length) {
+      ElMessage.warning("暂无可用经纪人，请先在「经纪人列表」中新增并完成合同签署");
+    }
+  } catch (e) {
+    brokerOptions.value = [];
+    ElMessage.error(e instanceof Error ? e.message : "经纪人列表加载失败");
+  } finally {
+    brokerOptionsLoading.value = false;
+  }
+}
+
+function openBindBrokerDialog(row: AdminUserRow): void {
+  bindBrokerMerchantRow.value = row;
+  bindBrokerDraft.value = row.referrerBrokerUserId ?? null;
+  bindBrokerDialogVisible.value = true;
+  void loadBrokerOptions();
+}
+
+function closeBindBrokerDialog(): void {
+  bindBrokerDialogVisible.value = false;
+  bindBrokerMerchantRow.value = null;
+  bindBrokerDraft.value = null;
+}
+
+async function onUnbindMerchantBroker(): Promise<void> {
+  const row = bindBrokerMerchantRow.value;
+  if (!row?.referrerBrokerUserId) return;
+  try {
+    await ElMessageBox.confirm(
+      `确认解除商家「${displayCellName(row.nickname)}」（${row.userNo}）与当前经纪人的绑定？`,
+      "解绑经纪人",
+      { type: "warning", confirmButtonText: "解绑", cancelButtonText: "取消" }
+    );
+  } catch {
+    return;
+  }
+  bindBrokerSaving.value = true;
+  try {
+    await patchAdminMerchantBroker(row.userId, null);
+    ElMessage.success("已解绑经纪人");
+    closeBindBrokerDialog();
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "解绑失败");
+  } finally {
+    bindBrokerSaving.value = false;
+  }
+}
+
+async function onConfirmBindBroker(): Promise<void> {
+  const row = bindBrokerMerchantRow.value;
+  if (!row) return;
+  if (bindBrokerDraft.value == null) {
+    ElMessage.warning("请选择经纪人，或使用「解绑」解除当前绑定");
+    return;
+  }
+  if (bindBrokerDraft.value === row.referrerBrokerUserId) {
+    ElMessage.info("绑定关系未变更");
+    return;
+  }
+  bindBrokerSaving.value = true;
+  try {
+    await patchAdminMerchantBroker(row.userId, bindBrokerDraft.value);
+    ElMessage.success(row.referrerBrokerUserId ? "已更换绑定经纪人" : "已绑定经纪人");
+    closeBindBrokerDialog();
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "保存失败");
+  } finally {
+    bindBrokerSaving.value = false;
+  }
+}
+
+async function onSaveMerchantBroker(): Promise<void> {
+  const uid = merchantBasicInfo.value?.userId;
+  if (!uid) return;
+  const prevId = merchantBasicInfo.value?.referrerBroker?.userId ?? null;
+  if (merchantBrokerDraft.value === prevId) {
+    ElMessage.info("绑定关系未变更");
+    return;
+  }
+  merchantBrokerSaving.value = true;
+  try {
+    await patchAdminMerchantBroker(uid, merchantBrokerDraft.value);
+    ElMessage.success(
+      merchantBrokerDraft.value == null
+        ? "已解绑经纪人"
+        : prevId != null
+          ? "已更换绑定经纪人"
+          : "已绑定经纪人"
+    );
+    merchantBasicInfo.value = await fetchAdminMerchantDetail(uid);
+    merchantBrokerDraft.value = merchantBasicInfo.value.referrerBroker?.userId ?? null;
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "保存失败");
+  } finally {
+    merchantBrokerSaving.value = false;
   }
 }
 
@@ -535,6 +663,8 @@ async function onViewMerchantDetail(row: AdminUserRow): Promise<void> {
   merchantOrdersTotal.value = 0;
   merchantExpenseStats.value = null;
   merchantExpenseStatsLoading.value = true;
+  merchantBrokerDraft.value = null;
+  void loadBrokerOptions();
   try {
     const [info, ord, expense] = await Promise.all([
       fetchAdminMerchantDetail(row.userId),
@@ -542,6 +672,7 @@ async function onViewMerchantDetail(row: AdminUserRow): Promise<void> {
       fetchAdminMerchantExpenseStats(row.userId).catch(() => null)
     ]);
     merchantBasicInfo.value = info;
+    merchantBrokerDraft.value = info.referrerBroker?.userId ?? null;
     merchantOrdersList.value = ord.list || [];
     merchantOrdersTotal.value = ord.total ?? 0;
     merchantExpenseStats.value = expense;
@@ -612,8 +743,10 @@ async function onViewBrokerDetail(row: AdminUserRow): Promise<void> {
     ElMessage.error(e instanceof Error ? e.message : "详情加载失败");
     brokerDetailVisible.value = false;
     brokerDetailUserId.value = null;
+    brokerIncomeStats.value = null;
   } finally {
     brokerDetailLoading.value = false;
+    brokerIncomeStatsLoading.value = false;
   }
 }
 
@@ -820,11 +953,17 @@ onUnmounted(() => {
         <el-table-column
           v-if="listKind === 'merchants'"
           label="绑定经纪人"
-          min-width="200"
+          min-width="240"
           show-overflow-tooltip
         >
           <template #default="{ row }">
-            {{ row.referrerBrokerLabel || "—" }}
+            <div class="alv-broker-cell">
+              <span v-if="row.referrerBrokerLabel" class="alv-agent-label">{{ row.referrerBrokerLabel }}</span>
+              <span v-else class="alv-muted">—</span>
+              <el-button type="primary" link size="small" @click.stop="openBindBrokerDialog(row)">
+                {{ row.referrerBrokerUserId ? "换绑" : "绑定" }}
+              </el-button>
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="账号状态" width="88">
@@ -1005,6 +1144,53 @@ onUnmounted(() => {
         <el-button @click="closeBindAgentDialog">取消</el-button>
         <el-button type="primary" :loading="bindAgentSaving" @click="onConfirmBindAgent">
           确定绑定
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="bindBrokerDialogVisible"
+      :title="bindBrokerDialogTitle"
+      width="480px"
+      destroy-on-close
+      @closed="closeBindBrokerDialog"
+    >
+      <p v-if="bindBrokerMerchantRow" class="bind-agent-model-hint">
+        为商家「{{ displayCellName(bindBrokerMerchantRow.nickname) }}」（{{ bindBrokerMerchantRow.userNo }}）选择绑定经纪人
+      </p>
+      <p v-if="bindBrokerMerchantRow?.referrerBrokerLabel" class="bind-agent-current-hint">
+        当前绑定：{{ bindBrokerMerchantRow.referrerBrokerLabel }}
+      </p>
+      <el-select
+        v-model="bindBrokerDraft"
+        filterable
+        clearable
+        placeholder="请选择经纪人"
+        :loading="brokerOptionsLoading"
+        :disabled="brokerOptionsLoading"
+        no-data-text="暂无经纪人，请先在「经纪人列表」中新增并完成合同签署"
+        class="bind-agent-select"
+      >
+        <el-option
+          v-for="b in brokerOptions"
+          :key="b.userId"
+          :label="formatBrokerOptionLabel(b)"
+          :value="b.userId"
+        />
+      </el-select>
+      <template #footer>
+        <el-button @click="closeBindBrokerDialog">取消</el-button>
+        <el-button
+          v-if="bindBrokerMerchantRow?.referrerBrokerUserId"
+          type="danger"
+          plain
+          :loading="bindBrokerSaving"
+          @click="onUnbindMerchantBroker"
+        >
+          解绑
+        </el-button>
+        <el-button type="primary" :loading="bindBrokerSaving" @click="onConfirmBindBroker">
+          确定
         </el-button>
       </template>
     </el-dialog>
@@ -1243,6 +1429,41 @@ onUnmounted(() => {
                 <template #description>
                   <p class="portfolio-empty-desc">
                     模特在小程序「我的 → 作品集」中维护；保存后此处展示文件夹与图片。
+                  </p>
+                </template>
+              </el-empty>
+            </section>
+          </el-tab-pane>
+
+          <el-tab-pane label="风格定位">
+            <section class="module-card">
+              <template v-if="(detailBasicInfo.stylePosition?.photos?.length ?? 0) > 0">
+                <div class="style-position-head">
+                  <span class="style-position-title">风格定位图片</span>
+                  <span class="style-position-count">
+                    {{ detailBasicInfo.stylePosition?.photos?.length ?? 0 }} 张
+                  </span>
+                </div>
+                <div class="style-position-grid">
+                  <div
+                    v-for="photo in detailBasicInfo.stylePosition?.photos ?? []"
+                    :key="photo.id"
+                    class="style-position-cell"
+                  >
+                    <el-image
+                      :src="photo.url"
+                      fit="cover"
+                      class="style-position-img"
+                      :preview-src-list="(detailBasicInfo.stylePosition?.photos ?? []).map((p) => p.url)"
+                      preview-teleported
+                    />
+                  </div>
+                </div>
+              </template>
+              <el-empty v-else description="暂无风格定位图片" :image-size="72">
+                <template #description>
+                  <p class="portfolio-empty-desc">
+                    模特在小程序「我的 → 风格定位」中维护；保存后此处展示图片。
                   </p>
                 </template>
               </el-empty>
@@ -1564,7 +1785,40 @@ onUnmounted(() => {
                   </el-tag>
                 </el-descriptions-item>
                 <el-descriptions-item label="绑定经纪人">
-                  {{ formatReferrerBrokerLine(merchantBasicInfo.referrerBroker) }}
+                  <div class="model-agent-row">
+                    <el-select
+                      v-model="merchantBrokerDraft"
+                      clearable
+                      filterable
+                      placeholder="无（经纪人服务费份额归平台）"
+                      :loading="brokerOptionsLoading"
+                      :disabled="brokerOptionsLoading"
+                      no-data-text="暂无经纪人，请先在「经纪人列表」中新增并完成合同签署"
+                      class="model-agent-select"
+                    >
+                      <el-option
+                        v-for="b in brokerOptions"
+                        :key="b.userId"
+                        :label="formatBrokerOptionLabel(b)"
+                        :value="b.userId"
+                      />
+                    </el-select>
+                    <el-button type="primary" :loading="merchantBrokerSaving" @click="onSaveMerchantBroker">
+                      保存
+                    </el-button>
+                  </div>
+                  <div v-if="merchantBasicInfo.referrerBroker?.userNo" class="model-agent-hint">
+                    已绑定：{{ merchantBasicInfo.referrerBroker.userNo }}
+                    <template
+                      v-if="merchantBasicInfo.referrerBroker.nickname || merchantBasicInfo.referrerBroker.realName"
+                    >
+                      ·
+                      {{
+                        merchantBasicInfo.referrerBroker.realName ||
+                        merchantBasicInfo.referrerBroker.nickname
+                      }}
+                    </template>
+                  </div>
                 </el-descriptions-item>
                 <el-descriptions-item label="注册时间">{{ formatTime(merchantBasicInfo.createdAt) }}</el-descriptions-item>
                 <el-descriptions-item label="最近更新">{{ formatTime(merchantBasicInfo.updatedAt) }}</el-descriptions-item>
@@ -1787,16 +2041,6 @@ onUnmounted(() => {
             </section>
           </el-tab-pane>
 
-          <el-tab-pane label="收入统计">
-            <section class="module-card">
-              <AdminUserFinanceStatsPanel
-                kind="broker"
-                :loading="brokerIncomeStatsLoading"
-                :broker="brokerIncomeStats"
-              />
-            </section>
-          </el-tab-pane>
-
           <el-tab-pane label="绑定商家">
             <section class="module-card merchant-orders-pane">
               <el-table
@@ -1885,6 +2129,16 @@ onUnmounted(() => {
                   @size-change="onBrokerMerchantSizeChange"
                 />
               </div>
+            </section>
+          </el-tab-pane>
+
+          <el-tab-pane label="收入统计">
+            <section class="module-card">
+              <AdminUserFinanceStatsPanel
+                kind="broker"
+                :loading="brokerIncomeStatsLoading"
+                :broker="brokerIncomeStats"
+              />
             </section>
           </el-tab-pane>
 
@@ -2279,6 +2533,44 @@ onUnmounted(() => {
   background: rgba(47, 107, 255, 0.92);
 }
 
+.style-position-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.style-position-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.style-position-count {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.style-position-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.style-position-cell {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--el-border-color-lighter);
+  background: #fff;
+}
+
+.style-position-img {
+  width: 100%;
+  height: 150px;
+  display: block;
+}
+
 .detail-audit-actions-bar {
   display: flex;
   align-items: center;
@@ -2331,9 +2623,27 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
+.alv-broker-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.alv-muted {
+  color: var(--el-text-color-placeholder);
+}
+
 .bind-agent-model-hint {
   margin: 0 0 14px;
   font-size: 13px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.5;
+}
+
+.bind-agent-current-hint {
+  margin: -6px 0 12px;
+  font-size: 12px;
   color: var(--el-text-color-secondary);
   line-height: 1.5;
 }
