@@ -1,6 +1,3 @@
-import multer from "multer";
+import { createImageMemoryUploader } from "../../core/utils/image-upload-limits";
 
-export const modelCardUploader = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }
-});
+export const modelCardUploader = createImageMemoryUploader();

@@ -674,7 +674,7 @@ onUnmounted(() => {
               <p class="license-drop-title">
                 将营业执照拖到此处，或<em>点击上传</em>
               </p>
-              <p class="license-drop-tip">支持 JPG、PNG、WEBP、PDF，单文件不超过 10MB</p>
+              <p class="license-drop-tip">支持 JPG、PNG、WEBP、PDF，图片上传前会自动压缩，单文件不超过 5M</p>
             </div>
           </el-upload>
           <div v-if="form.businessLicenseUrl" class="license-actions">
@@ -841,7 +841,7 @@ onUnmounted(() => {
                 <el-table-column label="城市" min-width="88" show-overflow-tooltip>
                   <template #default="{ row }">{{ row.city || "—" }}</template>
                 </el-table-column>
-                <el-table-column label="经纪合同" width="92">
+                <el-table-column label="平台与模特" width="108">
                   <template #default="{ row }">
                     <el-tag
                       :type="contractSignedTagType(row.modelContractSignedAt)"

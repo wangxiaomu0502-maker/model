@@ -53,7 +53,7 @@ Component({
       if (role === 3 || role === 4) {
         return [
           {
-            pagePath: "pages/model-stats/model-stats",
+            pagePath: "pages/broker-stats/broker-stats",
             text: "统计信息",
             iconPath: statsIcon,
             selectedIconPath: statsActiveIcon

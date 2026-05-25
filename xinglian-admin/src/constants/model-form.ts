@@ -1,3 +1,15 @@
+/** 后管/小程序模卡最多上传张数 */
+export const MODEL_CARD_MAX_PHOTOS = 9;
+
+/** 形象定位最多张数（与用户端一致） */
+export const MODEL_STYLE_MAX_PHOTOS = 100;
+
+/** 作品集总照片上限（与用户端一致） */
+export const MODEL_PORTFOLIO_MAX_PHOTOS = 100;
+
+/** 作品集文件夹数量上限 */
+export const MODEL_PORTFOLIO_MAX_FOLDERS = 10;
+
 export const MODEL_PHOTO_ANGLES = [
   { key: "frontFull", label: "正面全身" },
   { key: "backFull", label: "背面全身" },

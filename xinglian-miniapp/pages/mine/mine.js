@@ -1,3 +1,4 @@
+const { prepareImageForUpload } = require("../../utils/image-upload.js");
 const { syncPendingAcceptOrderBadge } = require("../../utils/pending-accept-order-badge.js");
 const { updateTabBar } = require("../../utils/tab-bar.js");
 
@@ -83,6 +84,7 @@ Page({
     profileAuditStatus: 0,
     profileAuditStatusText: "待提交",
     profileAuditRejectReason: "",
+    verifiedStatus: 0,
     menus: [],
     pendingModelAcceptOrderCount: 0,
     currentRole: 0,
@@ -90,7 +92,10 @@ Page({
     auditSubmitModalVisible: false,
     auditReadinessLoading: false,
     auditSubmitting: false,
-    auditReadiness: null
+    auditReadiness: null,
+    nicknameEditVisible: false,
+    nicknameEditDraft: "",
+    nicknameSaving: false
   },
 
   fetchModelPendingAcceptOrderBadge() {
@@ -102,8 +107,17 @@ Page({
       token,
       role,
       onMineMenuBadgeCount: (n, r) => {
-        if (r === 1 || r === 2) this.setData({ pendingModelAcceptOrderCount: n });
-        else this.setData({ pendingModelAcceptOrderCount: 0 });
+        const pending = r === 1 || r === 2 ? n : 0;
+        const roleNum = Number(this.data.currentRole || r);
+        this.setData({
+          pendingModelAcceptOrderCount: pending,
+          menus: this.decorateMenusWithBadges(
+            this.getMenusByRole(roleNum),
+            roleNum,
+            this.data.verifiedStatus,
+            pending
+          )
+        });
       }
     });
   },
@@ -130,6 +144,20 @@ Page({
       return;
     }
     if (Number(app.globalData.role || 0) !== 1) {
+      return;
+    }
+    if (Number(this.data.verifiedStatus) !== 2) {
+      wx.showModal({
+        title: "请先实名认证",
+        content: "提交资料审核前需上传身份证正反面并完成识别，与用户注册流程一致。",
+        confirmText: "去认证",
+        cancelText: "稍后",
+        success: (res) => {
+          if (res.confirm) {
+            wx.navigateTo({ url: "/pages/realname-verify/realname-verify?mode=bound" });
+          }
+        }
+      });
       return;
     }
     this.setData({
@@ -277,6 +305,7 @@ Page({
         }
 
         const profileAuditStatus = Number(user.profileAuditStatus || 0);
+        const verifiedStatus = Number(user.verifiedStatus ?? 0);
         const profileAuditRejectReason =
           user.profileAuditRejectReason != null ? String(user.profileAuditRejectReason).trim() : "";
         app.globalData.userId = user.id;
@@ -314,8 +343,14 @@ Page({
           profileAuditStatusText: this.getProfileAuditStatusText(profileAuditStatus),
           profileAuditRejectReason,
           showProfileAuditSubmit,
+          verifiedStatus,
           currentRole: roleNum,
-          menus: this.getMenusByRole(app.globalData.role)
+          menus: this.decorateMenusWithBadges(
+            this.getMenusByRole(app.globalData.role),
+            roleNum,
+            verifiedStatus,
+            this.data.pendingModelAcceptOrderCount
+          )
         });
         this.fetchModelPendingAcceptOrderBadge();
       },
@@ -345,12 +380,33 @@ Page({
       profileAuditStatus: this.data.profileAuditStatus,
       profileAuditStatusText: this.getProfileAuditStatusText(this.data.profileAuditStatus),
       showProfileAuditSubmit,
+      verifiedStatus: this.data.verifiedStatus,
       currentRole: roleNum,
-      menus: this.getMenusByRole(role)
+      menus: this.decorateMenusWithBadges(
+        this.getMenusByRole(role),
+        roleNum,
+        this.data.verifiedStatus,
+        this.data.pendingModelAcceptOrderCount
+      )
     });
     wx.setNavigationBarTitle({ title: "我的" });
     this.fetchModelPendingAcceptOrderBadge();
     this.fetchCurrentUser();
+  },
+
+  decorateMenusWithBadges(menus, role, verifiedStatus, pendingOrderCount) {
+    const r = Number(role);
+    const needRealname = r === 1 && Number(verifiedStatus) !== 2;
+    const pending = Number(pendingOrderCount) || 0;
+    return (menus || []).map((item) => {
+      if (item.menuKey === "realnameVerify") {
+        return { ...item, showBadge: needRealname };
+      }
+      if (item.menuKey === "myOrders" && (r === 1 || r === 2) && pending > 0) {
+        return { ...item, showBadge: true };
+      }
+      return { ...item, showBadge: false };
+    });
   },
 
   getMenusByRole(role) {
@@ -361,6 +417,7 @@ Page({
     if (r === 1) {
       return [
         { name: "基础信息", icon: "基", menuKey: "basicInfo" },
+        { name: "实名认证", icon: "实", menuKey: "realnameVerify" },
         { name: "分类选择", icon: "类", menuKey: "categorySelect" },
         { name: "模卡管理", icon: "卡", menuKey: "modelCard" },
         { name: "风格定位", icon: "风", menuKey: "stylePosition" },
@@ -409,6 +466,10 @@ Page({
     const key = e.currentTarget.dataset.menuKey;
     if (key === "basicInfo") {
       wx.navigateTo({ url: "/pages/model-basic-info/model-basic-info" });
+      return;
+    }
+    if (key === "realnameVerify") {
+      wx.navigateTo({ url: "/pages/realname-verify/realname-verify?mode=bound" });
       return;
     }
     if (key === "categorySelect") {
@@ -483,10 +544,6 @@ Page({
       wx.navigateTo({ url: "/pages/broker-link-promo/broker-link-promo" });
       return;
     }
-    if (key === "brokerMyModels") {
-      wx.navigateTo({ url: "/pages/broker-my-models/broker-my-models" });
-      return;
-    }
     if (key === "brokerMyMerchants") {
       wx.navigateTo({ url: "/pages/broker-my-merchants/broker-my-merchants" });
       return;
@@ -498,6 +555,83 @@ Page({
     wx.showToast({
       title: "功能开发中",
       icon: "none"
+    });
+  },
+
+  onNicknameTap() {
+    const app = getApp();
+    if (!app.globalData.token) {
+      wx.showToast({ title: "请先登录", icon: "none" });
+      return;
+    }
+    this.setData({
+      nicknameEditVisible: true,
+      nicknameEditDraft: String(this.data.userInfo?.nickName || "")
+    });
+  },
+
+  closeNicknameEditModal() {
+    this.setData({ nicknameEditVisible: false });
+  },
+
+  onNicknameDraftInput(e) {
+    this.setData({ nicknameEditDraft: (e.detail && e.detail.value) || "" });
+  },
+
+  onConfirmNicknameSave() {
+    const app = getApp();
+    if (!app.globalData.token) {
+      wx.showToast({ title: "请先登录", icon: "none" });
+      return;
+    }
+    const nick = String(this.data.nicknameEditDraft || "").trim();
+    if (!nick) {
+      wx.showToast({ title: "昵称不能为空", icon: "none" });
+      return;
+    }
+    if (nick.length > 50) {
+      wx.showToast({ title: "昵称最多 50 字", icon: "none" });
+      return;
+    }
+    this.setData({ nicknameSaving: true });
+    wx.request({
+      url: `${app.globalData.apiBaseUrl}/api/users/me/nickname`,
+      method: "PATCH",
+      header: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${app.globalData.token}`
+      },
+      data: { nickname: nick },
+      success: (res) => {
+        const body = res.data || {};
+        if (res.statusCode !== 200 || !body.ok) {
+          wx.showToast({
+            title: body.message || "保存失败",
+            icon: "none"
+          });
+          return;
+        }
+        const saved = String(body.nickname || nick);
+        const nextUserInfo = {
+          ...(this.data.userInfo || {}),
+          nickName: saved
+        };
+        app.globalData.userInfo = {
+          ...(app.globalData.userInfo || {}),
+          nickName: saved
+        };
+        this.setData({
+          userInfo: nextUserInfo,
+          nicknameEditVisible: false
+        });
+        wx.showToast({ title: "昵称已更新", icon: "success" });
+      },
+      fail: () => {
+        wx.showToast({ title: "网络异常", icon: "none" });
+      },
+      complete: () => {
+        this.setData({ nicknameSaving: false });
+      }
     });
   },
 
@@ -515,7 +649,7 @@ Page({
       count: 1,
       mediaType: ["image"],
       sourceType: ["album", "camera"],
-      success: (pickRes) => {
+      success: async (pickRes) => {
         const file = pickRes.tempFiles && pickRes.tempFiles[0];
         if (!file || !file.tempFilePath) {
           wx.showToast({
@@ -526,9 +660,20 @@ Page({
         }
 
         wx.showLoading({ title: "上传中..." });
+        let uploadFilePath = file.tempFilePath;
+        try {
+          uploadFilePath = await prepareImageForUpload(file.tempFilePath);
+        } catch (err) {
+          wx.hideLoading();
+          wx.showToast({
+            title: (err && err.message) || "图片处理失败",
+            icon: "none"
+          });
+          return;
+        }
         wx.uploadFile({
           url: `${app.globalData.apiBaseUrl}/api/users/me/avatar`,
-          filePath: file.tempFilePath,
+          filePath: uploadFilePath,
           name: "file",
           header: {
             Authorization: `Bearer ${app.globalData.token}`

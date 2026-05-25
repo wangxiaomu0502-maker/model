@@ -16,7 +16,8 @@ Page({
     activeSceneGroupId: 0,
     selectedCategoryIds: [],
     selectedMap: {},
-    selectedCount: 0
+    selectedCount: 0,
+    selectedOptions: []
   },
 
   requestWithAuth(url, method, data) {
@@ -68,6 +69,27 @@ Page({
     return patch;
   },
 
+  flattenCategoryTree(groups) {
+    const result = [];
+    const walk = (nodes) => {
+      (nodes || []).forEach((node) => {
+        if (!node || !node.id) return;
+        result.push({ id: Number(node.id), name: node.name || "" });
+        if (node.children && node.children.length) walk(node.children);
+      });
+    };
+    walk(groups);
+    return result;
+  },
+
+  buildSelectedOptions(ids) {
+    const nameMap = this.data.categoryNameMap || {};
+    return (ids || []).map((id) => ({
+      id,
+      name: nameMap[id] || `分类${id}`
+    }));
+  },
+
   async onLoad() {
     try {
       const treeResp = await this.requestWithAuth("/api/models/category-tree", "GET");
@@ -75,10 +97,20 @@ Page({
         const mainTypeGroups = treeResp.tree.mainTypeGroups || [];
         const styleGroups = treeResp.tree.styleGroups || [];
         const sceneGroups = treeResp.tree.sceneGroups || [];
+        const allOptions = this.flattenCategoryTree([
+          ...mainTypeGroups,
+          ...styleGroups,
+          ...sceneGroups
+        ]);
+        const categoryNameMap = {};
+        allOptions.forEach((item) => {
+          categoryNameMap[item.id] = item.name;
+        });
         this.setData({
           mainTypeGroups,
           styleGroups,
           sceneGroups,
+          categoryNameMap,
           activeMainGroupId: mainTypeGroups[0]?.id || 0,
           activeStyleGroupId: styleGroups[0]?.id || 0,
           activeSceneGroupId: sceneGroups[0]?.id || 0
@@ -91,7 +123,8 @@ Page({
       this.setData({
         selectedCategoryIds,
         selectedMap: this.toMap(selectedCategoryIds),
-        selectedCount: selectedCategoryIds.length
+        selectedCount: selectedCategoryIds.length,
+        selectedOptions: this.buildSelectedOptions(selectedCategoryIds)
       });
     } catch (_error) {}
   },
@@ -113,7 +146,20 @@ Page({
     this.setData({
       selectedCategoryIds: next,
       selectedMap: this.toMap(next),
-      selectedCount: next.length
+      selectedCount: next.length,
+      selectedOptions: this.buildSelectedOptions(next)
+    });
+  },
+
+  removeSelected(e) {
+    const value = Number(e.currentTarget.dataset.value || 0);
+    if (!value) return;
+    const next = (this.data.selectedCategoryIds || []).filter((item) => item !== value);
+    this.setData({
+      selectedCategoryIds: next,
+      selectedMap: this.toMap(next),
+      selectedCount: next.length,
+      selectedOptions: this.buildSelectedOptions(next)
     });
   },
 

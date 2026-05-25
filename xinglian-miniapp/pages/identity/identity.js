@@ -1,4 +1,5 @@
 const PLATFORM_BIND_FAIL_TEXT = "平台暂未帮您绑定账号，请联系管理员";
+const { homeTabUrlForRole } = require("../../utils/role-tab.js");
 
 Page({
   data: {
@@ -134,13 +135,7 @@ Page({
   },
 
   enterHomeByRole(role) {
-    const r = Number(role);
-    const targetUrl =
-      r === 1 || r === 3 || r === 4
-        ? "/pages/model-stats/model-stats"
-        : r === 2
-          ? "/pages/model-list/model-list"
-          : "/pages/model-intro/model-intro";
+    const targetUrl = homeTabUrlForRole(role) || "/pages/model-intro/model-intro";
 
     if (targetUrl === "/pages/model-intro/model-intro") {
       wx.reLaunch({ url: targetUrl });
@@ -214,6 +209,18 @@ Page({
           modelModalStep: "choose",
           platformBindError: ""
         });
+        const verifiedStatus = Number(data.user.verifiedStatus ?? 0);
+        if (verifiedStatus !== 2) {
+          wx.showToast({
+            title: "绑定成功，请完成实名认证",
+            icon: "none",
+            duration: 2800
+          });
+          setTimeout(() => {
+            wx.navigateTo({ url: "/pages/realname-verify/realname-verify?mode=bound" });
+          }, 500);
+          return;
+        }
         wx.showToast({
           title: "绑定成功",
           icon: "success"

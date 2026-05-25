@@ -24,7 +24,6 @@ import {
   getMerchantBasicDetailForAdmin,
   getBrokerBasicDetailForAdmin,
   listBoundMerchantsForBrokerAdmin,
-  listBoundModelsForBrokerAdmin,
   listUsersForAdminByRole,
   reviewModelProfileAuditForAdmin,
   setModelAgentUserForAdmin,
@@ -397,26 +396,6 @@ export async function adminListBrokerBoundMerchantsController(
     const { userId } = req.params as unknown as AdminUserIdParam;
     const q = req.query as unknown as AdminUserListQuery;
     const data = await listBoundMerchantsForBrokerAdmin(userId, q.page, q.pageSize);
-    success(res, data as Record<string, unknown>);
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function adminListBrokerBoundModelsController(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const adminAuth = (req as AdminAuthenticatedRequest).adminAuth;
-    if (!adminAuth?.adminUserId) {
-      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
-      return;
-    }
-    const { userId } = req.params as unknown as AdminUserIdParam;
-    const q = req.query as unknown as AdminUserListQuery;
-    const data = await listBoundModelsForBrokerAdmin(userId, q.page, q.pageSize);
     success(res, data as Record<string, unknown>);
   } catch (error) {
     next(error);

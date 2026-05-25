@@ -7,7 +7,14 @@ import { AuthenticatedRequest } from "../../middlewares/auth";
 import type { ContractKind } from "../admin/contract-templates.types";
 
 import { resolveImageUploadMime } from "../../core/utils/resolve-upload-mime";
-import { getCurrentUserProfile, signContractForCurrentUser } from "./user.service";
+import type { UpdateNicknameBody } from "./user.nickname.types";
+import type { CompleteModelRealnameBody } from "./user.realname.types";
+import {
+  completeModelRealnameForCurrentUser,
+  getCurrentUserProfile,
+  signContractForCurrentUser,
+  updateNicknameForCurrentUser
+} from "./user.service";
 import { updateUserAvatarUrl } from "./user.repository";
 import { uploadAvatarToCos } from "./user.avatar.storage";
 import { uploadBrokerLicenseToCos } from "./user.broker-license.storage";
@@ -90,6 +97,48 @@ export async function uploadBrokerLicenseController(
       mimetype
     });
     return success(res, { brokerLicenseUrl });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateNicknameController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response | void> {
+  try {
+    const userId = (req as AuthenticatedRequest).auth?.userId;
+    if (!userId) {
+      return fail(req, res, 401, {
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "unauthorized"
+      });
+    }
+    const { nickname } = req.body as UpdateNicknameBody;
+    const result = await updateNicknameForCurrentUser(userId, nickname);
+    return success(res, result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function completeModelRealnameController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response | void> {
+  try {
+    const userId = (req as AuthenticatedRequest).auth?.userId;
+    if (!userId) {
+      return fail(req, res, 401, {
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "unauthorized"
+      });
+    }
+    const body = req.body as CompleteModelRealnameBody;
+    const result = await completeModelRealnameForCurrentUser(userId, body);
+    return success(res, result);
   } catch (error) {
     return next(error);
   }

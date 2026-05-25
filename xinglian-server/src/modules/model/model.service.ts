@@ -24,8 +24,9 @@ import {
   normalizePortfolioForPersist,
   normalizePortfolioFromStorage
 } from "./model.portfolio";
-import { basicInfoSchema, cardSchema } from "./model.types";
+import { basicInfoSchema } from "./model.types";
 import { findUserProfileById } from "../user/user.repository";
+import { isModelRealnameVerified } from "../user/user.service";
 
 type CategoryTreeNode = {
   id: number;
@@ -561,7 +562,15 @@ function isModelPricingCompleteForAudit(profile: NonNullable<Awaited<ReturnType<
   return ok(profile.price_hour) && ok(profile.price_halfday) && ok(profile.price_allday);
 }
 
-function isBrokerModelContractSigned(
+function hasAtLeastOneCardPhoto(card: Record<string, unknown>): boolean {
+  const items = Array.isArray(card.photoAngles) ? card.photoAngles : [];
+  return items.some((item) => {
+    if (!item || typeof item !== "object") return false;
+    return String((item as Record<string, unknown>).url || "").trim().length > 0;
+  });
+}
+
+function isPlatformModelContractSigned(
   user: NonNullable<Awaited<ReturnType<typeof findUserProfileById>>>
 ): boolean {
   return user.contract_broker_model_signed_at != null && String(user.contract_broker_model_signed_at).trim() !== "";
@@ -594,16 +603,18 @@ export async function getProfileAuditReadiness(userId: number): Promise<{
     rawCard && typeof rawCard === "object" && !Array.isArray(rawCard)
       ? (rawCard as Record<string, unknown>)
       : { photoAngles: [], measurements: {} };
-  const cardDone = cardSchema.safeParse(cardPayload).success;
+  const cardDone = hasAtLeastOneCardPhoto(cardPayload);
   const pricingDone = profile ? isModelPricingCompleteForAudit(profile) : false;
-  const contractDone = isBrokerModelContractSigned(userRow);
+  const contractDone = isPlatformModelContractSigned(userRow);
+  const realnameDone = isModelRealnameVerified(userRow.verified_status);
 
   const items: ProfileAuditReadinessItem[] = [
+    { key: "realname", label: "实名认证", done: realnameDone },
     { key: "basicInfo", label: "基本信息", done: basicDone },
     { key: "categories", label: "模特分类", done: categoriesDone },
     { key: "card", label: "模卡", done: cardDone },
     { key: "pricing", label: "服务价格设置", done: pricingDone },
-    { key: "contract", label: "合同签署", done: contractDone }
+    { key: "contract", label: "平台与模特合同签署", done: contractDone }
   ];
 
   const completedCount = items.filter((i) => i.done).length;
@@ -628,9 +639,13 @@ export async function submitProfileAudit(userId: number): Promise<void> {
     throw new AppError("资料已通过审核", 400, ErrorCodes.VALIDATION_ERROR);
   }
 
+  if (!isModelRealnameVerified(userRow.verified_status)) {
+    throw new AppError("请先完成实名认证（上传身份证正反面）后再提交资料审核", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+
   const readiness = await getProfileAuditReadiness(userId);
   if (!readiness.allDone) {
-    throw new AppError("请先完成基本信息、模特分类、模卡、服务价格及合同签署后再提交", 400, ErrorCodes.VALIDATION_ERROR);
+    throw new AppError("请先完成实名认证、基本信息、模特分类、模卡、服务价格及合同签署后再提交", 400, ErrorCodes.VALIDATION_ERROR);
   }
 
   const updated = await trySetModelProfileAuditPending(userId);

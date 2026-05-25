@@ -21,7 +21,6 @@ import {
   adminGetBrokerDetailController,
   adminGetBrokerIncomeStatsController,
   adminListBrokerBoundMerchantsController,
-  adminListBrokerBoundModelsController,
   adminReviewModelProfileAuditController,
   adminSetModelAgentController,
   adminSetMerchantBrokerController,
@@ -74,13 +73,14 @@ import {
 import {
   adminCreateModelController,
   adminGetModelCategoryTreeController,
+  adminUpdateModelController,
   adminUploadModelAvatarController,
   adminUploadModelCardImageController,
   adminUploadModelPortfolioImageController,
   adminUploadModelStyleImageController
 } from "./admin-model.controller";
 import { adminModelImageUploader } from "./admin-model-media.middleware";
-import { adminModelCreateBodySchema } from "./admin-model.types";
+import { adminModelCreateBodySchema, adminModelUpdateBodySchema } from "./admin-model.types";
 import {
   addPendingOrderNoteHandler,
   completePendingOrderHandler,
@@ -229,6 +229,13 @@ adminRouter.post(
   validate(adminModelCreateBodySchema),
   adminCreateModelController
 );
+adminRouter.patch(
+  "/models/:userId",
+  requireAdminAuth,
+  validate(adminUserIdParamSchema, "params"),
+  validate(adminModelUpdateBodySchema),
+  adminUpdateModelController
+);
 adminRouter.get(
   "/models/:userId/detail",
   requireAdminAuth,
@@ -241,6 +248,12 @@ adminRouter.get(
   validate(adminUserIdParamSchema, "params"),
   validate(adminUserListQuerySchema, "query"),
   adminListModelOrdersController
+);
+adminRouter.get(
+  "/models/:userId/income-stats",
+  requireAdminAuth,
+  validate(adminUserIdParamSchema, "params"),
+  adminGetModelIncomeStatsController
 );
 adminRouter.post(
   "/models/:userId/profile-audit",
@@ -363,13 +376,6 @@ adminRouter.get(
   validate(adminUserIdParamSchema, "params"),
   validate(adminUserListQuerySchema, "query"),
   adminListBrokerBoundMerchantsController
-);
-adminRouter.get(
-  "/brokers/:userId/bound-models",
-  requireAdminAuth,
-  validate(adminUserIdParamSchema, "params"),
-  validate(adminUserListQuerySchema, "query"),
-  adminListBrokerBoundModelsController
 );
 adminRouter.get(
   "/brokers",

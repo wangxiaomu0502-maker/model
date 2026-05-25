@@ -1,10 +1,7 @@
 import {
   countBoundMerchantsForBroker,
-  countBoundModelsForBroker,
   findBoundMerchantsPageForBroker,
-  findBoundModelsPageForBroker,
-  type BrokerBoundMerchantRow,
-  type BrokerBoundModelRow
+  type BrokerBoundMerchantRow
 } from "./broker.repository";
 import type { BrokerBoundListQuery } from "./broker.types";
 
@@ -76,32 +73,6 @@ function mapMerchantRow(row: BrokerBoundMerchantRow) {
   };
 }
 
-function mapModelRow(row: BrokerBoundModelRow) {
-  const contractAt = toIso(row.contract_broker_model_signed_at);
-  const orderEnabled =
-    row.model_order_enabled == null ? null : Boolean(Number(row.model_order_enabled));
-  return {
-    userId: row.id,
-    userNo: row.user_no,
-    nickname: row.nickname || "未设置昵称",
-    avatarUrl: row.avatar_url,
-    phoneMasked: maskPhone(row.phone),
-    city: row.city || "",
-    status: Number(row.status ?? 0),
-    statusText: accountStatusText(row.status),
-    verifiedStatus: Number(row.verified_status ?? 0),
-    verifiedStatusText: verifiedStatusText(row.verified_status),
-    profileAuditStatus: Number(row.profile_audit_status ?? 0),
-    profileAuditStatusText: profileAuditStatusText(row.profile_audit_status),
-    contractSigned: contractAt != null,
-    contractSignedText: contractAt != null ? "已签经纪模特合同" : "未签经纪模特合同",
-    orderEnabled,
-    orderEnabledText:
-      orderEnabled === null ? "接单状态未知" : orderEnabled ? "接单中" : "暂停接单",
-    boundAt: bindDateLabel(toIso(row.created_at))
-  };
-}
-
 export async function listMyMerchantsForBroker(
   brokerUserId: number,
   query: BrokerBoundListQuery
@@ -119,29 +90,6 @@ export async function listMyMerchantsForBroker(
   const rows = await findBoundMerchantsPageForBroker(brokerUserId, offset, pageSize, keyword);
   return {
     list: rows.map(mapMerchantRow),
-    total,
-    page,
-    pageSize
-  };
-}
-
-export async function listMyModelsForBroker(
-  brokerUserId: number,
-  query: BrokerBoundListQuery
-): Promise<{
-  list: ReturnType<typeof mapModelRow>[];
-  total: number;
-  page: number;
-  pageSize: number;
-}> {
-  const page = query.page;
-  const pageSize = query.pageSize;
-  const keyword = query.keyword?.trim() || undefined;
-  const total = await countBoundModelsForBroker(brokerUserId, keyword);
-  const offset = (page - 1) * pageSize;
-  const rows = await findBoundModelsPageForBroker(brokerUserId, offset, pageSize, keyword);
-  return {
-    list: rows.map(mapModelRow),
     total,
     page,
     pageSize

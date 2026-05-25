@@ -4,6 +4,35 @@
     <text class="page-head-count">已选 {{selectedCount}} 项</text>
   </view>
 
+  <view class="selected-panel">
+    <view class="selected-panel-head">
+      <text class="selected-title">已选分类</text>
+      <text class="selected-tip">{{selectedCount ? '点击可移除' : '请选择适合你的分类'}}</text>
+    </view>
+    <scroll-view
+      wx:if="{{selectedOptions.length > 0}}"
+      scroll-x
+      class="selected-scroll"
+      enhanced
+      show-scrollbar="{{false}}"
+      enable-flex
+    >
+      <view class="selected-row">
+        <view
+          class="selected-chip"
+          wx:for="{{selectedOptions}}"
+          wx:key="id"
+          data-value="{{item.id}}"
+          bindtap="removeSelected"
+        >
+          <text>{{item.name}}</text>
+          <text class="selected-chip-close">×</text>
+        </view>
+      </view>
+    </scroll-view>
+    <text wx:else class="selected-empty">还没有选择分类</text>
+  </view>
+
   <view class="type-tabs">
     <view
       class="type-tab {{currentTab === item.key ? 'type-tab--on' : ''}}"

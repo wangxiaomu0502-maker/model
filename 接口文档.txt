@@ -159,18 +159,18 @@
 - 返回：与 GET 相同结构。
 - 业务校验：`platformFeeRateBp + …` 由服务端校验；细粒度公式见 **`分账实现.txt`**。
 
-1-2e) 管理端 — 合同模板列表（三类固定合同）
+1-2e) 管理端 — 合同模板列表（四类固定合同）
 - 方法：GET
 - 路径：**`/api/admin/contract-templates`**
 - 请求头：`Authorization: Bearer <后台 JWT>`
-- 说明：对应表 **`contract_templates`**；首次访问会自动 **`INSERT IGNORE`** 三种 **`contract_kind`**。须先执行 **`sql/create-contract-templates-table.sql`**。
-- 返回：`ok`、`list`（数组，长度 3，顺序固定）每项含 **`contractKind`**（`platform_broker` \| `platform_merchant` \| `broker_model`）、**`label`**、**`partiesLine`**（签署关系说明）、**`title`**（可编辑标题）、**`contentHtml`**（富文本 HTML）、**`updatedAt`**（ISO8601）。
-- 语义约定：**`platform_broker`**：平台与经纪人（经纪人签署）；**`platform_merchant`**：平台与商家（商家签署）；**`broker_model`**：经纪人与模特（模特签署）。
+- 说明：对应表 **`contract_templates`**；首次访问会自动 **`INSERT IGNORE`** 四种 **`contract_kind`**。须先执行 **`sql/create-contract-templates-table.sql`**。
+- 返回：`ok`、`list`（数组，长度 4，顺序固定）每项含 **`contractKind`**（`platform_broker` \| `platform_merchant` \| `broker_model` \| `platform_agent`）、**`label`**、**`partiesLine`**（签署关系说明）、**`title`**（可编辑标题）、**`contentHtml`**（富文本 HTML）、**`updatedAt`**（ISO8601）。
+- 语义约定：**`platform_broker`**：平台与经纪人（经纪人签署）；**`platform_merchant`**：平台与商家（商家签署）；**`broker_model`**：平台与模特（模特签署，kind 名历史保留）；**`platform_agent`**：平台与代理人（代理人签署）。
 
 1-2e-PUT) 管理端 — 更新某一类合同模板
 - 方法：PUT
 - 路径：**`/api/admin/contract-templates/:contractKind`**
-- Path：**`contractKind`** 同上三者之一。
+- Path：**`contractKind`** 为上述四者之一。
 - 请求头：`Authorization`、`Content-Type: application/json`
 - 请求体 JSON：**`title`**（字符串，最长 200）、**`contentHtml`**（字符串，富文本 HTML，最长约 60 万字符；服务端会做基础净化）。
 - 返回：单项完整对象（含 `label`、`partiesLine`、`title`、`contentHtml`、`updatedAt` 等）。
@@ -178,7 +178,7 @@
 1-2f) 用户端 — 按类型获取合同正文（只读，无需登录）
 - 方法：GET
 - 路径：**`/api/contracts/templates/:contractKind`**
-- Path：**`contractKind`**：`platform_broker` \| `platform_merchant` \| `broker_model`
+- Path：**`contractKind`**：`platform_broker` \| `platform_merchant` \| `broker_model` \| `platform_agent`
 - 返回：`ok`、`contractKind`、`label`、`partiesLine`、`title`、`contentHtml`、`updatedAt`。小程序 / H5 可用富文本组件渲染 **`contentHtml`**。
 
 - 返回示例（用户列表字段，模特/商家接口）：
@@ -326,16 +326,16 @@
     "contractBrokerModelSignedAt": null
   }
 }
-- 说明：`contract*SignedAt` 为 ISO8601 字符串或 `null`（未签署）；分别对应 `contract_templates` 三类合同。
+- 说明：`contract*SignedAt` 为 ISO8601 字符串或 `null`（未签署）；分别对应 `contract_templates` 四类合同（含 `contractBrokerModelSignedAt` = 平台与模特 `broker_model`）。
 - **`profileAuditRejectReason`**：资料被后台驳回时的说明（字符串或 `null`）；依赖 **`users.profile_audit_reject_reason`** 字段。
 
 6-1) 签署本人对应角色合同（小程序合同页）
 - 方法：POST
 - 路径（推荐，与拉模板同前缀）：/api/contracts/:contractKind/sign
 - 兼容路径：POST /api/users/me/contracts/:contractKind/sign（同上控制器）
-- 路径参数：`contractKind` = `platform_broker` | `platform_merchant` | `broker_model`
+- 路径参数：`contractKind` = `platform_broker` | `platform_merchant` | `broker_model` | `platform_agent`
 - 请求头：Authorization: Bearer <token>
-- 权限：当前用户 `role` 须与合同类型匹配（1模特→broker_model，2商家→platform_merchant，3经纪人→platform_broker）；否则 403。
+- 权限：当前用户 `role` 须与合同类型匹配（1模特→broker_model 平台与模特，2商家→platform_merchant，3经纪人→platform_broker，4代理人→platform_agent）；否则 403。
 - 请求体：无
 - 返回示例：`{ "ok": true, "contractKind": "broker_model", "signedAt": "2026-05-04T12:00:00.000Z" }`
 
@@ -453,7 +453,7 @@
 - 请求头：`Authorization: Bearer <token>`
 - 权限：**仅 `role=1` 模特**；否则 403。
 - 返回：`items`（`key` / `label` / `done`）、`allDone`、`completedCount`、`totalCount`、`percent`。
-- 规则：与 **`POST /api/models/profile-audit-submit`** 服务端校验一致（基本信息 schema、分类≥1、模卡 schema、三项价格>0、模特 **`broker_model`** 合同已签署）。
+- 规则：与 **`POST /api/models/profile-audit-submit`** 服务端校验一致（基本信息 schema、分类≥1、模卡 schema、三项价格>0、**平台与模特**合同 `broker_model` 已签署）。
 
 11-b) 模特资料审核 — 提交平台审核
 - 方法：POST

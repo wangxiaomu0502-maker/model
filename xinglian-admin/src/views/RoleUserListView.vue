@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Right } from "@element-plus/icons-vue";
+import ModelCreateDialog from "@/components/ModelCreateDialog.vue";
 import {
   fetchAdminAgentUsers,
   fetchAdminBrokerUsers,
@@ -34,7 +35,8 @@ import AdminUserFinanceStatsPanel from "@/components/AdminUserFinanceStatsPanel.
 import { getAdminToken } from "@/composables/useAdminToken";
 
 const route = useRoute();
-const router = useRouter();
+const modelCreateVisible = ref(false);
+const modelEditingInfo = ref<AdminModelBasicInfo | null>(null);
 
 const listKind = computed<AdminListKind>(() => {
   const k = route.meta.listKind;
@@ -189,6 +191,14 @@ function accountStatusTagType(status: number): "success" | "warning" | "danger" 
   if (status === 3) return "warning";
   if (status === 4) return "info";
   return "info";
+}
+
+function wechatBindLabel(row: AdminUserRow): string {
+  return row.isWechatBound ? "已绑定" : "未绑定";
+}
+
+function wechatBindTagType(row: AdminUserRow): "success" | "info" {
+  return row.isWechatBound ? "success" : "info";
 }
 
 function verifiedLabel(status: number): string {
@@ -605,6 +615,34 @@ async function onViewModelDetail(row: AdminUserRow): Promise<void> {
   }
 }
 
+async function onEditModel(row: AdminUserRow): Promise<void> {
+  if (row.isAdminCreated !== true) {
+    ElMessage.warning("仅后管创建的模特允许编辑");
+    return;
+  }
+  try {
+    const info = await fetchAdminModelDetail(row.userId);
+    if (info.isAdminCreated !== true) {
+      ElMessage.warning("仅后管创建的模特允许编辑");
+      return;
+    }
+    modelEditingInfo.value = info;
+    modelCreateVisible.value = true;
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "模特资料加载失败");
+  }
+}
+
+function openCreateModelDialog(): void {
+  modelEditingInfo.value = null;
+  modelCreateVisible.value = true;
+}
+
+async function onModelSaved(): Promise<void> {
+  modelEditingInfo.value = null;
+  await loadList();
+}
+
 async function loadModelOrdersPage(): Promise<void> {
   const uid = modelOrdersUserId.value;
   if (!uid) return;
@@ -872,7 +910,7 @@ onUnmounted(() => {
         </p>
       </div>
       <div v-if="isModelList" class="alv-hero-actions">
-        <el-button type="primary" :icon="Plus" @click="router.push({ name: 'model-create' })">
+        <el-button type="primary" :icon="Plus" @click="openCreateModelDialog">
           新增模特
         </el-button>
       </div>
@@ -1015,6 +1053,13 @@ onUnmounted(() => {
             <span v-else>—</span>
           </template>
         </el-table-column>
+        <el-table-column v-if="isModelList" label="微信绑定" width="100">
+          <template #default="{ row }">
+            <el-tag :type="wechatBindTagType(row)" size="small" effect="light" round>
+              {{ wechatBindLabel(row) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column v-if="isModelList" label="接单状态" width="100">
           <template #default="{ row }">
             <el-tag :type="orderEnabledTagType(row.orderEnabled)" size="small" effect="light" round>
@@ -1022,7 +1067,7 @@ onUnmounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column v-if="isModelList" label="合同签署" width="92">
+        <el-table-column v-if="isModelList" label="平台与模特" width="108">
           <template #default="{ row }">
             <el-tag
               :type="contractSignedTagType(row.modelContractSignedAt)"
@@ -1140,6 +1185,15 @@ onUnmounted(() => {
                     <Right />
                   </el-icon>
                 </span>
+              </el-button>
+              <el-button
+                v-if="row.isAdminCreated === true"
+                type="primary"
+                link
+                size="small"
+                @click="onEditModel(row)"
+              >
+                编辑
               </el-button>
             </div>
           </template>
@@ -1354,13 +1408,27 @@ onUnmounted(() => {
                 <el-descriptions-item label="身份证号">{{ detailBasicInfo.idCardNo || "—" }}</el-descriptions-item>
                 <el-descriptions-item label="签发机关">{{ detailBasicInfo.idCardIssueAuthority || "—" }}</el-descriptions-item>
                 <el-descriptions-item label="有效期">{{ detailBasicInfo.idCardValidDate || "—" }}</el-descriptions-item>
-                <el-descriptions-item label="合同签署时间">
+              </el-descriptions>
+
+              <el-descriptions :column="2" border size="default" class="detail-group">
+                <template #title>平台–模特合同</template>
+                <el-descriptions-item label="签署状态">
+                  <el-tag
+                    :type="contractSignedTagType(detailBasicInfo.contractSignedAt ?? null)"
+                    size="small"
+                    effect="light"
+                    round
+                  >
+                    {{ contractSignedLabel(detailBasicInfo.contractSignedAt ?? null) }}
+                  </el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="签署时间">
                   {{ detailBasicInfo.contractSignedAt ? formatTime(detailBasicInfo.contractSignedAt) : "—" }}
                 </el-descriptions-item>
               </el-descriptions>
 
               <div class="signature-photo-wrap">
-                <div class="idcard-photo-title">合同手写签名</div>
+                <div class="idcard-photo-title">合同手写签名（平台–模特）</div>
                 <div class="signature-photo-box">
                   <el-image
                     v-if="detailBasicInfo.contractSignatureUrl"
@@ -2231,6 +2299,13 @@ onUnmounted(() => {
         <el-button @click="brokerDetailVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <ModelCreateDialog
+      v-model:visible="modelCreateVisible"
+      :editing-model="modelEditingInfo"
+      @created="onModelSaved"
+      @updated="onModelSaved"
+    />
   </div>
 </template>
 

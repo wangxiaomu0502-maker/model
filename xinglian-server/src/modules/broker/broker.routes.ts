@@ -8,8 +8,7 @@ import {
   getBrokerOrderDetailController,
   getBrokerPromoUrlLinkController,
   listBrokerOrdersController,
-  listMyMerchantsForBrokerController,
-  listMyModelsForBrokerController
+  listMyMerchantsForBrokerController
 } from "./broker.controller";
 import { brokerBoundListQuerySchema, brokerOrderListQuerySchema } from "./broker.types";
 
@@ -17,12 +16,6 @@ const brokerRouter = Router();
 
 brokerRouter.get("/dashboard", requireAuth, getBrokerDashboardController);
 brokerRouter.get("/promo-url-link", requireAuth, getBrokerPromoUrlLinkController);
-brokerRouter.get(
-  "/my-models",
-  requireAuth,
-  validate(brokerBoundListQuerySchema, "query"),
-  listMyModelsForBrokerController
-);
 brokerRouter.get(
   "/my-merchants",
   requireAuth,

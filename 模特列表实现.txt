@@ -21,7 +21,7 @@
 - `model_profiles.is_available = 1`（接单开启）
 
 3) 前端渲染
-- 页面：`pages/home/home`
+- 页面：`pages/model-list/model-list`（商家 tab）；游客预览：`pages/model-intro/model-intro`
 - 逻辑：
   - 仅当 `role=2` 时请求 `/api/models/list`
   - 列表为空时显示“暂无可展示模特”

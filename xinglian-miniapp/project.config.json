@@ -1,7 +1,20 @@
 {
   "description": "Project configuration file.",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "regexp",
+        "value": "\\.![0-9]+!"
+      },
+      {
+        "type": "regexp",
+        "value": "^assets/tab-source/"
+      },
+      {
+        "type": "regexp",
+        "value": "\\.DS_Store$"
+      }
+    ],
     "include": [
       {
         "type": "folder",
@@ -28,8 +41,8 @@
     "enhance": false,
     "showShadowRootInWxmlPanel": true,
     "packNpmManually": false,
-    "ignoreUploadUnusedFiles": false,
-    "ignoreDevUnusedFiles": false,
+    "ignoreUploadUnusedFiles": true,
+    "ignoreDevUnusedFiles": true,
     "compileWorklet": false,
     "uglifyFileName": false,
     "uploadWithSourceMap": true,

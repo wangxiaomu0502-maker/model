@@ -1,5 +1,5 @@
-<page-meta wx:if="{{auditSubmitModalVisible}}" page-style="overflow: hidden;"></page-meta>
-<view class="page {{auditSubmitModalVisible ? 'page--modal-open' : ''}}">
+<page-meta wx:if="{{auditSubmitModalVisible || nicknameEditVisible}}" page-style="overflow: hidden;"></page-meta>
+<view class="page {{auditSubmitModalVisible || nicknameEditVisible ? 'page--modal-open' : ''}}">
   <view class="top-card">
     <view class="top-hero">
       <view class="hero-blob hero-blob-1"></view>
@@ -11,7 +11,10 @@
         </view>
         <view class="profile-info">
           <view class="name-row">
-            <text class="nickname">{{userInfo.nickName}}</text>
+            <view class="nickname-tap" bindtap="onNicknameTap" hover-class="nickname-tap-hover">
+              <text class="nickname">{{userInfo.nickName}}</text>
+              <text class="nickname-edit-icon">✎</text>
+            </view>
             <view class="title-inline">
               <text class="identity-chip">{{identity}}</text>
             </view>
@@ -19,6 +22,7 @@
           <text class="center-desc">{{headerSubtitle}}</text>
         </view>
       </view>
+      <text class="avatar-upload-tip">点击头像可更换，单张照片不能超过5M</text>
 
       <view wx:if="{{showAuditStatus}}" class="hero-meta-strip hero-meta-strip-accent">
         <text class="hero-meta-k">平台资料审核</text>
@@ -45,6 +49,40 @@
           </button>
         </view>
       </view>
+    </view>
+  </view>
+
+  <view
+    wx:if="{{nicknameEditVisible}}"
+    class="audit-modal-mask"
+    catchtouchmove="preventModalBubble"
+    bindtap="closeNicknameEditModal"
+  >
+    <view class="audit-modal-sheet nickname-edit-sheet" catchtap="preventModalBubble">
+      <view class="audit-modal-header">
+        <text class="audit-modal-title">修改昵称</text>
+        <text class="audit-modal-close" catchtap="closeNicknameEditModal">关闭</text>
+      </view>
+      <text class="nickname-edit-tip">此处为账号昵称，用于列表与「我的」展示；资料里的艺名在基本信息中单独维护。</text>
+      <input
+        class="nickname-edit-input"
+        type="nickname"
+        maxlength="50"
+        placeholder="请输入昵称"
+        placeholder-class="nickname-edit-ph"
+        value="{{nicknameEditDraft}}"
+        bindinput="onNicknameDraftInput"
+        focus="{{nicknameEditVisible}}"
+      />
+      <button
+        class="audit-modal-submit"
+        hover-class="audit-modal-submit-hover"
+        loading="{{nicknameSaving}}"
+        disabled="{{nicknameSaving}}"
+        bindtap="onConfirmNicknameSave"
+      >
+        保存
+      </button>
     </view>
   </view>
 
@@ -113,7 +151,7 @@
               <text class="menu-kk-char">{{item.icon}}</text>
             </view>
             <view
-              wx:if="{{item.menuKey === 'myOrders' && (currentRole === 1 || currentRole === 2) && pendingModelAcceptOrderCount > 0}}"
+              wx:if="{{item.showBadge}}"
               class="menu-kk-badge-dot"
             ></view>
           </view>

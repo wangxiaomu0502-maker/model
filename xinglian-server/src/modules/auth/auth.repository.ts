@@ -1,10 +1,14 @@
-import type { PoolConnection } from "mysql2/promise";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
+import { randomBytes } from "node:crypto";
 
 import { dbPool } from "../../config/db";
 import { ExistingUserRow, LoginUserRow, PlatformBindModelRow } from "./auth.types";
 
 const MODEL_ROLE = 1;
+
+function unboundAccountOpenid(userId: number, role: number): string {
+  return `orphan:role${role}:${userId}:${randomBytes(16).toString("hex")}`;
+}
 
 export async function findUserByOpenid(
   openid: string
@@ -71,12 +75,16 @@ export async function findModelUserByPhoneForPlatformBind(
   phone: string
 ): Promise<PlatformBindModelRow[]> {
   const [rows] = await dbPool.query<PlatformBindModelRow[]>(
-    `SELECT id, user_no, openid, role, unionid
-     FROM users
-     WHERE deleted_at IS NULL
-       AND status = 1
-       AND phone = ?
-       AND role = ?
+    `SELECT u.id, u.user_no, u.openid, u.role, u.unionid
+     FROM users u
+     LEFT JOIN model_profiles mp ON mp.user_id = u.id
+     WHERE u.deleted_at IS NULL
+       AND u.phone = ?
+       AND u.role = ?
+       AND (
+         u.status = 1
+         OR (u.status = 4 AND mp.is_admin_created = 1)
+       )
      LIMIT 1`,
     [phone, MODEL_ROLE]
   );
@@ -105,6 +113,7 @@ export async function transferVisitorOpenidToPlatformUser(input: {
            unionid = COALESCE(?, unionid),
            phone = ?,
            phone_verified = 1,
+           status = 1,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
       [
@@ -217,30 +226,6 @@ export async function upsertBrokerProfileOnRegistration(input: {
   );
 }
 
-async function deleteFromOptionalExtensionTable(
-  connection: PoolConnection,
-  sql: string,
-  params: unknown[]
-): Promise<void> {
-  try {
-    await connection.query(sql, params);
-  } catch (err) {
-    const code = String((err as { code?: string }).code || "");
-    if (code === "ER_NO_SUCH_TABLE") return;
-    throw err;
-  }
-}
-
-/** 注销退回游客：删除各角色扩展表行（不落订单等业务事实表）。 */
-async function purgeUserPersonalExtensionRows(connection: PoolConnection, userId: number): Promise<void> {
-  await connection.query("DELETE FROM model_profile_categories WHERE user_id = ?", [userId]);
-  await connection.query("DELETE FROM model_extra_data WHERE user_id = ?", [userId]);
-  await connection.query("DELETE FROM model_profiles WHERE user_id = ?", [userId]);
-  await connection.query("DELETE FROM merchant_profiles WHERE user_id = ?", [userId]);
-  await deleteFromOptionalExtensionTable(connection, "DELETE FROM broker_profiles WHERE user_id = ?", [userId]);
-  await deleteFromOptionalExtensionTable(connection, "DELETE FROM agent_profiles WHERE user_id = ?", [userId]);
-}
-
 export async function revertAccountToVisitorByUserIdAndOpenid(
   userId: number,
   openid: string
@@ -248,38 +233,40 @@ export async function revertAccountToVisitorByUserIdAndOpenid(
   const connection = await dbPool.getConnection();
   try {
     await connection.beginTransaction();
-    await purgeUserPersonalExtensionRows(connection, userId);
 
-    const [result] = await connection.query<ResultSetHeader>(
-      `UPDATE users
-       SET role = 0,
-           phone = NULL,
-           phone_verified = 0,
-           nickname = NULL,
-           avatar_url = NULL,
-           gender = 0,
-           real_name = NULL,
-           id_card_no = NULL,
-           id_card_front_url = NULL,
-           id_card_back_url = NULL,
-           id_card_issue_authority = NULL,
-           id_card_valid_date = NULL,
-           verified_status = 0,
-           profile_audit_status = 0,
-           profile_audit_reject_reason = NULL,
-           contract_platform_broker_signed_at = NULL,
-           contract_platform_merchant_signed_at = NULL,
-           contract_broker_model_signed_at = NULL,
-           contract_platform_agent_signed_at = NULL,
-           contract_platform_broker_signature_url = NULL,
-           contract_platform_merchant_signature_url = NULL,
-           contract_broker_model_signature_url = NULL,
-           contract_platform_agent_signature_url = NULL,
-           referrer_id = NULL,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND openid = ?`,
+    const [accountRows] = await connection.query<RowDataPacket[]>(
+      `SELECT role
+       FROM users
+       WHERE id = ? AND openid = ? AND deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE`,
       [userId, openid]
     );
+    const account = accountRows[0];
+    if (!account) {
+      await connection.rollback();
+      return false;
+    }
+
+    const role = Number(account.role ?? 0);
+    const [result] = await connection.query<ResultSetHeader>(
+      `UPDATE users
+       SET openid = ?,
+           unionid = NULL,
+           status = 4,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND openid = ?`,
+      [unboundAccountOpenid(userId, role), userId, openid]
+    );
+
+    if (role === MODEL_ROLE) {
+      await connection.query(
+        `UPDATE model_profiles
+         SET is_available = 0, updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = ?`,
+        [userId]
+      );
+    }
 
     await connection.commit();
     return result.affectedRows > 0;

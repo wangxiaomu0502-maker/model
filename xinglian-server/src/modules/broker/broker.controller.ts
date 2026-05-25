@@ -4,7 +4,7 @@ import { ErrorCodes } from "../../core/constants/error-codes";
 import { AppError } from "../../core/errors/app-error";
 import { fail, success } from "../../core/http/response";
 import { AuthenticatedRequest } from "../../middlewares/auth";
-import { listMyMerchantsForBroker, listMyModelsForBroker } from "./broker-bindings.service";
+import { listMyMerchantsForBroker } from "./broker-bindings.service";
 import { getBrokerDashboard } from "./broker-dashboard.service";
 import { getBrokerRelatedOrderDetail, listBrokerRelatedOrders } from "./broker-order.service";
 import { createBrokerPromoUrlLink } from "./broker-promo.service";
@@ -29,27 +29,6 @@ export async function getBrokerDashboardController(req: Request, res: Response, 
     return success(res, data as Record<string, unknown>);
   } catch (error) {
     return next(error);
-  }
-}
-
-export async function listMyModelsForBrokerController(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const auth = (req as AuthenticatedRequest).auth;
-    const userId = auth?.userId;
-    if (!userId) {
-      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
-      return;
-    }
-    assertBrokerRole(auth.role);
-    const q = req.query as unknown as BrokerBoundListQuery;
-    const payload = await listMyModelsForBroker(userId, q);
-    success(res, payload);
-  } catch (error) {
-    next(error);
   }
 }
 

@@ -1,5 +1,5 @@
 -- 合同模板（运营后台富文本配置，用户端只读展示）
--- 四种固定类型：platform_broker（经纪人签署）、platform_merchant（商家签署）、broker_model（模特签署）、platform_agent（代理人签署）
+-- 四种固定类型：platform_broker（经纪人签署）、platform_merchant（商家签署）、broker_model（平台与模特，模特签署）、platform_agent（代理人签署）
 --
 -- 执行本文件时请使用 utf8mb4 客户端字符集，否则 INSERT 里的中文标题可能乱码，例如：
 --   mysql --no-defaults --default-character-set=utf8mb4 ... < sql/create-contract-templates-table.sql

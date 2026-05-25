@@ -1,4 +1,5 @@
 const { savePendingBrokerUserNo } = require("../../utils/broker-promo.js");
+const { homeTabUrlForRole } = require("../../utils/role-tab.js");
 
 Page({
   getIdentityByRole(role) {
@@ -70,12 +71,7 @@ Page({
             });
 
             const role = Number(responseData.user.role || 0);
-            const targetUrl =
-              role === 1 || role === 3 || role === 4
-                ? "/pages/model-stats/model-stats"
-                : role === 2
-                    ? "/pages/model-list/model-list"
-                    : "/pages/model-intro/model-intro";
+            const targetUrl = homeTabUrlForRole(role) || "/pages/model-intro/model-intro";
 
             setTimeout(() => {
               if (targetUrl !== "/pages/model-intro/model-intro") {

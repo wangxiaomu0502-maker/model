@@ -17,7 +17,7 @@ Page({
 
     wx.showModal({
       title: "确认注销",
-      content: "注销后将删除当前账号数据，且无法恢复。是否继续？",
+      content: "注销后将解除当前微信与账号的关联，账号将无法继续使用。是否继续？",
       confirmColor: "#d93025",
       success: (modalResult) => {
         if (!modalResult.confirm || this.data.deleting) {

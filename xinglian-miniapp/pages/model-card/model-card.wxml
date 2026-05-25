@@ -4,7 +4,7 @@
       <view class="section-title">模卡照片（建议上传 6–8 张）</view>
       <view class="batch-upload-btn" bindtap="chooseBatchPhotos">批量上传</view>
     </view>
-    <text class="hint">建议上传 6–8 张；纯色背景、光线均匀，不戴墨镜，无过度修图。点击格子可上传/更新，并从该格子开始批量填充，一次最多 9 张。</text>
+    <text class="hint">建议上传 6–8 张；纯色背景、光线均匀，不戴墨镜，无过度修图。点击格子可上传/更新，并从该格子开始批量填充，一次最多 9 张，单张照片不能超过5M。</text>
     <view class="photo-grid">
       <view
         class="photo-item"

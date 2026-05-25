@@ -47,6 +47,13 @@ export const cardSchema = z.object({
   skinColor: z.string().min(1)
 });
 
+export const modelCardSaveSchema = z.object({
+  photoAngles: cardSchema.shape.photoAngles,
+  measurements: cardMeasurementsSchema.partial().optional(),
+  hairColor: z.string().min(1).optional(),
+  skinColor: z.string().min(1).optional()
+});
+
 const portfolioFolderInput = z.object({
   id: z.string().min(1).max(80),
   name: z.string().min(1).max(50),

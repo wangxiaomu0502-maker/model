@@ -1,3 +1,5 @@
+const { prepareImageForUpload } = require("../../utils/image-upload.js");
+
 const PHOTO_ANGLES = [
   { key: "frontFull", label: "正面全身" },
   { key: "backFull", label: "背面全身" },
@@ -212,12 +214,13 @@ Page({
     });
   },
 
-  uploadCardPhoto(file) {
+  async uploadCardPhoto(file) {
     const app = getApp();
+    const filePath = await prepareImageForUpload(file.tempFilePath);
     return new Promise((resolve, reject) => {
       wx.uploadFile({
         url: `${app.globalData.apiBaseUrl}/api/models/card/upload`,
-        filePath: file.tempFilePath,
+        filePath,
         name: "file",
         header: {
           Authorization: `Bearer ${app.globalData.token || ""}`

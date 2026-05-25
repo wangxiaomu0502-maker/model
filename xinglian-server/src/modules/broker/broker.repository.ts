@@ -16,21 +16,6 @@ export type BrokerBoundMerchantRow = RowDataPacket & {
   created_at: Date | string;
 };
 
-export type BrokerBoundModelRow = RowDataPacket & {
-  id: number;
-  user_no: string;
-  nickname: string | null;
-  avatar_url: string | null;
-  phone: string | null;
-  status: number;
-  verified_status: number;
-  profile_audit_status: number;
-  contract_broker_model_signed_at: Date | string | null;
-  model_order_enabled: number | null;
-  city: string | null;
-  created_at: Date | string;
-};
-
 function keywordClause(keyword: string | undefined): { sql: string; params: string[] } {
   const kw = (keyword ?? "").trim();
   if (!kw) {
@@ -79,51 +64,6 @@ export async function findBoundMerchantsPageForBroker(
      LEFT JOIN merchant_profiles mp ON mp.user_id = u.id
      WHERE u.deleted_at IS NULL
        AND u.role = 2
-       AND u.referrer_id = ?${kw.sql}
-     ORDER BY u.id DESC
-     LIMIT ? OFFSET ?`,
-    [bid, ...kw.params, safeLimit, safeOffset]
-  );
-  return rows;
-}
-
-export async function countBoundModelsForBroker(
-  brokerUserId: number,
-  keyword?: string
-): Promise<number> {
-  const bid = Math.floor(Number(brokerUserId));
-  if (!Number.isFinite(bid) || bid <= 0) return 0;
-  const kw = keywordClause(keyword);
-  const [rows] = await dbPool.query<RowDataPacket[]>(
-    `SELECT COUNT(*) AS cnt FROM users u
-     WHERE u.deleted_at IS NULL AND u.role = 1 AND u.referrer_id = ?${kw.sql}`,
-    [bid, ...kw.params]
-  );
-  return Number(rows[0]?.cnt ?? 0);
-}
-
-export async function findBoundModelsPageForBroker(
-  brokerUserId: number,
-  offset: number,
-  limit: number,
-  keyword?: string
-): Promise<BrokerBoundModelRow[]> {
-  const bid = Math.floor(Number(brokerUserId));
-  if (!Number.isFinite(bid) || bid <= 0) return [];
-  const safeLimit = Math.max(1, Math.min(50, limit));
-  const safeOffset = Math.max(0, offset);
-  const kw = keywordClause(keyword);
-  const [rows] = await dbPool.query<BrokerBoundModelRow[]>(
-    `SELECT u.id, u.user_no, u.nickname, u.avatar_url, u.phone, u.status,
-            u.verified_status, u.profile_audit_status,
-            u.contract_broker_model_signed_at,
-            mp.is_available AS model_order_enabled,
-            mp.city,
-            u.created_at
-     FROM users u
-     LEFT JOIN model_profiles mp ON mp.user_id = u.id
-     WHERE u.deleted_at IS NULL
-       AND u.role = 1
        AND u.referrer_id = ?${kw.sql}
      ORDER BY u.id DESC
      LIMIT ? OFFSET ?`,

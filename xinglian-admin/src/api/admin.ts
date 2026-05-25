@@ -3,6 +3,7 @@ import {
   type AdminBackofficeRole,
   type AdminProfile
 } from "@/composables/useAdminToken";
+import { prepareAdminUploadFile } from "@/utils/upload-file";
 
 const API_ORIGIN = (
   import.meta.env.VITE_API_BASE_URL as string | undefined
@@ -324,17 +325,18 @@ export type AdminUserRow = {
   profileAuditStatus: number;
   /** 资料驳回时的说明；列表中为简要字段 */
   profileAuditRejectReason?: string | null;
+  /** 是否已绑定真实微信 openid */
+  isWechatBound?: boolean;
   orderEnabled: boolean | null;
   modelContractSignedAt: string | null;
   modelContractSignatureUrl?: string | null;
+  /** 平台与模特合同 broker_model，模特列表 */
   /** platform_merchant，商家列表 */
   merchantContractSignedAt?: string | null;
   /** platform_broker，经纪人列表 */
   brokerContractSignedAt?: string | null;
   /** 经纪人列表：绑定商家数（referrer_id 指向该经纪人） */
   boundMerchantCount?: number;
-  /** 经纪人列表：历史字段 */
-  boundModelCount?: number;
   /** 经纪人列表：是否专业经纪人 */
   isProfessional?: boolean | null;
   /** 经纪人列表：经纪人证 URL */
@@ -402,7 +404,6 @@ export type AdminBrokerBasicInfo = {
   createdAt: string;
   updatedAt: string;
   boundMerchantCount: number;
-  boundModelCount: number;
   referrerBroker: {
     userNo: string | null;
     nickname: string | null;
@@ -426,34 +427,9 @@ export type AdminBrokerBoundMerchantRow = {
   createdAt: string;
 };
 
-export type AdminBrokerBoundModelRow = {
-  userId: number;
-  userNo: string;
-  nickname: string;
-  avatarUrl: string | null;
-  phone: string | null;
-  status: number;
-  verifiedStatus: number;
-  profileAuditStatus: number;
-  city: string | null;
-  orderEnabled: boolean | null;
-  modelContractSignedAt: string | null;
-  createdAt: string;
-};
-
 export type AdminBrokerBoundMerchantListResponse = {
   ok: boolean;
   list: AdminBrokerBoundMerchantRow[];
-  total: number;
-  page: number;
-  pageSize: number;
-  message?: string;
-  code?: string;
-};
-
-export type AdminBrokerBoundModelListResponse = {
-  ok: boolean;
-  list: AdminBrokerBoundModelRow[];
   total: number;
   page: number;
   pageSize: number;
@@ -473,6 +449,7 @@ export type AdminModelBasicInfo = {
   userNo: string;
   nickname: string;
   avatarUrl: string | null;
+  status: number;
   agentUserId?: number | null;
   agentUser?: AdminModelAgentUser | null;
   /** users.profile_audit_status */
@@ -558,8 +535,8 @@ export type AdminModelCreateBody = {
     intro: string;
     phone: string;
   };
-  categoryIds: number[];
-  card: {
+  categoryIds?: number[];
+  card?: {
     photoAngles: Array<{
       key: string;
       label?: string;
@@ -567,9 +544,9 @@ export type AdminModelCreateBody = {
       width?: number;
       height?: number;
     }>;
-    measurements: Record<string, number | string>;
-    hairColor: string;
-    skinColor: string;
+    measurements?: Record<string, number | string>;
+    hairColor?: string;
+    skinColor?: string;
   };
   portfolio?: {
     folders: Array<{ id: string; name: string; coverPhotoId?: string }>;
@@ -578,15 +555,15 @@ export type AdminModelCreateBody = {
   stylePosition?: {
     photos: Array<{ id: string; url: string }>;
   };
-  pricing: {
-    hourly: number;
-    halfDay: number;
-    fullDay: number;
+  pricing?: {
+    hourly?: number | null;
+    halfDay?: number | null;
+    fullDay?: number | null;
   };
   schedule?: {
     scheduleMap: Record<string, "available" | "full" | "rest">;
   };
-  orderSettings: {
+  orderSettings?: {
     settings: {
       orderEnabled: boolean;
       onlyLocal: boolean;
@@ -1556,8 +1533,9 @@ export async function uploadAdminModelImage(
   file: File
 ): Promise<string> {
   const token = getAdminToken();
+  const uploadFile = await prepareAdminUploadFile(file);
   const fd = new FormData();
-  fd.append("file", file);
+  fd.append("file", uploadFile);
   const res = await fetch(adminApiUrl(`/api/admin/models/${kind}/upload`), {
     method: "POST",
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -1588,6 +1566,31 @@ export async function createAdminModel(body: AdminModelCreateBody): Promise<Admi
   };
   if (!res.ok || data.ok === false || !data.basicInfo) {
     throw new Error(data.message || data.code || `创建失败 (${res.status})`);
+  }
+  return data.basicInfo;
+}
+
+export async function updateAdminModel(
+  userId: number,
+  body: AdminModelCreateBody
+): Promise<AdminModelBasicInfo> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/models/${userId}`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    basicInfo?: AdminModelBasicInfo;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false || !data.basicInfo) {
+    throw new Error(data.message || data.code || `保存失败 (${res.status})`);
   }
   return data.basicInfo;
 }
@@ -1631,8 +1634,9 @@ export async function updateAdminAgent(
 
 export async function uploadAdminAgentBusinessLicense(file: File): Promise<string> {
   const token = getAdminToken();
+  const uploadFile = await prepareAdminUploadFile(file);
   const fd = new FormData();
-  fd.append("file", file);
+  fd.append("file", uploadFile);
   const res = await fetch(adminApiUrl("/api/admin/agents/license/upload"), {
     method: "POST",
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -1804,7 +1808,6 @@ export type AdminBrokerIncomePeriod = {
 export type AdminBrokerIncomeStatsPayload = {
   stats: {
     lockedMerchantCount: number;
-    referredModelCount: number;
     today: AdminBrokerIncomePeriod;
     week: AdminBrokerIncomePeriod;
     month: AdminBrokerIncomePeriod;
@@ -1969,28 +1972,6 @@ export async function fetchAdminBrokerBoundMerchants(
     }
   });
   const data = (await res.json()) as AdminBrokerBoundMerchantListResponse;
-  if (!res.ok || data.ok === false) {
-    throw new Error(data.message || data.code || `请求失败 (${res.status})`);
-  }
-  return data;
-}
-
-export async function fetchAdminBrokerBoundModels(
-  userId: number,
-  page: number,
-  pageSize: number
-): Promise<AdminBrokerBoundModelListResponse> {
-  const token = getAdminToken();
-  const params = new URLSearchParams({
-    page: String(page),
-    pageSize: String(pageSize)
-  });
-  const res = await fetch(adminApiUrl(`/api/admin/brokers/${userId}/bound-models?${params}`), {
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    }
-  });
-  const data = (await res.json()) as AdminBrokerBoundModelListResponse;
   if (!res.ok || data.ok === false) {
     throw new Error(data.message || data.code || `请求失败 (${res.status})`);
   }

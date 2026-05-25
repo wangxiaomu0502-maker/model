@@ -7,8 +7,11 @@ import {
   findAgentPublicDisplayById,
   findBrokerPublicDisplayById,
   findUserProfileById,
-  updateUserContractSignedAt
+  updateModelRealnameVerified,
+  updateUserContractSignedAt,
+  updateUserNickname
 } from "./user.repository";
+import type { CompleteModelRealnameBody } from "./user.realname.types";
 
 function dateFieldToIso(value: unknown): string | null {
   if (value == null) return null;
@@ -177,6 +180,69 @@ export async function getCurrentUserProfile(userId: number): Promise<CurrentUser
         }
       : null
   };
+}
+
+export function isModelRealnameVerified(verifiedStatus: number): boolean {
+  return Number(verifiedStatus) === 2;
+}
+
+/** 已绑定模特账号补做实名（后管预开号等），与用户端注册实名数据口径一致 */
+export async function completeModelRealnameForCurrentUser(
+  userId: number,
+  body: CompleteModelRealnameBody
+): Promise<{ verifiedStatus: number }> {
+  const user = await findUserProfileById(userId);
+  if (!user) {
+    throw new AppError("user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  if (Number(user.role) !== 1) {
+    throw new AppError("仅模特可提交实名认证", 403, ErrorCodes.FORBIDDEN);
+  }
+  if (isModelRealnameVerified(user.verified_status)) {
+    throw new AppError("已完成实名认证", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  const rn = String(body.realName).trim();
+  const idNo = String(body.idCardNo).trim();
+  const front = String(body.idCardFrontUrl).trim();
+  const back = String(body.idCardBackUrl).trim();
+  const issue = String(body.idCardIssueAuthority).trim();
+  const valid = String(body.idCardValidDate).trim();
+
+  const ok = await updateModelRealnameVerified(userId, {
+    realName: rn,
+    idCardNo: idNo,
+    idCardFrontUrl: front,
+    idCardBackUrl: back,
+    idCardIssueAuthority: issue,
+    idCardValidDate: valid
+  });
+  if (!ok) {
+    throw new AppError("实名认证提交失败，请稍后重试", 409, ErrorCodes.CONFLICT);
+  }
+  return { verifiedStatus: 2 };
+}
+
+export async function updateNicknameForCurrentUser(
+  userId: number,
+  nickname: string
+): Promise<{ nickname: string }> {
+  const user = await findUserProfileById(userId);
+  if (!user) {
+    throw new AppError("user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  const trimmed = String(nickname || "").trim();
+  if (!trimmed) {
+    throw new AppError("nickname is required", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  if (trimmed.length > 50) {
+    throw new AppError("nickname too long", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  const ok = await updateUserNickname(userId, trimmed);
+  if (!ok) {
+    throw new AppError("failed to update nickname", 500, ErrorCodes.INTERNAL_ERROR);
+  }
+  return { nickname: trimmed };
 }
 
 export async function signContractForCurrentUser(

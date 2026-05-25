@@ -86,8 +86,6 @@ async function periodIncome(
 
 export async function getBrokerDashboard(brokerUserId: number): Promise<{
   lockedMerchantCount: number;
-  /** 兼容旧版小程序，固定为 0（经纪人不再绑定模特） */
-  referredModelCount: number;
   today: BrokerIncomePeriod;
   week: BrokerIncomePeriod;
   month: BrokerIncomePeriod;
@@ -131,8 +129,6 @@ export async function getBrokerDashboard(brokerUserId: number): Promise<{
 
   return {
     lockedMerchantCount,
-    /** 经纪人不再绑定模特，保留字段兼容旧版小程序 */
-    referredModelCount: 0,
     today,
     week,
     month,

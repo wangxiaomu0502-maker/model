@@ -13,6 +13,7 @@ export type AdminUserListRow = RowDataPacket & {
   verified_status: number;
   profile_audit_status: number;
   profile_audit_reject_reason: string | null;
+  is_wechat_bound: number | string | null;
   model_order_enabled: number | null;
   contract_broker_model_signed_at: Date | string | null;
   contract_broker_model_signature_url: string | null;
@@ -29,8 +30,6 @@ export type AdminUserListRow = RowDataPacket & {
   agent_real_name: string | null;
   /** 作为转介绍经纪人时：referrer_id 指向本行的商家数（role=2） */
   bound_merchant_count?: number | string | null;
-  /** 作为转介绍经纪人时：referrer_id 指向本行的模特数（role=1，v2 已废弃） */
-  bound_model_count?: number | string | null;
   broker_is_professional?: number | string | null;
   broker_license_url?: string | null;
   model_is_admin_created?: number | string | null;
@@ -40,6 +39,7 @@ export type AdminModelBasicDetailRow = RowDataPacket & {
   id: number;
   user_no: string;
   nickname: string | null;
+  status: number;
   agent_user_id: number | null;
   agent_user_no: string | null;
   agent_nickname: string | null;
@@ -135,6 +135,15 @@ export async function findUsersPageForAdminByRole(
   const [rows] = await dbPool.query<AdminUserListRow[]>(
     `SELECT u.id, u.user_no, u.nickname, u.avatar_url, u.role, u.phone, u.status,
             u.verified_status, u.profile_audit_status, u.profile_audit_reject_reason,
+            CASE
+              WHEN u.openid IS NOT NULL
+               AND u.openid <> ''
+               AND u.openid NOT LIKE 'admin:%'
+               AND u.openid NOT LIKE 'released:%'
+               AND u.openid NOT LIKE 'orphan:%'
+              THEN 1
+              ELSE 0
+            END AS is_wechat_bound,
             mp.is_available AS model_order_enabled,
             u.contract_broker_model_signed_at, u.contract_broker_model_signature_url,
             u.contract_platform_merchant_signed_at, u.contract_platform_broker_signed_at,
@@ -148,8 +157,6 @@ export async function findUsersPageForAdminByRole(
             ap.real_name AS agent_real_name,
             (SELECT COUNT(*) FROM users ub
              WHERE ub.deleted_at IS NULL AND ub.role = 2 AND ub.referrer_id = u.id) AS bound_merchant_count,
-            (SELECT COUNT(*) FROM users ub
-             WHERE ub.deleted_at IS NULL AND ub.role = 1 AND ub.referrer_id = u.id) AS bound_model_count,
             bp_self.is_professional AS broker_is_professional,
             bp_self.broker_license_url AS broker_license_url,
             mp.is_admin_created AS model_is_admin_created
@@ -173,7 +180,7 @@ export async function findModelBasicDetailForAdminByUserId(
   userId: number
 ): Promise<AdminModelBasicDetailRow | null> {
   const [rows] = await dbPool.query<AdminModelBasicDetailRow[]>(
-    `SELECT u.id, u.user_no, u.nickname, u.agent_user_id, u.avatar_url, u.phone,
+    `SELECT u.id, u.user_no, u.nickname, u.status, u.agent_user_id, u.avatar_url, u.phone,
             ag.user_no AS agent_user_no, ag.nickname AS agent_nickname,
             ap.real_name AS agent_real_name,
             u.profile_audit_status, u.profile_audit_reject_reason,
@@ -349,7 +356,6 @@ export type AdminBrokerBasicDetailRow = RowDataPacket & {
   referrer_broker_nickname: string | null;
   referrer_broker_real_name: string | null;
   bound_merchant_count: number | string | null;
-  bound_model_count: number | string | null;
 };
 
 export async function findBrokerBasicDetailForAdminByUserId(
@@ -369,9 +375,7 @@ export async function findBrokerBasicDetailForAdminByUserId(
             ref.nickname AS referrer_broker_nickname,
             bref.real_name AS referrer_broker_real_name,
             (SELECT COUNT(*) FROM users ub
-             WHERE ub.deleted_at IS NULL AND ub.role = 2 AND ub.referrer_id = u.id) AS bound_merchant_count,
-            (SELECT COUNT(*) FROM users ub
-             WHERE ub.deleted_at IS NULL AND ub.role = 1 AND ub.referrer_id = u.id) AS bound_model_count
+             WHERE ub.deleted_at IS NULL AND ub.role = 2 AND ub.referrer_id = u.id) AS bound_merchant_count
      FROM users u
      LEFT JOIN broker_profiles bp ON bp.user_id = u.id
      LEFT JOIN users ref ON ref.id = u.referrer_id AND ref.deleted_at IS NULL
@@ -429,60 +433,6 @@ export async function findBoundMerchantsPageForBrokerAdmin(
      LEFT JOIN merchant_profiles mp ON mp.user_id = u.id
      WHERE u.deleted_at IS NULL
        AND u.role = 2
-       AND u.referrer_id = ?
-     ORDER BY u.id DESC
-     LIMIT ? OFFSET ?`,
-    [bid, safeLimit, safeOffset]
-  );
-  return rows;
-}
-
-export type AdminBoundModelForBrokerRow = RowDataPacket & {
-  id: number;
-  user_no: string;
-  nickname: string | null;
-  avatar_url: string | null;
-  phone: string | null;
-  status: number;
-  verified_status: number;
-  profile_audit_status: number;
-  contract_broker_model_signed_at: Date | string | null;
-  model_order_enabled: number | null;
-  city: string | null;
-  created_at: Date | string;
-};
-
-export async function countBoundModelsForBrokerAdmin(brokerUserId: number): Promise<number> {
-  const bid = Math.floor(Number(brokerUserId));
-  if (!Number.isFinite(bid) || bid <= 0) return 0;
-  const [rows] = await dbPool.query<RowDataPacket[]>(
-    `SELECT COUNT(*) AS cnt FROM users u
-     WHERE u.deleted_at IS NULL AND u.role = 1 AND u.referrer_id = ?`,
-    [bid]
-  );
-  return Number(rows[0]?.cnt ?? 0);
-}
-
-export async function findBoundModelsPageForBrokerAdmin(
-  brokerUserId: number,
-  offset: number,
-  limit: number
-): Promise<AdminBoundModelForBrokerRow[]> {
-  const bid = Math.floor(Number(brokerUserId));
-  if (!Number.isFinite(bid) || bid <= 0) return [];
-  const safeLimit = Math.max(1, Math.min(100, limit));
-  const safeOffset = Math.max(0, offset);
-  const [rows] = await dbPool.query<AdminBoundModelForBrokerRow[]>(
-    `SELECT u.id, u.user_no, u.nickname, u.avatar_url, u.phone, u.status,
-            u.verified_status, u.profile_audit_status,
-            u.contract_broker_model_signed_at,
-            mp.is_available AS model_order_enabled,
-            mp.city,
-            u.created_at
-     FROM users u
-     LEFT JOIN model_profiles mp ON mp.user_id = u.id
-     WHERE u.deleted_at IS NULL
-       AND u.role = 1
        AND u.referrer_id = ?
      ORDER BY u.id DESC
      LIMIT ? OFFSET ?`,

@@ -30,12 +30,6 @@ const router = createRouter({
           meta: { title: "模特列表", listKind: "models" as const }
         },
         {
-          path: "models/create",
-          name: "model-create",
-          component: () => import("@/views/ModelCreateView.vue"),
-          meta: { title: "新增模特" }
-        },
-        {
           path: "merchants",
           name: "merchants",
           component: () => import("@/views/RoleUserListView.vue"),

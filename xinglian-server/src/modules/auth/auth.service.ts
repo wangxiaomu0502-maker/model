@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { ErrorCodes } from "../../core/constants/error-codes";
 import { AppError } from "../../core/errors/app-error";
 import { env } from "../../config/env";
-import { findActiveBrokerIdByUserNo } from "../user/user.repository";
+import { findActiveBrokerIdByUserNo, findUserProfileById } from "../user/user.repository";
 import {
   createVisitorUser,
   findLoginUserByOpenid,
@@ -70,7 +70,7 @@ function generateUserNo(length = 12): string {
 }
 
 export async function loginByWechatCode(code: string): Promise<{
-  user: { id: number; userNo: string; openid: string; role: number };
+  user: { id: number; userNo: string; openid: string; role: number; verifiedStatus: number };
   token: string;
 }> {
   const query = new URLSearchParams({
@@ -127,13 +127,15 @@ export async function loginByWechatCode(code: string): Promise<{
   const user = rows[0];
 
   const token = issueUserAccessToken(user.id, user.openid, user.role);
+  const prof = await findUserProfileById(user.id);
 
   return {
     user: {
       id: user.id,
       userNo: user.user_no,
       openid: user.openid,
-      role: user.role
+      role: user.role,
+      verifiedStatus: Number(prof?.verified_status ?? 0)
     },
     token
   };
@@ -186,7 +188,7 @@ export async function bindPlatformModelByPhone(
   visitorOpenid: string,
   phoneCode: string
 ): Promise<{
-  user: { id: number; userNo: string; openid: string; role: number };
+  user: { id: number; userNo: string; openid: string; role: number; verifiedStatus: number };
   token: string;
 }> {
   const phone = await fetchWechatPhoneNumber(phoneCode);
@@ -200,12 +202,14 @@ export async function bindPlatformModelByPhone(
 
   if (platformOpenid === visitorOpenid) {
     const token = issueUserAccessToken(platform.id, platformOpenid, MODEL_ROLE);
+    const prof = await findUserProfileById(platform.id);
     return {
       user: {
         id: platform.id,
         userNo: platform.user_no,
         openid: platformOpenid,
-        role: MODEL_ROLE
+        role: MODEL_ROLE,
+        verifiedStatus: Number(prof?.verified_status ?? 0)
       },
       token
     };
@@ -239,12 +243,14 @@ export async function bindPlatformModelByPhone(
   }
 
   const token = issueUserAccessToken(user.id, user.openid, user.role);
+  const prof = await findUserProfileById(user.id);
   return {
     user: {
       id: user.id,
       userNo: user.user_no,
       openid: user.openid,
-      role: user.role
+      role: user.role,
+      verifiedStatus: Number(prof?.verified_status ?? 0)
     },
     token
   };

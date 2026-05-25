@@ -16,7 +16,7 @@
         <text class="visitor-tip-title">先逛逛，喜欢再注册</text>
         <text class="stats-hint visitor-tip-text">点击模特卡片可查看详情；注册成为商家后，可发起预约与管理订单。</text>
       </view>
-      <button class="visitor-register-btn" size="mini" bindtap="goRegister">去注册</button>
+      <view class="visitor-register-btn" bindtap="goRegister">去注册</view>
     </view>
 
     <view wx:if="{{loading}}" class="stats-card merchant-empty-card">

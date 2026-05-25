@@ -1,7 +1,10 @@
 const brokerPromo = require("../../utils/broker-promo.js");
+const { prepareImageForUpload } = require("../../utils/image-upload.js");
+const { homeTabUrlForRole } = require("../../utils/role-tab.js");
 
 Page({
   data: {
+    isBoundModelMode: false,
     isBrokerRole: false,
     brokerKind: "",
     brokerLicensePreviewUrl: "",
@@ -29,10 +32,45 @@ Page({
     submitLoading: false
   },
 
-  onLoad() {
+  onLoad(options) {
     const app = getApp();
+    const mode = options && options.mode ? String(options.mode) : "";
+    const isBoundModelMode = mode === "bound";
     const role = Number(app.globalData.role || 0);
-    this.setData({ isBrokerRole: role === 3 });
+    this.setData({ isBrokerRole: role === 3, isBoundModelMode });
+
+    if (isBoundModelMode) {
+      app.globalData.role = 1;
+      app.globalData.identity = "模特";
+      wx.setStorageSync("selectedRole", 1);
+      this.loadBoundModelProfile();
+    }
+  },
+
+  loadBoundModelProfile() {
+    const app = getApp();
+    if (!app.globalData.token) return;
+    wx.request({
+      url: `${app.globalData.apiBaseUrl}/api/users/me`,
+      method: "GET",
+      header: { Authorization: `Bearer ${app.globalData.token}` },
+      success: (res) => {
+        const body = res.data || {};
+        const user = body.user;
+        if (res.statusCode !== 200 || !body.ok || !user) return;
+        const phone = user.phone ? String(user.phone) : "";
+        const nick = user.nickname ? String(user.nickname).trim() : "";
+        const patch = {
+          phoneAuthorized: Boolean(phone),
+          phoneNumber: phone
+        };
+        if (nick) patch.nickname = nick;
+        if (Number(user.verifiedStatus) === 2) {
+          wx.showToast({ title: "已完成实名认证", icon: "none" });
+        }
+        this.setData(patch);
+      }
+    });
   },
 
   onBrokerKindTap(e) {
@@ -81,7 +119,7 @@ Page({
     });
   },
 
-  uploadBrokerLicenseFile(filePath) {
+  async uploadBrokerLicenseFile(filePath) {
     const app = getApp();
     if (!app.globalData.token) {
       wx.showToast({
@@ -96,9 +134,25 @@ Page({
       brokerLicenseUploading: true
     });
     wx.showLoading({ title: "上传经纪人证..." });
+    let uploadFilePath = filePath;
+    try {
+      uploadFilePath = await prepareImageForUpload(filePath);
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({
+        title: (err && err.message) || "图片处理失败",
+        icon: "none"
+      });
+      this.setData({
+        brokerLicensePreviewUrl: "",
+        brokerLicenseStoredUrl: "",
+        brokerLicenseUploading: false
+      });
+      return;
+    }
     wx.uploadFile({
       url: `${app.globalData.apiBaseUrl}/api/users/me/broker-license`,
-      filePath,
+      filePath: uploadFilePath,
       name: "file",
       header: {
         Authorization: `Bearer ${app.globalData.token}`
@@ -184,7 +238,7 @@ Page({
     });
   },
 
-  uploadAvatarFile(filePath) {
+  async uploadAvatarFile(filePath) {
     const app = getApp();
     if (!app.globalData.token) {
       wx.showToast({
@@ -196,9 +250,20 @@ Page({
 
     this.setData({ avatarPreviewUrl: filePath });
     wx.showLoading({ title: "上传头像中..." });
+    let uploadFilePath = filePath;
+    try {
+      uploadFilePath = await prepareImageForUpload(filePath);
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({
+        title: (err && err.message) || "图片处理失败",
+        icon: "none"
+      });
+      return;
+    }
     wx.uploadFile({
       url: `${app.globalData.apiBaseUrl}/api/users/me/avatar`,
-      filePath,
+      filePath: uploadFilePath,
       name: "file",
       header: {
         Authorization: `Bearer ${app.globalData.token}`
@@ -380,10 +445,11 @@ Page({
     }
 
     this.setData({ [loadingKey]: true });
-    return new Promise((resolve) => {
+    return prepareImageForUpload(filePath)
+      .then((uploadFilePath) => new Promise((resolve) => {
       wx.uploadFile({
         url: `${app.globalData.apiBaseUrl}/api/ocr/id-card`,
-        filePath,
+        filePath: uploadFilePath,
         name: "file",
         formData: {
           side
@@ -458,7 +524,15 @@ Page({
           this.setData({ [loadingKey]: false });
         }
       });
-    });
+    }))
+      .catch((err) => {
+        wx.showToast({
+          title: (err && err.message) || "图片处理失败",
+          icon: "none"
+        });
+        this.setData({ [loadingKey]: false });
+        return false;
+      });
   },
 
   async onRunOcr() {
@@ -480,19 +554,56 @@ Page({
     wx.showToast({ title: "人像面和国徽面识别完成", icon: "success" });
   },
 
+  submitBoundModelRealname(payload) {
+    const app = getApp();
+    wx.request({
+      url: `${app.globalData.apiBaseUrl}/api/users/me/realname-verify`,
+      method: "POST",
+      header: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${app.globalData.token}`
+      },
+      data: payload,
+      success: (res) => {
+        const body = res.data || {};
+        if (res.statusCode !== 200 || !body.ok) {
+          wx.showToast({
+            title: body.message || "实名认证失败",
+            icon: "none",
+            duration: 2800
+          });
+          return;
+        }
+        wx.showToast({ title: "实名认证完成", icon: "success" });
+        app.globalData.role = 1;
+        app.globalData.identity = "模特";
+        wx.setStorageSync("selectedRole", 1);
+        setTimeout(() => {
+          wx.switchTab({ url: homeTabUrlForRole(1) });
+        }, 700);
+      },
+      fail: () => {
+        wx.showToast({ title: "网络异常，请稍后重试", icon: "none" });
+      },
+      complete: () => {
+        this.setData({ submitLoading: false });
+      }
+    });
+  },
+
   goNext() {
-    const { nickname, phoneAuthorized, phoneNumber, submitLoading } = this.data;
+    const { nickname, phoneAuthorized, phoneNumber, submitLoading, isBoundModelMode } = this.data;
     if (submitLoading) return;
 
     const nick = String(nickname || "").trim();
-    if (!nick) {
+    if (!isBoundModelMode && !nick) {
       wx.showToast({ title: "请填写昵称", icon: "none" });
       return;
     }
 
     if (!phoneAuthorized || !phoneNumber) {
       wx.showToast({
-        title: "请先完成手机号授权",
+        title: isBoundModelMode ? "账号未绑定手机号，请联系管理员" : "请先完成手机号授权",
         icon: "none"
       });
       return;
@@ -500,7 +611,7 @@ Page({
 
     const app = getApp();
     const role = Number(app.globalData.role || 0);
-    if (role === 3) {
+    if (!isBoundModelMode && role === 3) {
       const kind = String(this.data.brokerKind || "");
       if (!kind) {
         wx.showToast({ title: "请选择经纪人类型", icon: "none" });
@@ -511,7 +622,7 @@ Page({
         return;
       }
     }
-    if (!role) {
+    if (!isBoundModelMode && !role) {
       wx.showToast({
         title: "请先选择身份",
         icon: "none"
@@ -528,7 +639,7 @@ Page({
     }
 
     const avatarStored = String(this.data.avatarStoredUrl || "").trim();
-    if (!avatarStored) {
+    if (!isBoundModelMode && !avatarStored) {
       wx.showToast({ title: "请先上传头像", icon: "none" });
       return;
     }
@@ -556,6 +667,19 @@ Page({
     }
 
     this.setData({ submitLoading: true });
+
+    if (isBoundModelMode) {
+      this.submitBoundModelRealname({
+        faceVerified: true,
+        realName,
+        idCardNo,
+        idCardFrontUrl,
+        idCardBackUrl,
+        idCardIssueAuthority,
+        idCardValidDate
+      });
+      return;
+    }
 
     const registrationData = {
       role,
@@ -629,10 +753,7 @@ Page({
 
         setTimeout(() => {
           const nextRole = Number(app.globalData.role || role || 0);
-          const targetUrl =
-            nextRole === 1 || nextRole === 3 || nextRole === 4
-              ? "/pages/model-stats/model-stats"
-              : "/pages/model-list/model-list";
+          const targetUrl = homeTabUrlForRole(nextRole) || "/pages/model-list/model-list";
           wx.switchTab({ url: targetUrl });
         }, 700);
       },

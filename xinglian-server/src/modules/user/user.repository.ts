@@ -90,7 +90,7 @@ export async function updateUserContractSignedAt(
       sql =
         "UPDATE users SET contract_platform_merchant_signed_at = CURRENT_TIMESTAMP, contract_platform_merchant_signature_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
       break;
-    case "broker_model":
+    case "broker_model": // 平台与模特（kind 历史名保留）
       sql =
         "UPDATE users SET contract_broker_model_signed_at = CURRENT_TIMESTAMP, contract_broker_model_signature_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
       break;
@@ -123,6 +123,56 @@ export async function updateUserAvatarUrl(
   const [result] = await dbPool.query<ResultSetHeader>(
     "UPDATE users SET avatar_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
     [avatarUrl, userId]
+  );
+  return result.affectedRows > 0;
+}
+
+/** 模特补做实名：仅更新证件信息与 verified_status，不改动资料审核状态与合同 */
+export async function updateModelRealnameVerified(
+  userId: number,
+  profile: {
+    realName: string;
+    idCardNo: string;
+    idCardFrontUrl: string;
+    idCardBackUrl: string;
+    idCardIssueAuthority: string;
+    idCardValidDate: string;
+  }
+): Promise<boolean> {
+  const [result] = await dbPool.query<ResultSetHeader>(
+    `UPDATE users
+     SET real_name = ?,
+         id_card_no = ?,
+         id_card_front_url = ?,
+         id_card_back_url = ?,
+         id_card_issue_authority = ?,
+         id_card_valid_date = ?,
+         verified_status = 2,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?
+       AND role = 1
+       AND deleted_at IS NULL
+       AND verified_status IN (0, 3)`,
+    [
+      profile.realName,
+      profile.idCardNo,
+      profile.idCardFrontUrl,
+      profile.idCardBackUrl,
+      profile.idCardIssueAuthority,
+      profile.idCardValidDate,
+      userId
+    ]
+  );
+  return result.affectedRows > 0;
+}
+
+export async function updateUserNickname(
+  userId: number,
+  nickname: string
+): Promise<boolean> {
+  const [result] = await dbPool.query<ResultSetHeader>(
+    "UPDATE users SET nickname = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL",
+    [nickname, userId]
   );
   return result.affectedRows > 0;
 }

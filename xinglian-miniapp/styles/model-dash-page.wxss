@@ -1,3 +1,5 @@
+/* 统计看板 + 商家模特列表共用样式（原 pages/home/home.wxss） */
+
 .container {
   min-height: 100vh;
   background: linear-gradient(180deg, #eef4ff 0%, #f7f9fd 220rpx, #f7f9fd 100%);

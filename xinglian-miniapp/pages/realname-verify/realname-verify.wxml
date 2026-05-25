@@ -7,8 +7,11 @@
       <view class="hero-inner">
         <text class="hero-kicker">账户安全</text>
         <text class="hero-title">实名认证</text>
-        <text class="hero-subtitle">完成昵称、头像、手机号与身份证识别后即可提交注册。</text>
-        <text class="hero-tip">{{isBrokerRole ? '请先选择经纪人类型，再按顺序完成以下 4 步' : '请按顺序完成以下 4 步'}}</text>
+        <text class="hero-subtitle" wx:if="{{isBoundModelMode}}">平台已为您开通账号，请上传身份证正反面并完成识别。</text>
+        <text class="hero-subtitle" wx:else>完成昵称、头像、手机号与身份证识别后即可提交注册。</text>
+        <text class="hero-tip" wx:if="{{isBoundModelMode}}">账号手机号已绑定，请完成身份证 OCR</text>
+        <text class="hero-tip" wx:elif="{{isBrokerRole}}">请先选择经纪人类型，再按顺序完成以下 4 步</text>
+        <text class="hero-tip" wx:else>请按顺序完成以下 4 步</text>
       </view>
     </view>
 
@@ -17,7 +20,7 @@
         <view class="step-num-wrap step-num-wrap-accent"><text class="step-num">★</text></view>
         <text class="step-title">经纪人类型</text>
       </view>
-      <text class="step-tip">专业经纪人需上传经纪人证；兼职经纪人无需上传。</text>
+      <text class="step-tip">专业经纪人需上传经纪人证；兼职经纪人无需上传。单张照片不能超过5M。</text>
       <view class="broker-kind-row">
         <view
           class="broker-kind-opt {{brokerKind === 'professional' ? 'broker-kind-opt-active' : ''}}"
@@ -55,13 +58,14 @@
             <text class="broker-license-ph-sub">支持相册或拍照</text>
           </view>
         </view>
+        <text class="mini-muted upload-size-tip">单张照片不能超过5M</text>
         <text wx:if="{{brokerLicenseStoredUrl}}" class="mini-success">经纪人证已上传</text>
         <text wx:elif="{{brokerLicenseUploading}}" class="mini-muted">上传中…</text>
       </view>
     </view>
 
     <!-- 1 昵称 -->
-    <view class="card">
+    <view class="card" wx:if="{{!isBoundModelMode}}">
       <view class="step-head">
         <view class="step-num-wrap"><text class="step-num">1</text></view>
         <text class="step-title">填写昵称</text>
@@ -79,12 +83,12 @@
     </view>
 
     <!-- 2 头像 -->
-    <view class="card">
+    <view class="card" wx:if="{{!isBoundModelMode}}">
       <view class="step-head">
         <view class="step-num-wrap"><text class="step-num">2</text></view>
         <text class="step-title">设置头像</text>
       </view>
-      <text class="step-tip">可从相册或拍照选择，选择后将自动上传并保存。</text>
+      <text class="step-tip">可从相册或拍照选择，选择后将自动上传并保存。单张照片不能超过5M。</text>
       <view class="step-visual-center">
         <view
           class="avatar-btn"
@@ -110,11 +114,12 @@
     <!-- 3 手机号 -->
     <view class="card">
       <view class="step-head">
-        <view class="step-num-wrap"><text class="step-num">3</text></view>
-        <text class="step-title">手机号授权</text>
+        <view class="step-num-wrap"><text class="step-num">{{isBoundModelMode ? '1' : '3'}}</text></view>
+        <text class="step-title">{{isBoundModelMode ? '已绑定手机号' : '手机号授权'}}</text>
       </view>
-      <text class="step-tip">用于账号安全校验与后续联系。</text>
-      <view wx:if="{{!phoneAuthorized}}" class="step-inline-actions">
+      <text class="step-tip" wx:if="{{isBoundModelMode}}">后管创建账号时已登记，无需重复授权。</text>
+      <text class="step-tip" wx:else>用于账号安全校验与后续联系。</text>
+      <view wx:if="{{!isBoundModelMode && !phoneAuthorized}}" class="step-inline-actions">
         <button
           class="primary-btn primary-btn-compact"
           hover-class="primary-btn-hover"
@@ -127,19 +132,23 @@
           授权手机号
         </button>
       </view>
-      <view wx:else class="phone-auth-success">
-        <text class="phone-success-title">已完成手机号授权</text>
+      <view wx:elif="{{phoneAuthorized}}" class="phone-auth-success">
+        <text class="phone-success-title">{{isBoundModelMode ? '账号已绑定' : '已完成手机号授权'}}</text>
         <text class="phone-success-line">手机号：{{phoneNumber}}</text>
+      </view>
+      <view wx:else class="phone-auth-success">
+        <text class="phone-success-title">未绑定手机号</text>
+        <text class="phone-success-line">请联系平台管理员补全手机号</text>
       </view>
     </view>
 
     <!-- 4 OCR -->
     <view class="card card-last">
       <view class="step-head">
-        <view class="step-num-wrap"><text class="step-num">4</text></view>
+        <view class="step-num-wrap"><text class="step-num">{{isBoundModelMode ? '2' : '4'}}</text></view>
         <text class="step-title">身份证 OCR 识别</text>
       </view>
-      <text class="step-tip">请分别上传人像面与国徽面，两张就绪后点击「开始识别」。</text>
+      <text class="step-tip">请分别上传人像面与国徽面，两张就绪后点击「开始识别」。单张照片不能超过5M。</text>
       <view class="upload-grid">
         <view class="upload-item" bindtap="onChooseIdCardFrontImage" hover-class="upload-item-hover">
           <image
@@ -202,7 +211,7 @@
       loading="{{submitLoading}}"
       disabled="{{submitLoading}}"
     >
-      完成注册
+      {{isBoundModelMode ? '完成实名认证' : '完成注册'}}
     </button>
   </view>
 </view>

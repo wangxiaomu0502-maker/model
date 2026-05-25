@@ -27,8 +27,8 @@ import { modelCardUploader } from "./model.card-upload.middleware";
 import { modelPortfolioUploader } from "./model.portfolio-upload.middleware";
 import {
   basicInfoSchema,
-  cardSchema,
   categoriesSchema,
+  modelCardSaveSchema,
   modelDetailQuerySchema,
   orderSettingsSchema,
   portfolioSchema,
@@ -49,7 +49,7 @@ modelRouter.get("/profile-audit-readiness", requireAuth, getProfileAuditReadines
 modelRouter.post("/profile-audit-submit", requireAuth, submitProfileAuditController);
 modelRouter.put("/basic-info", requireAuth, validate(basicInfoSchema), saveBasicInfoController);
 modelRouter.put("/categories", requireAuth, validate(categoriesSchema), saveCategoriesController);
-modelRouter.put("/card", requireAuth, validate(cardSchema), saveCardController);
+modelRouter.put("/card", requireAuth, validate(modelCardSaveSchema), saveCardController);
 modelRouter.post("/card/upload", requireAuth, modelCardUploader.single("file"), uploadModelCardImageController);
 modelRouter.post(
   "/portfolio/upload",

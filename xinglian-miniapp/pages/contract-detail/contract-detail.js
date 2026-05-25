@@ -1,3 +1,5 @@
+const { prepareImageForUpload } = require("../../utils/image-upload.js");
+
 const ROLE_TO_KIND = {
   1: "broker_model",
   2: "platform_merchant",
@@ -6,7 +8,7 @@ const ROLE_TO_KIND = {
 };
 
 const KIND_TYPE_LABEL = {
-  broker_model: "服务协议",
+  broker_model: "平台与模特",
   platform_merchant: "平台协议",
   platform_broker: "合作协议",
   platform_agent: "平台协议"
@@ -347,12 +349,13 @@ Page({
     });
   },
 
-  uploadSignatureToCos(filePath) {
+  async uploadSignatureToCos(filePath) {
+    const uploadFilePath = await prepareImageForUpload(filePath, { quality: 85 });
     return new Promise((resolve, reject) => {
       const app = getApp();
       wx.uploadFile({
         url: `${app.globalData.apiBaseUrl}/api/contracts/signature/upload`,
-        filePath,
+        filePath: uploadFilePath,
         name: "file",
         header: { Authorization: `Bearer ${app.globalData.token}` },
         success: (res) => {

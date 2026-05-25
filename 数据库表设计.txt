@@ -50,8 +50,8 @@ CREATE TABLE IF NOT EXISTS users (
   contract_platform_broker_signature_url VARCHAR(255) NULL COMMENT '平台与经纪人合同手写签名图URL platform_broker',
   contract_platform_merchant_signed_at DATETIME NULL COMMENT '平台与商家服务合同签署时间 platform_merchant，NULL=未签',
   contract_platform_merchant_signature_url VARCHAR(255) NULL COMMENT '平台与商家合同手写签名图URL platform_merchant',
-  contract_broker_model_signed_at DATETIME NULL COMMENT '经纪人与模特合作协议签署时间 broker_model，NULL=未签',
-  contract_broker_model_signature_url VARCHAR(255) NULL COMMENT '经纪人与模特合同手写签名图URL broker_model',
+  contract_broker_model_signed_at DATETIME NULL COMMENT '平台与模特服务合同签署时间 broker_model，NULL=未签',
+  contract_broker_model_signature_url VARCHAR(255) NULL COMMENT '平台与模特合同手写签名图URL broker_model',
   contract_platform_agent_signed_at DATETIME NULL COMMENT '平台与代理人服务合同签署时间 platform_agent，NULL=未签',
   contract_platform_agent_signature_url VARCHAR(255) NULL COMMENT '平台与代理人合同手写签名图URL platform_agent',
   status TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1正常 2禁用 3注销中 4已注销',
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS users (
 - 本表仅承载 **C 端 / 业务用户**（小程序等），`role` 主要为 0～4（游客、模特、商家、经纪人、代理人）。
 - **`role = 5`（管理员）不再用于登录运营后台**；后台账号在独立表 **`admin_users`**（见下文 §10），使用账号密码登录，JWT 载荷含 `scope: "admin"`。
 - 历史数据中若存在 `users.role = 5`，管理端「用户列表」接口已排除该类记录，避免与后台账号混淆。
-- **合同签署**：`contract_*_signed_at` 三字段与运营后台 `contract_templates` 三类 `contract_kind` 一一对应；非空表示该用户已签署对应模板（仅存签署时刻，正文版本另议）。变更脚本见 `sql/alter-users-contract-signed-at.sql`。
+- **合同签署**：`contract_*_signed_at` 四字段与运营后台 `contract_templates` 四类 `contract_kind` 一一对应（含 `broker_model` 语义为平台与模特）；非空表示该用户已签署对应模板（仅存签署时刻，正文版本另议）。变更脚本见 `sql/alter-users-contract-signed-at.sql`。
 
 3. 模特扩展表（model_profiles）
 

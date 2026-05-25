@@ -1,118 +1,48 @@
 <view class="container">
-  <block wx:if="{{viewRole === 'model'}}">
-    <view class="model-dash">
-      <view class="dash-hero">
-        <view class="dash-hero-main">
-          <text class="dash-title">接单概览</text>
-          <text class="dash-desc">接单数、收入与待结算按北京时间统计</text>
+  <view class="model-dash">
+    <view class="dash-hero">
+      <view class="dash-hero-main">
+        <text class="dash-title">接单概览</text>
+        <text class="dash-desc">接单数、收入与待结算按北京时间统计</text>
+      </view>
+    </view>
+
+    <view class="period-tabs">
+      <view class="period-tab {{periodTab === 'today' ? 'period-tab-on' : ''}}" data-tab="today" bindtap="onPeriodTab">今日</view>
+      <view class="period-tab {{periodTab === 'week' ? 'period-tab-on' : ''}}" data-tab="week" bindtap="onPeriodTab">本周</view>
+      <view class="period-tab {{periodTab === 'month' ? 'period-tab-on' : ''}}" data-tab="month" bindtap="onPeriodTab">本月</view>
+    </view>
+
+    <view class="stats-card">
+      <view class="stat-row">
+        <view class="stat-block">
+          <text class="stat-label">接单数</text>
+          <view class="stat-value-row"><text class="stat-value">{{currentStats.orderCount}}</text><text class="stat-unit">笔</text></view>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-block">
+          <text class="stat-label">收入</text>
+          <view class="stat-value-row"><text class="stat-currency">¥</text><text class="stat-value stat-money">{{currentStats.incomeYuan}}</text></view>
         </view>
       </view>
-
-      <view class="period-tabs">
-        <view class="period-tab {{periodTab === 'today' ? 'period-tab-on' : ''}}" data-tab="today" bindtap="onPeriodTab">今日</view>
-        <view class="period-tab {{periodTab === 'week' ? 'period-tab-on' : ''}}" data-tab="week" bindtap="onPeriodTab">本周</view>
-        <view class="period-tab {{periodTab === 'month' ? 'period-tab-on' : ''}}" data-tab="month" bindtap="onPeriodTab">本月</view>
+      <view class="stat-pending">
+        <text class="stat-pending-label">待结算金额</text>
+        <text class="stat-pending-value">¥{{currentStats.pendingYuan}}</text>
       </view>
+      <text class="stats-hint">收入：已分账到账（按分账日）。待结算：在途(1～2)与已付未分账(3～4 且未后台分账)的模特实收预估。</text>
+    </view>
 
-      <view class="stats-card">
-        <view class="stat-row">
-          <view class="stat-block">
-            <text class="stat-label">接单数</text>
-            <view class="stat-value-row"><text class="stat-value">{{currentStats.orderCount}}</text><text class="stat-unit">笔</text></view>
-          </view>
-          <view class="stat-divider"></view>
-          <view class="stat-block">
-            <text class="stat-label">收入</text>
-            <view class="stat-value-row"><text class="stat-currency">¥</text><text class="stat-value stat-money">{{currentStats.incomeYuan}}</text></view>
-          </view>
-        </view>
-        <view class="stat-pending">
-          <text class="stat-pending-label">待结算金额</text>
-          <text class="stat-pending-value">¥{{currentStats.pendingYuan}}</text>
-        </view>
-        <text class="stats-hint">收入：已分账到账（按分账日）。待结算：在途(1～2)与已付未分账(3～4 且未后台分账)的模特实收预估。</text>
-      </view>
-
-      <view class="trend-card">
-        <text class="trend-head">近7日收入趋势</text>
-        <view wx:if="{{dashboardLoading}}" class="dash-loading">加载中…</view>
-        <text wx:elif="{{dashboardError}}" class="dash-error">{{dashboardError}}</text>
-        <view wx:else class="trend-chart">
-          <view wx:for="{{trend7dDisplay}}" wx:key="date" class="trend-col">
-            <text class="trend-amount">¥{{item.incomeText}}</text>
-            <view class="trend-bar-track"><view class="trend-bar" style="height: {{item.barPct}}%;"></view></view>
-            <text class="trend-day">{{item.label}}</text>
-          </view>
+    <view class="trend-card">
+      <text class="trend-head">近7日收入趋势</text>
+      <view wx:if="{{dashboardLoading}}" class="dash-loading">加载中…</view>
+      <text wx:elif="{{dashboardError}}" class="dash-error">{{dashboardError}}</text>
+      <view wx:else class="trend-chart">
+        <view wx:for="{{trend7dDisplay}}" wx:key="date" class="trend-col">
+          <text class="trend-amount">¥{{item.incomeText}}</text>
+          <view class="trend-bar-track"><view class="trend-bar" style="height: {{item.barPct}}%;"></view></view>
+          <text class="trend-day">{{item.label}}</text>
         </view>
       </view>
     </view>
-  </block>
-
-  <block wx:elif="{{viewRole === 'broker'}}">
-    <view class="model-dash">
-      <view class="dash-hero">
-        <view class="dash-hero-main">
-          <text class="dash-title">推广概览</text>
-          <text class="dash-desc">锁定商家与推荐模特、佣金按北京时间统计（已完成订单）</text>
-        </view>
-      </view>
-
-      <view class="stats-card">
-        <view class="stat-row">
-          <view class="stat-block">
-            <text class="stat-label">锁定商家</text>
-            <view class="stat-value-row"><text class="stat-value">{{brokerLockedMerchantCount}}</text><text class="stat-unit">家</text></view>
-          </view>
-          <view class="stat-divider"></view>
-          <view class="stat-block">
-            <text class="stat-label">推荐模特</text>
-            <view class="stat-value-row"><text class="stat-value">{{brokerReferredModelCount}}</text><text class="stat-unit">人</text></view>
-          </view>
-        </view>
-        <text class="stats-hint">统计口径：商家/模特账号已启用且 referrer 指向当前经纪人。</text>
-      </view>
-
-      <view class="period-tabs">
-        <view class="period-tab {{brokerPeriodTab === 'today' ? 'period-tab-on' : ''}}" data-tab="today" bindtap="onBrokerPeriodTab">今日</view>
-        <view class="period-tab {{brokerPeriodTab === 'week' ? 'period-tab-on' : ''}}" data-tab="week" bindtap="onBrokerPeriodTab">本周</view>
-        <view class="period-tab {{brokerPeriodTab === 'month' ? 'period-tab-on' : ''}}" data-tab="month" bindtap="onBrokerPeriodTab">本月</view>
-      </view>
-
-      <view class="stats-card">
-        <view class="stat-row">
-          <view class="stat-block">
-            <text class="stat-label">推荐商家佣金</text>
-            <view class="stat-value-row"><text class="stat-currency">¥</text><text class="stat-value stat-money">{{brokerIncomeStats.merchantYuan}}</text></view>
-          </view>
-          <view class="stat-divider"></view>
-          <view class="stat-block">
-            <text class="stat-label">模特接单提成</text>
-            <view class="stat-value-row"><text class="stat-currency">¥</text><text class="stat-value stat-money">{{brokerIncomeStats.modelYuan}}</text></view>
-          </view>
-        </view>
-        <view class="stat-pending">
-          <text class="stat-pending-label">已分账合计</text>
-          <text class="stat-pending-value">¥{{brokerIncomeStats.totalYuan}}</text>
-        </view>
-        <view class="stat-pending stat-pending-secondary">
-          <text class="stat-pending-label">待结算（预估）</text>
-          <text class="stat-pending-value">¥{{brokerIncomeStats.pendingYuan}}</text>
-        </view>
-        <text class="stats-hint">已分账来自订单分成字段；待结算为当期「已完成已支付未后台分账」单，按当前分账比例预估。</text>
-      </view>
-
-      <view class="trend-card">
-        <text class="trend-head">近7日佣金趋势</text>
-        <view wx:if="{{brokerDashLoading}}" class="dash-loading">加载中…</view>
-        <text wx:elif="{{brokerDashError}}" class="dash-error">{{brokerDashError}}</text>
-        <view wx:else class="trend-chart">
-          <view wx:for="{{brokerTrend7dDisplay}}" wx:key="date" class="trend-col">
-            <text class="trend-amount">¥{{item.incomeText}}</text>
-            <view class="trend-bar-track"><view class="trend-bar" style="height: {{item.barPct}}%;"></view></view>
-            <text class="trend-day">{{item.label}}</text>
-          </view>
-        </view>
-      </view>
-    </view>
-  </block>
+  </view>
 </view>

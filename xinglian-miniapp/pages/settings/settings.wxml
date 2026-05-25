@@ -15,7 +15,7 @@
       <text class="section-title">危险操作</text>
     </view>
     <text class="section-desc">
-      注销后将删除当前账号在本平台的资料与业务数据，且不可恢复。请确认已无未完成订单或纠纷后再操作。
+      注销后将解除当前微信与账号的关联，账号将无法继续使用；后台资料会按业务要求保留。请确认已无未完成订单或纠纷后再操作。
     </text>
     <view class="danger-zone">
       <button

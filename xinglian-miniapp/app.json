@@ -18,7 +18,6 @@
     "pages/broker-info/broker-info",
     "pages/broker-qrcode/broker-qrcode",
     "pages/broker-link-promo/broker-link-promo",
-    "pages/broker-my-models/broker-my-models",
     "pages/broker-my-merchants/broker-my-merchants",
     "pages/broker-order-list/broker-order-list",
     "pages/merchant-basic-info/merchant-basic-info",
@@ -29,7 +28,6 @@
     "pages/model-list/model-list",
     "pages/model-stats/model-stats",
     "pages/broker-stats/broker-stats",
-    "pages/home/home",
     "pages/model-income-detail/model-income-detail",
     "pages/broker-income-detail/broker-income-detail"
   ],
@@ -49,6 +47,12 @@
     "list": [
       {
         "pagePath": "pages/model-stats/model-stats",
+        "text": "统计信息",
+        "iconPath": "assets/tab/stats.png",
+        "selectedIconPath": "assets/tab/stats-active.png"
+      },
+      {
+        "pagePath": "pages/broker-stats/broker-stats",
         "text": "统计信息",
         "iconPath": "assets/tab/stats.png",
         "selectedIconPath": "assets/tab/stats-active.png"

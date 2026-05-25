@@ -1,6 +1,7 @@
+const { prepareImageForUpload } = require("../../utils/image-upload.js");
+
 const MAX_PHOTOS = 100;
 const MAX_PICK_COUNT = 9;
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPT_EXT = [".jpg", ".jpeg", ".png"];
 
 Page({
@@ -76,12 +77,13 @@ Page({
       });
   },
 
-  uploadTempFile(path) {
+  async uploadTempFile(path) {
     const app = getApp();
+    const filePath = await prepareImageForUpload(path);
     return new Promise((resolve, reject) => {
       wx.uploadFile({
         url: `${app.globalData.apiBaseUrl}/api/models/style-position/upload`,
-        filePath: path,
+        filePath,
         name: "file",
         header: {
           Authorization: `Bearer ${app.globalData.token || ""}`
@@ -119,15 +121,14 @@ Page({
         const tempFiles = res.tempFiles || [];
         const valid = [];
         tempFiles.forEach((file) => {
-          const size = file.size || 0;
           const path = (file.tempFilePath || "").toLowerCase();
           const extOk = ACCEPT_EXT.some((ext) => path.endsWith(ext));
-          if (size > MAX_FILE_SIZE || !extOk) return;
+          if (!extOk) return;
           valid.push(file.tempFilePath);
         });
 
         if (!valid.length) {
-          wx.showToast({ title: "仅支持JPG/PNG且≤10MB", icon: "none" });
+          wx.showToast({ title: "仅支持JPG/PNG", icon: "none" });
           return;
         }
 

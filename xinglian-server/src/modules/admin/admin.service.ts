@@ -19,8 +19,6 @@ import {
   findBrokerBasicDetailForAdminByUserId,
   countBoundMerchantsForBrokerAdmin,
   findBoundMerchantsPageForBrokerAdmin,
-  countBoundModelsForBrokerAdmin,
-  findBoundModelsPageForBrokerAdmin,
   findUsersPageForAdminByRole
 } from "./admin.repository";
 import { normalizePortfolioFromStorage } from "../model/model.portfolio";
@@ -101,8 +99,11 @@ export async function listUsersForAdminByRole(
     verifiedStatus: number;
     profileAuditStatus: number;
     profileAuditRejectReason: string | null;
+    /** 是否已绑定真实微信 openid */
+    isWechatBound: boolean;
     orderEnabled: boolean | null;
     modelContractSignedAt: string | null;
+    /** 平台与模特合同 broker_model */
     modelContractSignatureUrl: string | null;
     /** 平台与商家合同 platform_merchant，商家列表用 */
     merchantContractSignedAt: string | null;
@@ -118,8 +119,6 @@ export async function listUsersForAdminByRole(
     agentUserLabel: string | null;
     /** 经纪人列表：referrer_id 指向该经纪人的商家数量 */
     boundMerchantCount: number;
-    /** 经纪人列表：历史字段，v2 不再绑定模特 */
-    boundModelCount: number;
     /** 经纪人列表：是否专业经纪人 */
     isProfessional?: boolean | null;
     /** 经纪人列表：经纪人证 URL */
@@ -149,6 +148,7 @@ export async function listUsersForAdminByRole(
       profileAuditRejectReason: row.profile_audit_reject_reason
         ? String(row.profile_audit_reject_reason)
         : null,
+      isWechatBound: Boolean(Number(row.is_wechat_bound ?? 0)),
       orderEnabled:
         row.model_order_enabled == null ? null : Boolean(Number(row.model_order_enabled)),
       modelContractSignedAt:
@@ -187,7 +187,6 @@ export async function listUsersForAdminByRole(
           : null,
       agentUserLabel: Number(row.role) === 1 ? formatAgentUserLabelForAdmin(row) : null,
       boundMerchantCount: Number(row.bound_merchant_count ?? 0),
-      boundModelCount: Number(row.bound_model_count ?? 0),
       isProfessional:
         Number(row.role) === 3 && row.broker_is_professional != null
           ? Boolean(Number(row.broker_is_professional))
@@ -463,6 +462,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
   userNo: string;
   nickname: string;
   avatarUrl: string | null;
+  status: number;
   agentUserId: number | null;
   agentUser: {
     userId: number;
@@ -570,6 +570,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     userNo: row.user_no,
     nickname: row.nickname || "",
     avatarUrl: row.avatar_url,
+    status: Number(row.status ?? 0),
     agentUserId: agentId,
     agentUser,
     profileAuditStatus: Number(row.profile_audit_status ?? 0),
@@ -703,7 +704,6 @@ export async function getBrokerBasicDetailForAdmin(userId: number): Promise<{
   createdAt: string;
   updatedAt: string;
   boundMerchantCount: number;
-  boundModelCount: number;
   referrerBroker: {
     userNo: string | null;
     nickname: string | null;
@@ -753,7 +753,6 @@ export async function getBrokerBasicDetailForAdmin(userId: number): Promise<{
     updatedAt:
       row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at ?? ""),
     boundMerchantCount: Number(row.bound_merchant_count ?? 0),
-    boundModelCount: Number(row.bound_model_count ?? 0),
     referrerBroker,
     isProfessional: Boolean(Number(row.broker_is_professional ?? 0)),
     brokerLicenseUrl: row.broker_license_url ? String(row.broker_license_url) : null
@@ -813,67 +812,6 @@ export async function listBoundMerchantsForBrokerAdmin(
   const rows = await findBoundMerchantsPageForBrokerAdmin(bid, offset, pageSize);
   return {
     list: rows.map((r) => mapBoundMerchantRowForBrokerAdmin(r)),
-    total,
-    page,
-    pageSize
-  };
-}
-
-function mapBoundModelRowForBrokerAdmin(row: {
-  id: number;
-  user_no: string;
-  nickname: string | null;
-  avatar_url: string | null;
-  phone: string | null;
-  status: number;
-  verified_status: number;
-  profile_audit_status: number;
-  contract_broker_model_signed_at: Date | string | null;
-  model_order_enabled: number | null;
-  city: string | null;
-  created_at: Date | string;
-}) {
-  return {
-    userId: row.id,
-    userNo: row.user_no,
-    nickname: row.nickname || "",
-    avatarUrl: row.avatar_url,
-    phone: row.phone,
-    status: Number(row.status ?? 0),
-    verifiedStatus: Number(row.verified_status ?? 0),
-    profileAuditStatus: Number(row.profile_audit_status ?? 0),
-    city: row.city,
-    orderEnabled: row.model_order_enabled == null ? null : Boolean(Number(row.model_order_enabled)),
-    modelContractSignedAt:
-      row.contract_broker_model_signed_at instanceof Date
-        ? row.contract_broker_model_signed_at.toISOString()
-        : row.contract_broker_model_signed_at
-          ? String(row.contract_broker_model_signed_at)
-          : null,
-    createdAt:
-      row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at ?? "")
-  };
-}
-
-export async function listBoundModelsForBrokerAdmin(
-  brokerUserId: number,
-  page: number,
-  pageSize: number
-): Promise<{
-  list: ReturnType<typeof mapBoundModelRowForBrokerAdmin>[];
-  total: number;
-  page: number;
-  pageSize: number;
-}> {
-  const bid = Math.floor(Number(brokerUserId));
-  if (!Number.isFinite(bid) || bid <= 0) {
-    return { list: [], total: 0, page, pageSize };
-  }
-  const total = await countBoundModelsForBrokerAdmin(bid);
-  const offset = (page - 1) * pageSize;
-  const rows = await findBoundModelsPageForBrokerAdmin(bid, offset, pageSize);
-  return {
-    list: rows.map((r) => mapBoundModelRowForBrokerAdmin(r)),
     total,
     page,
     pageSize

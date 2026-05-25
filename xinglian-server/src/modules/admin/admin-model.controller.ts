@@ -7,9 +7,9 @@ import { AdminAuthenticatedRequest } from "../../middlewares/require-admin-auth"
 import { resolveImageUploadMime } from "../../core/utils/resolve-upload-mime";
 import { getCategoryTree } from "../model/model.service";
 
-import type { AdminModelCreateBody } from "./admin-model.types";
+import type { AdminModelCreateBody, AdminModelUpdateBody } from "./admin-model.types";
 import { uploadAdminModelImageToCos } from "./admin-model-media.storage";
-import { createModelForAdmin } from "./admin-model.service";
+import { createModelForAdmin, updateModelForAdmin } from "./admin-model.service";
 
 function requireAdmin(req: Request, res: Response): number | null {
   const adminAuth = (req as AdminAuthenticatedRequest).adminAuth;
@@ -43,6 +43,22 @@ export async function adminCreateModelController(
     if (requireAdmin(req, res) == null) return;
     const body = req.body as AdminModelCreateBody;
     const basicInfo = await createModelForAdmin(body);
+    success(res, { basicInfo });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function adminUpdateModelController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (requireAdmin(req, res) == null) return;
+    const { userId } = req.params as unknown as { userId: number };
+    const body = req.body as AdminModelUpdateBody;
+    const basicInfo = await updateModelForAdmin(userId, body);
     success(res, { basicInfo });
   } catch (error) {
     next(error);

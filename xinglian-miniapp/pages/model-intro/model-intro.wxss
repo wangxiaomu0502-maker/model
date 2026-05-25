@@ -1,4 +1,4 @@
-@import "../home/home.wxss";
+@import "../../styles/model-dash-page.wxss";
 
 .model-intro-page {
   min-height: 100vh;
@@ -44,15 +44,20 @@
 }
 
 .visitor-register-btn {
+  display: flex;
   flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 104rpx;
   margin: 0;
-  padding: 0 24rpx;
-  height: 58rpx;
-  line-height: 58rpx;
+  padding: 0;
+  height: 54rpx;
+  line-height: 54rpx;
   border-radius: 999rpx;
   background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
   color: #ffffff;
-  font-size: 24rpx;
+  font-size: 22rpx;
   font-weight: 700;
 }
 

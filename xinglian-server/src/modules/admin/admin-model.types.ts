@@ -15,20 +15,34 @@ const statusField = z.coerce
   .int()
   .refine((n) => n === 1 || n === 2, { message: "status 须为 1（正常）或 2（禁用）" });
 
-const pricingRequiredSchema = pricingSchema.superRefine((p, ctx) => {
-  const ok = (v: unknown) => {
-    const n = Number(v);
-    return Number.isFinite(n) && n > 0;
-  };
-  if (!ok(p.hourly)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "请填写小时价", path: ["hourly"] });
-  }
-  if (!ok(p.halfDay)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "请填写半天价", path: ["halfDay"] });
-  }
-  if (!ok(p.fullDay)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "请填写全天价", path: ["fullDay"] });
-  }
+const updateStatusField = z.coerce
+  .number()
+  .int()
+  .refine((n) => n === 1 || n === 2 || n === 4, {
+    message: "status 须为 1（正常）、2（禁用）或 4（已注销）"
+  });
+
+const adminCardPhotoAnglesSchema = z
+  .array(
+    z.object({
+      key: z.string(),
+      label: z.string().optional(),
+      required: z.boolean().optional(),
+      url: z.string().optional(),
+      width: z.coerce.number().optional(),
+      height: z.coerce.number().optional()
+    })
+  )
+  .default([]);
+
+const adminCardMeasurementsSchema = cardSchema.shape.measurements.partial();
+
+/** 后管创建：模卡可为空，不强制至少 1 张照片 */
+const adminModelCardSchema = z.object({
+  photoAngles: adminCardPhotoAnglesSchema,
+  measurements: adminCardMeasurementsSchema.optional(),
+  hairColor: z.string().min(1).optional(),
+  skinColor: z.string().min(1).optional()
 });
 
 export const adminModelCreateBodySchema = z.object({
@@ -36,15 +50,19 @@ export const adminModelCreateBodySchema = z.object({
   agentUserId: z.coerce.number().int().positive().optional().nullable(),
   status: statusField.default(1),
   basicInfo: basicInfoSchema,
-  categoryIds: z
-    .array(z.coerce.number().int().positive())
-    .min(1, "请至少选择 1 个模特分类"),
-  card: cardSchema,
+  categoryIds: z.array(z.coerce.number().int().positive()).default([]),
+  card: adminModelCardSchema.optional(),
   portfolio: portfolioSchema.optional(),
   stylePosition: stylePositionSchema.optional(),
-  pricing: pricingRequiredSchema,
+  pricing: pricingSchema.optional(),
   schedule: scheduleSchema.optional(),
-  orderSettings: orderSettingsSchema
+  orderSettings: orderSettingsSchema.optional()
 });
 
 export type AdminModelCreateBody = z.infer<typeof adminModelCreateBodySchema>;
+
+export const adminModelUpdateBodySchema = adminModelCreateBodySchema.extend({
+  status: updateStatusField
+});
+
+export type AdminModelUpdateBody = z.infer<typeof adminModelUpdateBodySchema>;

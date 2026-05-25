@@ -20,6 +20,75 @@
   font-weight: 600;
 }
 
+.selected-panel {
+  margin-bottom: 16rpx;
+  padding: 16rpx 18rpx 14rpx;
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1rpx solid rgba(129, 140, 248, 0.16);
+  box-shadow: 0 8rpx 20rpx rgba(79, 70, 229, 0.04);
+}
+
+.selected-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 10rpx;
+}
+
+.selected-title {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #334155;
+}
+
+.selected-tip,
+.selected-empty {
+  font-size: 22rpx;
+  color: #94a3b8;
+}
+
+.selected-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.selected-row {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 10rpx;
+  padding: 2rpx 2rpx 4rpx;
+}
+
+.selected-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  flex-shrink: 0;
+  max-width: 220rpx;
+  height: 44rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  color: #4338ca;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1rpx solid rgba(99, 102, 241, 0.24);
+}
+
+.selected-chip text:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-chip-close {
+  flex-shrink: 0;
+  font-size: 24rpx;
+  line-height: 1;
+  color: #818cf8;
+}
+
 /* 类型：模特 / 风格 / 场景 */
 .type-tabs {
   display: flex;
@@ -84,7 +153,7 @@
 }
 
 .body-scroll {
-  height: calc(100vh - 340rpx - env(safe-area-inset-bottom));
+  height: calc(100vh - 472rpx - env(safe-area-inset-bottom));
   min-height: 400rpx;
 }
 
