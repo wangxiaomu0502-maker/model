@@ -62,4 +62,51 @@
       下一步
     </button>
   </view>
+
+  <view
+    wx:if="{{showModelModal}}"
+    class="identity-modal-mask"
+    bindtap="closeModelModal"
+    catchtouchmove="preventModalBubble"
+  >
+    <view class="identity-modal-panel" catchtap="preventModalBubble">
+      <view class="identity-modal-head">
+        <text class="identity-modal-title">模特注册方式</text>
+        <text class="identity-modal-close" bindtap="closeModelModal">关闭</text>
+      </view>
+
+      <block wx:if="{{modelModalStep === 'choose'}}">
+        <text class="identity-modal-desc">请选择您的入驻方式</text>
+        <view class="identity-modal-option" bindtap="onModelSelfRegister">
+          <view class="identity-modal-option-main">
+            <text class="identity-modal-option-title">自行注册</text>
+            <text class="identity-modal-option-sub">完成实名核验并提交资料审核</text>
+          </view>
+          <text class="identity-modal-option-arrow">›</text>
+        </view>
+        <view class="identity-modal-option" bindtap="onModelPlatformBind">
+          <view class="identity-modal-option-main">
+            <text class="identity-modal-option-title">平台已绑定</text>
+            <text class="identity-modal-option-sub">使用后台预留手机号授权登录</text>
+          </view>
+          <text class="identity-modal-option-arrow">›</text>
+        </view>
+      </block>
+
+      <block wx:else>
+        <text class="identity-modal-back" bindtap="onModelModalBack">‹ 返回</text>
+        <text class="identity-modal-desc">授权微信手机号，平台将核对是否已为您预绑定模特账号</text>
+        <button
+          class="identity-phone-btn"
+          open-type="getPhoneNumber"
+          bindgetphonenumber="onPlatformBindGetPhone"
+          loading="{{platformBindLoading}}"
+          disabled="{{platformBindLoading}}"
+        >
+          授权手机号并绑定
+        </button>
+        <text wx:if="{{platformBindError}}" class="identity-modal-error">{{platformBindError}}</text>
+      </block>
+    </view>
+  </view>
 </view>

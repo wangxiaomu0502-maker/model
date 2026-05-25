@@ -14,7 +14,8 @@ export const createOrderSchema = z
     bookingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     serviceType: z.enum(["ordinary", "agent"]).default("ordinary"),
     durationKind: z.enum(["fullDay", "halfDay", "hourly"]),
-    hourCount: z.coerce.number().int().min(1).max(8).optional()
+    hourCount: z.coerce.number().int().min(1).max(8).optional(),
+    merchantRemark: z.string().trim().max(500).optional()
   })
   .superRefine((data, ctx) => {
     if (data.durationKind === "hourly" && data.hourCount == null) {

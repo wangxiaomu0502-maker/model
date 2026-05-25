@@ -69,13 +69,16 @@ Page({
               text: "登录成功，正在进入小程序..."
             });
 
+            const role = Number(responseData.user.role || 0);
             const targetUrl =
-              Number(responseData.user.role || 0) !== 0
-                ? "/pages/home/home"
-                : "/pages/model-intro/model-intro";
+              role === 1 || role === 3 || role === 4
+                ? "/pages/model-stats/model-stats"
+                : role === 2
+                    ? "/pages/model-list/model-list"
+                    : "/pages/model-intro/model-intro";
 
             setTimeout(() => {
-              if (targetUrl === "/pages/home/home") {
+              if (targetUrl !== "/pages/model-intro/model-intro") {
                 wx.switchTab({ url: targetUrl });
                 return;
               }

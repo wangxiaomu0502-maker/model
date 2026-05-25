@@ -2,6 +2,11 @@ const brokerPromo = require("../../utils/broker-promo.js");
 
 Page({
   data: {
+    isBrokerRole: false,
+    brokerKind: "",
+    brokerLicensePreviewUrl: "",
+    brokerLicenseStoredUrl: "",
+    brokerLicenseUploading: false,
     nickname: "",
     avatarPreviewUrl: "",
     avatarStoredUrl: "",
@@ -22,6 +27,122 @@ Page({
     issueAuthority: "",
     validDate: "",
     submitLoading: false
+  },
+
+  onLoad() {
+    const app = getApp();
+    const role = Number(app.globalData.role || 0);
+    this.setData({ isBrokerRole: role === 3 });
+  },
+
+  onBrokerKindTap(e) {
+    const kind = String((e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.kind) || "");
+    if (kind !== "professional" && kind !== "part-time") return;
+    const patch = { brokerKind: kind };
+    if (kind === "part-time") {
+      patch.brokerLicensePreviewUrl = "";
+      patch.brokerLicenseStoredUrl = "";
+    }
+    this.setData(patch);
+  },
+
+  onPickBrokerLicense() {
+    const app = getApp();
+    if (!app.globalData.token) {
+      wx.showToast({
+        title: "登录状态失效，请重新登录",
+        icon: "none"
+      });
+      return;
+    }
+    if (this.data.brokerLicenseUploading) return;
+
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ["image"],
+      sourceType: ["album", "camera"],
+      sizeType: ["compressed"],
+      success: (res) => {
+        const filePath = res?.tempFiles?.[0]?.tempFilePath || "";
+        if (!filePath) {
+          wx.showToast({ title: "未获取到图片", icon: "none" });
+          return;
+        }
+        this.uploadBrokerLicenseFile(filePath);
+      },
+      fail: (err) => {
+        const msg = String((err && err.errMsg) || "");
+        if (/cancel/i.test(msg)) return;
+        wx.showToast({
+          title: "选择图片失败，请重试",
+          icon: "none"
+        });
+      }
+    });
+  },
+
+  uploadBrokerLicenseFile(filePath) {
+    const app = getApp();
+    if (!app.globalData.token) {
+      wx.showToast({
+        title: "登录状态失效，请重新登录",
+        icon: "none"
+      });
+      return;
+    }
+
+    this.setData({
+      brokerLicensePreviewUrl: filePath,
+      brokerLicenseUploading: true
+    });
+    wx.showLoading({ title: "上传经纪人证..." });
+    wx.uploadFile({
+      url: `${app.globalData.apiBaseUrl}/api/users/me/broker-license`,
+      filePath,
+      name: "file",
+      header: {
+        Authorization: `Bearer ${app.globalData.token}`
+      },
+      success: (uploadRes) => {
+        const status = uploadRes.statusCode;
+        let body = {};
+        try {
+          body = JSON.parse(uploadRes.data || "{}");
+        } catch (_e) {
+          body = {};
+        }
+        if (status !== 200 || !body.ok || !body.brokerLicenseUrl) {
+          wx.showToast({
+            title: body.message || `上传失败(${status})`,
+            icon: "none",
+            duration: 2800
+          });
+          this.setData({
+            brokerLicensePreviewUrl: "",
+            brokerLicenseStoredUrl: ""
+          });
+          return;
+        }
+        this.setData({
+          brokerLicenseStoredUrl: String(body.brokerLicenseUrl).trim()
+        });
+        wx.showToast({ title: "经纪人证已上传", icon: "success" });
+      },
+      fail: () => {
+        wx.showToast({
+          title: "网络异常，请稍后重试",
+          icon: "none"
+        });
+        this.setData({
+          brokerLicensePreviewUrl: "",
+          brokerLicenseStoredUrl: ""
+        });
+      },
+      complete: () => {
+        wx.hideLoading();
+        this.setData({ brokerLicenseUploading: false });
+      }
+    });
   },
 
   onNicknameInput(e) {
@@ -379,6 +500,17 @@ Page({
 
     const app = getApp();
     const role = Number(app.globalData.role || 0);
+    if (role === 3) {
+      const kind = String(this.data.brokerKind || "");
+      if (!kind) {
+        wx.showToast({ title: "请选择经纪人类型", icon: "none" });
+        return;
+      }
+      if (kind === "professional" && !String(this.data.brokerLicenseStoredUrl || "").trim()) {
+        wx.showToast({ title: "请上传经纪人证", icon: "none" });
+        return;
+      }
+    }
     if (!role) {
       wx.showToast({
         title: "请先选择身份",
@@ -444,6 +576,13 @@ Page({
         registrationData.brokerUserNo = brokerUserNo;
       }
     }
+    if (Number(role) === 3) {
+      const kind = String(this.data.brokerKind || "");
+      registrationData.isProfessional = kind === "professional";
+      if (registrationData.isProfessional) {
+        registrationData.brokerLicenseUrl = String(this.data.brokerLicenseStoredUrl || "").trim();
+      }
+    }
 
     wx.request({
       url: `${app.globalData.apiBaseUrl}/api/auth/complete-registration`,
@@ -489,9 +628,12 @@ Page({
         }
 
         setTimeout(() => {
-          wx.switchTab({
-            url: "/pages/home/home"
-          });
+          const nextRole = Number(app.globalData.role || role || 0);
+          const targetUrl =
+            nextRole === 1 || nextRole === 3 || nextRole === 4
+              ? "/pages/model-stats/model-stats"
+              : "/pages/model-list/model-list";
+          wx.switchTab({ url: targetUrl });
         }, 700);
       },
       fail: () => {

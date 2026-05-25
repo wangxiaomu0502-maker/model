@@ -9,21 +9,29 @@ import {
   createVisitorUser,
   findLoginUserByOpenid,
   findUserByOpenid,
+  findModelUserByPhoneForPlatformBind,
+  findUnionidByUserId,
   bindPhoneByUserId,
   completeRegistrationByUserId,
+  upsertBrokerProfileOnRegistration,
   revertAccountToVisitorByUserIdAndOpenid,
+  transferVisitorOpenidToPlatformUser,
   updateUnionid
 } from "./auth.repository";
 import { getWechatAccessToken } from "../../integrations/wechat/client";
 import {
   identityRoleMap,
+  PLATFORM_MODEL_BIND_FAIL_MESSAGE,
   WechatCode2SessionResponse,
   WechatPhoneResponse
 } from "./auth.types";
 
+const MODEL_ROLE = 1;
+
 const BASE62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 const ROLE_MERCHANT = 2;
+const ROLE_BROKER = 3;
 
 function isDuplicatePhoneError(error: unknown): boolean {
   const err = error as { code?: string; message?: string; sqlMessage?: string };
@@ -131,10 +139,7 @@ export async function loginByWechatCode(code: string): Promise<{
   };
 }
 
-export async function bindPhone(
-  userId: number,
-  code: string
-): Promise<{ phone: string }> {
+async function fetchWechatPhoneNumber(code: string): Promise<string> {
   const accessToken = await getWechatAccessToken();
   const phoneResponse = await fetch(
     `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${accessToken}`,
@@ -145,7 +150,7 @@ export async function bindPhone(
     }
   );
   const phoneResult = (await phoneResponse.json()) as WechatPhoneResponse;
-  const phoneNumber = phoneResult.phone_info?.phoneNumber;
+  const phoneNumber = phoneResult.phone_info?.phoneNumber?.trim();
 
   if (!phoneResponse.ok || !phoneNumber) {
     throw new AppError(
@@ -154,13 +159,95 @@ export async function bindPhone(
       ErrorCodes.UPSTREAM_ERROR
     );
   }
+  return phoneNumber;
+}
 
+function isReassignablePlatformOpenid(openid: string): boolean {
+  const o = String(openid || "").trim();
+  return !o || o.startsWith("admin:") || o.startsWith("released:") || o.startsWith("orphan:");
+}
+
+export async function bindPhone(
+  userId: number,
+  code: string
+): Promise<{ phone: string }> {
+  const phoneNumber = await fetchWechatPhoneNumber(code);
   try {
     await bindPhoneByUserId(userId, phoneNumber);
   } catch (error) {
     toDuplicatePhoneAppError(error);
   }
   return { phone: phoneNumber };
+}
+
+/** 平台预绑定模特：授权手机号匹配后台模特账号后，将当前微信 openid 绑定到该账号 */
+export async function bindPlatformModelByPhone(
+  visitorUserId: number,
+  visitorOpenid: string,
+  phoneCode: string
+): Promise<{
+  user: { id: number; userNo: string; openid: string; role: number };
+  token: string;
+}> {
+  const phone = await fetchWechatPhoneNumber(phoneCode);
+  const platformRows = await findModelUserByPhoneForPlatformBind(phone);
+  if (!platformRows.length || Number(platformRows[0].role) !== MODEL_ROLE) {
+    throw new AppError(PLATFORM_MODEL_BIND_FAIL_MESSAGE, 404, ErrorCodes.NOT_FOUND);
+  }
+
+  const platform = platformRows[0];
+  const platformOpenid = String(platform.openid || "").trim();
+
+  if (platformOpenid === visitorOpenid) {
+    const token = issueUserAccessToken(platform.id, platformOpenid, MODEL_ROLE);
+    return {
+      user: {
+        id: platform.id,
+        userNo: platform.user_no,
+        openid: platformOpenid,
+        role: MODEL_ROLE
+      },
+      token
+    };
+  }
+
+  if (platformOpenid && !isReassignablePlatformOpenid(platformOpenid)) {
+    throw new AppError(PLATFORM_MODEL_BIND_FAIL_MESSAGE, 409, ErrorCodes.CONFLICT);
+  }
+
+  if (platform.id !== visitorUserId) {
+    const visitorUnionid = await findUnionidByUserId(visitorUserId);
+    await transferVisitorOpenidToPlatformUser({
+      visitorUserId,
+      visitorOpenid,
+      visitorUnionid,
+      platformUserId: platform.id,
+      phone
+    });
+  } else {
+    try {
+      await bindPhoneByUserId(visitorUserId, phone);
+    } catch (error) {
+      toDuplicatePhoneAppError(error);
+    }
+  }
+
+  const loginRows = await findLoginUserByOpenid(visitorOpenid);
+  const user = loginRows[0];
+  if (!user || Number(user.role) !== MODEL_ROLE) {
+    throw new AppError(PLATFORM_MODEL_BIND_FAIL_MESSAGE, 404, ErrorCodes.NOT_FOUND);
+  }
+
+  const token = issueUserAccessToken(user.id, user.openid, user.role);
+  return {
+    user: {
+      id: user.id,
+      userNo: user.user_no,
+      openid: user.openid,
+      role: user.role
+    },
+    token
+  };
 }
 
 /** 小程序实名注册：faceVerified 只校验实名流程；profile_audit_status 不归入人脸识别，默认待提交，平台后续单独审核。 */
@@ -180,6 +267,8 @@ export async function completeRegistration(input: {
   idCardValidDate: string;
   /** 推广链接中的经纪人 user_no，仅商家注册时尝试绑定 referrer_id */
   brokerUserNo?: string;
+  isProfessional?: boolean;
+  brokerLicenseUrl?: string;
 }): Promise<{ role: number; verifiedStatus: number; profileAuditStatus: number }> {
   const {
     userId,
@@ -195,7 +284,9 @@ export async function completeRegistration(input: {
     idCardBackUrl,
     idCardIssueAuthority,
     idCardValidDate,
-    brokerUserNo
+    brokerUserNo,
+    isProfessional,
+    brokerLicenseUrl
   } = input;
 
   if (!faceVerified) {
@@ -233,6 +324,17 @@ export async function completeRegistration(input: {
     }
   }
 
+  if (targetRole === ROLE_BROKER) {
+    const pro = Boolean(isProfessional);
+    const license = String(brokerLicenseUrl ?? "").trim();
+    if (!pro && license) {
+      throw new AppError("part-time broker should not upload license", 400, ErrorCodes.VALIDATION_ERROR);
+    }
+    if (pro && !license) {
+      throw new AppError("professional broker license is required", 400, ErrorCodes.VALIDATION_ERROR);
+    }
+  }
+
   try {
     await completeRegistrationByUserId(
       userId,
@@ -250,6 +352,16 @@ export async function completeRegistration(input: {
       },
       referrerBrokerUserId
     );
+    if (targetRole === ROLE_BROKER) {
+      await upsertBrokerProfileOnRegistration({
+        userId,
+        realName: rn,
+        isProfessional: Boolean(isProfessional),
+        brokerLicenseUrl: Boolean(isProfessional)
+          ? String(brokerLicenseUrl ?? "").trim()
+          : null
+      });
+    }
   } catch (error) {
     toDuplicatePhoneAppError(error);
   }

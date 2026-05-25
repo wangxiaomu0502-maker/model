@@ -14,6 +14,7 @@
     "migrate:admin-users-phone": "tsx scripts/migrate-admin-users-phone.ts",
     "migrate:orders-cs": "tsx scripts/migrate-orders-cs.ts",
     "purge:users-orders": "tsx scripts/purge-users-and-orders.ts",
+    "purge:non-mock-role-users": "tsx scripts/purge-non-mock-role-users.ts",
     "migrate:split-v2": "tsx scripts/migrate-split-v2.ts",
     "smoke:split-v2": "tsx scripts/smoke-split-v2.ts"
   },

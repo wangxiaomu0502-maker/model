@@ -1,5 +1,18 @@
 const HOUR_MAX = 8;
 
+function getSafeAreaBottomPx() {
+  try {
+    const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const safeBottom = info.safeArea && typeof info.safeArea.bottom === "number"
+      ? info.safeArea.bottom
+      : info.windowHeight;
+    const gap = Number(info.windowHeight || 0) - Number(safeBottom || 0);
+    return Math.max(0, gap);
+  } catch (_e) {
+    return 0;
+  }
+}
+
 function pad2(n) {
   return `${n}`.padStart(2, "0");
 }
@@ -12,6 +25,7 @@ function formatDateKey(d) {
 }
 
 const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
+const MERCHANT_ONLY_ORDER_HINT = "仅商家可预约下单";
 
 Page({
   data: {
@@ -33,6 +47,7 @@ Page({
     quoteLine: "",
     orderBtnAmount: "",
     orderBtnTitle: "预约",
+    merchantRemark: "",
     showBookingPopup: false,
     showPortfolioPopup: false,
     portfolioPhotoCount: 0,
@@ -43,6 +58,9 @@ Page({
     cardHairColor: "",
     cardSkinColor: "",
     isVisitor: false,
+    /** 模特/经纪人身份：不可预约，底栏仅展示提示文案 */
+    bookingRestricted: false,
+    safeAreaBottomPx: 0,
     cardMeasureText: {
       height: "—",
       weight: "—",
@@ -55,7 +73,19 @@ Page({
       shoeSize: "—"
     },
     /** 有模卡照片或模卡身材任一有效时展示模卡区块 */
-    showCardPanel: false
+    showCardPanel: false,
+    showStylePanel: false,
+    showPortfolioPanel: false,
+    cardSwiperIndex: 0,
+    cardSwiperPageText: ""
+  },
+
+  cardSwiperState(cardCount) {
+    const total = Number(cardCount) || 0;
+    return {
+      cardSwiperIndex: 0,
+      cardSwiperPageText: total > 0 ? `1 / ${total}` : ""
+    };
   },
 
   cardMeasureHasAny(tm) {
@@ -182,13 +212,48 @@ Page({
     });
   },
 
+  async fetchMerchantOrderEnabled() {
+    try {
+      const data = await this.requestJson("/api/system-settings/merchant-order-setting", "GET", {});
+      return data?.merchantOrderEnabled !== false;
+    } catch (err) {
+      console.warn("fetch merchant order setting failed", err);
+      return true;
+    }
+  },
+
   isVisitorUser() {
     const app = getApp();
     return !app.globalData.token || Number(app.globalData.role || 0) === 0;
   },
 
+  isModelOrBrokerRole() {
+    const role = Number(getApp().globalData.role || 0);
+    return role === 1 || role === 3;
+  },
+
+  isBookingRestrictedForCurrentUser() {
+    return this.isModelOrBrokerRole();
+  },
+
   defaultOrderBtnTitle() {
-    return this.isVisitorUser() ? "注册后预约" : "预约";
+    if (this.isVisitorUser()) return "注册后预约";
+    if (this.isBookingRestrictedForCurrentUser()) return MERCHANT_ONLY_ORDER_HINT;
+    return "预约";
+  },
+
+  syncBookingAccessState() {
+    const bookingRestricted = this.isBookingRestrictedForCurrentUser();
+    const patch = { bookingRestricted };
+    if (bookingRestricted) {
+      patch.orderBtnTitle = MERCHANT_ONLY_ORDER_HINT;
+    } else if (!this.data.showBookingPopup) {
+      patch.orderBtnTitle = this.defaultOrderBtnTitle();
+    }
+    this.setData(patch);
+    if (!bookingRestricted && this.data.model) {
+      this.refreshQuoteDisplay();
+    }
   },
 
   onLoad(options) {
@@ -198,12 +263,24 @@ Page({
     } catch (_e) {
       userNo = String(userNo).trim();
     }
-    this.setData({ userNo, isVisitor: this.isVisitorUser(), orderBtnTitle: this.defaultOrderBtnTitle() });
+    this.setData({
+      userNo,
+      isVisitor: this.isVisitorUser(),
+      bookingRestricted: this.isBookingRestrictedForCurrentUser(),
+      orderBtnTitle: this.defaultOrderBtnTitle()
+    });
+    this.setData({
+      safeAreaBottomPx: getSafeAreaBottomPx()
+    });
     if (!userNo) {
       this.setData({ loading: false, loadError: "缺少模特编号" });
       return;
     }
     this.loadDetail(userNo);
+  },
+
+  onShow() {
+    this.syncBookingAccessState();
   },
 
   collectImageUrls(model) {
@@ -396,6 +473,8 @@ Page({
       orderBtnAmount && canSubmit ? `确认预约 ¥${orderBtnAmount}` : orderBtnAmount ? `¥${orderBtnAmount}` : "预约";
     if (this.isVisitorUser()) {
       orderBtnTitle = "注册后预约";
+    } else if (this.isBookingRestrictedForCurrentUser()) {
+      orderBtnTitle = MERCHANT_ONLY_ORDER_HINT;
     }
 
     this.setData({ quoteLine, orderBtnAmount, orderBtnTitle });
@@ -463,6 +542,7 @@ Page({
       quoteLine: "",
       orderBtnAmount: "",
       orderBtnTitle: this.defaultOrderBtnTitle(),
+      merchantRemark: "",
       showBookingPopup: false,
       showPortfolioPopup: false
     });
@@ -480,10 +560,13 @@ Page({
           quoteLine: "",
           orderBtnAmount: "",
           orderBtnTitle: this.defaultOrderBtnTitle(),
+          merchantRemark: "",
           showBookingPopup: false,
           showPortfolioPopup: false,
           portfolioPhotoCount: 0,
-          showCardPanel: false
+          showCardPanel: false,
+          showStylePanel: false,
+          showPortfolioPanel: false
         });
         wx.showToast({
           title: data?.message || "加载失败",
@@ -517,7 +600,10 @@ Page({
         portfolioPhotoCount,
         bookableDateOptions,
         ...cardDisplay,
-        showCardPanel
+        showCardPanel,
+        showStylePanel: stylePositionPhotos.length > 0,
+        showPortfolioPanel: portfolioSections.length > 0,
+        ...this.cardSwiperState(cardUrls.length)
       });
       this.syncDurationIfInvalid(model);
       this.updateCanSubmit();
@@ -533,10 +619,13 @@ Page({
         quoteLine: "",
         orderBtnAmount: "",
         orderBtnTitle: this.defaultOrderBtnTitle(),
+        merchantRemark: "",
         showBookingPopup: false,
         showPortfolioPopup: false,
         portfolioPhotoCount: 0,
-        showCardPanel: false
+        showCardPanel: false,
+        showStylePanel: false,
+        showPortfolioPanel: false
       });
       wx.showToast({
         title: "网络异常",
@@ -576,6 +665,11 @@ Page({
     if (!Number.isFinite(idx) || idx < 0 || idx >= HOUR_MAX) return;
     const hourCount = idx + 1;
     this.setData({ hourIndex: idx, hourCount }, () => this.updateCanSubmit());
+  },
+
+  onMerchantRemarkInput(e) {
+    const value = String(e.detail.value || "").slice(0, 500);
+    this.setData({ merchantRemark: value });
   },
 
   durationSummaryText() {
@@ -633,8 +727,22 @@ Page({
       this.promptRegister();
       return;
     }
+    if (this.isBookingRestrictedForCurrentUser()) {
+      return;
+    }
     if (this.isMerchantRole()) {
       wx.showLoading({ title: "校验中", mask: true });
+      const orderEnabled = await this.fetchMerchantOrderEnabled();
+      if (!orderEnabled) {
+        wx.hideLoading();
+        wx.showModal({
+          title: "暂不可下单",
+          content: "目前商户不允许下单，请联系管理员",
+          showCancel: false,
+          confirmText: "知道了"
+        });
+        return;
+      }
       const signed = await this.fetchMerchantContractSigned();
       wx.hideLoading();
       if (!signed) {
@@ -687,6 +795,15 @@ Page({
     this.setData({ showPortfolioPopup: false });
   },
 
+  onCardSwiperChange(e) {
+    const idx = Number(e.detail.current) || 0;
+    const total = (this.data.cardUrls || []).length;
+    this.setData({
+      cardSwiperIndex: idx,
+      cardSwiperPageText: total > 0 ? `${idx + 1} / ${total}` : ""
+    });
+  },
+
   onPreviewImage(e) {
     const url = e.currentTarget.dataset.url || "";
     if (!url) return;
@@ -731,13 +848,17 @@ Page({
         return;
       }
     }
-    const { selectedDateKey: date, serviceType, durationKind, hourCount, model } = this.data;
+    const { selectedDateKey: date, serviceType, durationKind, hourCount, model, merchantRemark } = this.data;
     let summary = this.durationSummaryText();
     summary = `${serviceType === "agent" ? "代理服务（提供影棚）" : "普通服务"}\n${summary}`;
     if (durationKind === "hourly" && model?.price?.hourly != null) {
       const h = Number(hourCount) || 0;
       const total = Math.round(Number(model.price.hourly) * h);
       summary += `\n参考合计：${total} 元（以服务端为准）`;
+    }
+    const remarkText = String(merchantRemark || "").trim();
+    if (remarkText) {
+      summary += `\n备注：${remarkText}`;
     }
     wx.showModal({
       title: "确认下单",
@@ -758,7 +879,7 @@ Page({
       this.promptRegister();
       return;
     }
-    const { selectedDateKey: date, serviceType, durationKind, hourCount, model } = this.data;
+    const { selectedDateKey: date, serviceType, durationKind, hourCount, model, merchantRemark } = this.data;
     if (!model?.userNo || !date || !durationKind) {
       return;
     }
@@ -770,6 +891,10 @@ Page({
     };
     if (durationKind === "hourly") {
       body.hourCount = Number(hourCount);
+    }
+    const remarkText = String(merchantRemark || "").trim();
+    if (remarkText) {
+      body.merchantRemark = remarkText;
     }
     wx.showLoading({ title: "提交中", mask: true });
     try {

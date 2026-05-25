@@ -18,7 +18,7 @@ Page({
       return;
     }
     wx.switchTab({
-      url: "/pages/home/home"
+      url: "/pages/model-list/model-list"
     });
   },
 

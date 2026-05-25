@@ -2,6 +2,7 @@ Page({
   data: {
     role: 0,
     modelList: [],
+    modelListMode: "large",
     periodTab: "today",
     currentStats: { orderCount: 0, incomeYuan: "0.00", pendingYuan: "0.00" },
     dashboardLoading: false,
@@ -101,6 +102,7 @@ Page({
         .filter(Boolean);
       const cardMeasureChips = this.buildCardMeasureChips(card);
       const hasCardSection = cardThumbUrls.length > 0 || cardMeasureChips.length > 0;
+      const coverImageUrl = cardThumbUrls[0] || (showAvatarImg ? avatarDisplayUrl : "");
       return {
         ...item,
         avatarText,
@@ -111,9 +113,17 @@ Page({
         fullDayText: this.formatPriceText(item?.price?.fullDay),
         cardThumbUrls,
         cardMeasureChips,
-        hasCardSection
+        hasCardSection,
+        coverImageUrl,
+        showCoverImage: Boolean(coverImageUrl)
       };
     });
+  },
+
+  onModelListModeChange(e) {
+    const mode = e.currentTarget.dataset.mode || "";
+    if (mode !== "list" && mode !== "large") return;
+    this.setData({ modelListMode: mode });
   },
 
   pickPeriodStats(dashboard, tab) {

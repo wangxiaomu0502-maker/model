@@ -15,6 +15,7 @@ import {
   normalizeSplitServiceType
 } from "../admin/split-rules.repository";
 import { buildSplitRulesSnapshotJson } from "../split/order-split-rules-snapshot";
+import { assertMerchantOrderEnabled } from "../system-settings/system-settings.service";
 import { getModelPublicDetail } from "../model/model.service";
 import {
   cancelUnpaidAwaitingPaymentOrder,
@@ -129,6 +130,11 @@ function yuanToFen(v: unknown): number {
 
 function buildOrderRefundNo(orderNo: string): string {
   return `RF${orderNo}`.slice(0, 64);
+}
+
+function buildMerchantOrderRemark(raw: unknown): string | null {
+  const text = String(raw ?? "").trim();
+  return text ? `商家备注：${text}` : null;
 }
 
 function paymentStatusFromRefundStatus(status: string): 2 | 3 | 4 {
@@ -334,6 +340,7 @@ export async function createMerchantOrder(
   if (!merchant || merchant.role !== 2) {
     throw new AppError("仅商家可下单", 403, ErrorCodes.FORBIDDEN);
   }
+  await assertMerchantOrderEnabled();
   assertMerchantPlatformContractSigned(merchant);
 
   assertBookingWindow(body.bookingDate);
@@ -412,7 +419,8 @@ export async function createMerchantOrder(
     paymentStatus: useWechatPay ? 0 : 1,
     paymentChannel: useWechatPay ? null : "mock",
     paidAt: useWechatPay ? null : new Date(),
-    orderStatus: useWechatPay ? OrderStatus.AWAITING_PAYMENT : OrderStatus.PENDING_MODEL_ACCEPT
+    orderStatus: useWechatPay ? OrderStatus.AWAITING_PAYMENT : OrderStatus.PENDING_MODEL_ACCEPT,
+    remark: buildMerchantOrderRemark(body.merchantRemark)
   });
 
   return {

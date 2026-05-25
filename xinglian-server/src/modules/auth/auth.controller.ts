@@ -5,6 +5,7 @@ import { success, fail } from "../../core/http/response";
 import { AuthenticatedRequest } from "../../middlewares/auth";
 import {
   bindPhone,
+  bindPlatformModelByPhone,
   completeRegistration,
   deleteAccount,
   issueUserAccessToken,
@@ -54,6 +55,34 @@ export async function bindPhoneController(
   }
 }
 
+export async function platformBindModelController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response | void> {
+  try {
+    const auth = (req as AuthenticatedRequest).auth;
+    const userId = auth?.userId;
+    const openid = auth?.openid;
+    const { code } = req.body as { code: string };
+
+    if (!userId || !openid) {
+      return fail(req, res, 401, {
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "unauthorized"
+      });
+    }
+
+    const result = await bindPlatformModelByPhone(userId, openid, code);
+    return success(res, {
+      user: result.user,
+      token: result.token
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export async function completeRegistrationController(
   req: Request,
   res: Response,
@@ -76,7 +105,9 @@ export async function completeRegistrationController(
       idCardBackUrl,
       idCardIssueAuthority,
       idCardValidDate,
-      brokerUserNo
+      brokerUserNo,
+      isProfessional,
+      brokerLicenseUrl
     } = req.body as {
       role?: number;
       identity?: string;
@@ -91,6 +122,8 @@ export async function completeRegistrationController(
       idCardIssueAuthority: string;
       idCardValidDate: string;
       brokerUserNo?: string;
+      isProfessional?: boolean;
+      brokerLicenseUrl?: string;
     };
 
     if (!userId || !openid) {
@@ -114,7 +147,9 @@ export async function completeRegistrationController(
       idCardBackUrl,
       idCardIssueAuthority,
       idCardValidDate,
-      brokerUserNo
+      brokerUserNo,
+      isProfessional,
+      brokerLicenseUrl
     });
 
     const token = issueUserAccessToken(userId, openid, result.role);

@@ -6,12 +6,14 @@ import { contractKindParamSchema } from "../admin/contract-templates.types";
 import { signContractBodySchema } from "./user.contract-signature.types";
 
 import { avatarUploader } from "./user.avatar.middleware";
+import { brokerLicenseUploader } from "./user.broker-license.middleware";
 import { contractSignatureUploader } from "./user.contract-signature.middleware";
 
 import {
   getMeController,
   signMyContractController,
   uploadAvatarController,
+  uploadBrokerLicenseController,
   uploadContractSignatureController
 } from "./user.controller";
 import { getWalletOverviewController } from "../wallet/wallet.controller";
@@ -23,6 +25,12 @@ userRouter.post(
   requireAuth,
   avatarUploader.single("file"),
   uploadAvatarController
+);
+userRouter.post(
+  "/me/broker-license",
+  requireAuth,
+  brokerLicenseUploader.single("file"),
+  uploadBrokerLicenseController
 );
 userRouter.get("/me", requireAuth, getMeController);
 /** 与 GET /api/wallet 等价，便于网关/前端统一走 users 前缀 */

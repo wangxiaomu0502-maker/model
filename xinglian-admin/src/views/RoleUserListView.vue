@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Right } from "@element-plus/icons-vue";
+import { Plus, Right } from "@element-plus/icons-vue";
 import {
   fetchAdminAgentUsers,
   fetchAdminBrokerUsers,
@@ -34,6 +34,7 @@ import AdminUserFinanceStatsPanel from "@/components/AdminUserFinanceStatsPanel.
 import { getAdminToken } from "@/composables/useAdminToken";
 
 const route = useRoute();
+const router = useRouter();
 
 const listKind = computed<AdminListKind>(() => {
   const k = route.meta.listKind;
@@ -870,6 +871,11 @@ onUnmounted(() => {
           {{ pager.page }} / {{ Math.max(1, Math.ceil(total / pager.pageSize)) }} 页
         </p>
       </div>
+      <div v-if="isModelList" class="alv-hero-actions">
+        <el-button type="primary" :icon="Plus" @click="router.push({ name: 'model-create' })">
+          新增模特
+        </el-button>
+      </div>
       <div class="alv-hero-meta">
         <div class="alv-stat alv-stat--muted">
           <span class="alv-stat-label">本页展示</span>
@@ -992,6 +998,23 @@ onUnmounted(() => {
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column v-if="isModelList" label="来源" width="96">
+          <template #default="{ row }">
+            <el-tag
+              v-if="row.isAdminCreated === true"
+              type="warning"
+              size="small"
+              effect="light"
+              round
+            >
+              后管
+            </el-tag>
+            <el-tag v-else-if="row.isAdminCreated === false" type="info" size="small" effect="light" round>
+              用户端
+            </el-tag>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
         <el-table-column v-if="isModelList" label="接单状态" width="100">
           <template #default="{ row }">
             <el-tag :type="orderEnabledTagType(row.orderEnabled)" size="small" effect="light" round>
@@ -1021,6 +1044,29 @@ onUnmounted(() => {
             >
               {{ contractSignedLabel(row.merchantContractSignedAt ?? null) }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="listKind === 'brokers'" label="经纪人类型" width="108">
+          <template #default="{ row }">
+            <el-tag
+              v-if="row.isProfessional === true"
+              type="success"
+              size="small"
+              effect="light"
+              round
+            >
+              专业
+            </el-tag>
+            <el-tag
+              v-else-if="row.isProfessional === false"
+              type="info"
+              size="small"
+              effect="light"
+              round
+            >
+              兼职
+            </el-tag>
+            <span v-else>—</span>
           </template>
         </el-table-column>
         <el-table-column v-if="listKind === 'brokers'" label="合同签署" width="92">
@@ -1254,6 +1300,18 @@ onUnmounted(() => {
                 <el-descriptions-item label="性别">{{ detailBasicInfo.gender || "—" }}</el-descriptions-item>
                 <el-descriptions-item label="出生日期">{{ detailBasicInfo.birthDate || "—" }}</el-descriptions-item>
                 <el-descriptions-item label="所在城市">{{ detailBasicInfo.city || "—" }}</el-descriptions-item>
+                <el-descriptions-item label="账号来源">
+                  <el-tag
+                    v-if="detailBasicInfo.isAdminCreated"
+                    type="warning"
+                    size="small"
+                    effect="light"
+                    round
+                  >
+                    后管创建
+                  </el-tag>
+                  <el-tag v-else type="info" size="small" effect="light" round>用户端注册</el-tag>
+                </el-descriptions-item>
               </el-descriptions>
 
               <el-descriptions :column="1" border size="default" class="detail-group">
@@ -2006,6 +2064,16 @@ onUnmounted(() => {
               <el-descriptions :column="2" border size="default" class="detail-group">
                 <template #title>账号资料</template>
                 <el-descriptions-item label="经纪人实名">{{ brokerBasicInfo.realName || "—" }}</el-descriptions-item>
+                <el-descriptions-item label="经纪人类型">
+                  <el-tag
+                    :type="brokerBasicInfo.isProfessional ? 'success' : 'info'"
+                    size="small"
+                    effect="light"
+                    round
+                  >
+                    {{ brokerBasicInfo.isProfessional ? "专业经纪人" : "兼职经纪人" }}
+                  </el-tag>
+                </el-descriptions-item>
                 <el-descriptions-item label="手机号">{{ brokerBasicInfo.phone || "—" }}</el-descriptions-item>
                 <el-descriptions-item label="账号状态">
                   <el-tag :type="accountStatusTagType(brokerBasicInfo.status)" size="small" effect="light" round>
@@ -2038,6 +2106,21 @@ onUnmounted(() => {
                 <el-descriptions-item label="注册时间">{{ formatTime(brokerBasicInfo.createdAt) }}</el-descriptions-item>
                 <el-descriptions-item label="最近更新">{{ formatTime(brokerBasicInfo.updatedAt) }}</el-descriptions-item>
               </el-descriptions>
+
+              <div v-if="brokerBasicInfo.isProfessional" class="signature-photo-wrap">
+                <div class="idcard-photo-title">经纪人证</div>
+                <div class="signature-photo-box">
+                  <el-image
+                    v-if="brokerBasicInfo.brokerLicenseUrl"
+                    :src="brokerBasicInfo.brokerLicenseUrl"
+                    fit="contain"
+                    class="signature-photo-img"
+                    :preview-src-list="[brokerBasicInfo.brokerLicenseUrl]"
+                    preview-teleported
+                  />
+                  <div v-else class="signature-photo-empty">未上传经纪人证</div>
+                </div>
+              </div>
             </section>
           </el-tab-pane>
 

@@ -19,6 +19,7 @@ import ocrRouter from "./modules/ocr/ocr.routes";
 import brokerRouter from "./modules/broker/broker.routes";
 import walletRouter from "./modules/wallet/wallet.routes";
 import payRouter from "./modules/pay/pay.routes";
+import systemSettingsRouter from "./modules/system-settings/system-settings.routes";
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use("/api/ocr", ocrRouter);
 app.use("/api/broker", brokerRouter);
 app.use("/api/wallet", walletRouter);
 app.use("/api/pay", payRouter);
+app.use("/api/system-settings", systemSettingsRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
 

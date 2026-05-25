@@ -432,3 +432,104 @@
 .scroll-spacer {
   height: 12rpx;
 }
+
+.broker-kind-card {
+  margin-bottom: 4rpx;
+}
+
+.step-num-wrap-accent {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+}
+
+.broker-kind-row {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 20rpx;
+}
+
+.broker-kind-opt {
+  flex: 1;
+  padding: 24rpx 20rpx;
+  border-radius: 20rpx;
+  border: 2rpx solid rgba(148, 163, 184, 0.45);
+  background: rgba(248, 250, 252, 0.9);
+  box-sizing: border-box;
+}
+
+.broker-kind-opt-active {
+  border-color: #4f46e5;
+  background: linear-gradient(180deg, rgba(238, 242, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
+  box-shadow: 0 8rpx 24rpx rgba(79, 70, 229, 0.12);
+}
+
+.broker-kind-opt-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.broker-kind-opt-sub {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #64748b;
+}
+
+.broker-license-block {
+  margin-top: 28rpx;
+}
+
+.broker-license-label {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 16rpx;
+}
+
+.broker-license-upload {
+  min-height: 280rpx;
+  border-radius: 20rpx;
+  border: 2rpx dashed rgba(99, 102, 241, 0.45);
+  background: rgba(248, 250, 252, 0.85);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.broker-license-upload-hover {
+  opacity: 0.88;
+}
+
+.broker-license-img {
+  width: 100%;
+  max-height: 420rpx;
+}
+
+.broker-license-placeholder {
+  padding: 40rpx 24rpx;
+  text-align: center;
+}
+
+.broker-license-ph-main {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #4f46e5;
+}
+
+.broker-license-ph-sub {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #94a3b8;
+}
+
+.mini-muted {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #94a3b8;
+}

@@ -335,6 +335,12 @@ export type AdminUserRow = {
   boundMerchantCount?: number;
   /** 经纪人列表：历史字段 */
   boundModelCount?: number;
+  /** 经纪人列表：是否专业经纪人 */
+  isProfessional?: boolean | null;
+  /** 经纪人列表：经纪人证 URL */
+  brokerLicenseUrl?: string | null;
+  /** 模特列表：是否后管创建 */
+  isAdminCreated?: boolean | null;
   createdAt: string;
   updatedAt: string;
   /** 商家：绑定经纪人展示文案 */
@@ -402,6 +408,8 @@ export type AdminBrokerBasicInfo = {
     nickname: string | null;
     realName: string | null;
   } | null;
+  isProfessional: boolean;
+  brokerLicenseUrl: string | null;
 };
 
 export type AdminBrokerBoundMerchantRow = {
@@ -522,6 +530,68 @@ export type AdminModelBasicInfo = {
     orderEnabled: boolean;
     onlyLocal: boolean;
     onlyFemale: boolean;
+  };
+  isAdminCreated?: boolean;
+};
+
+export type AdminModelCategoryTreeNode = {
+  id: number;
+  name: string;
+  children: AdminModelCategoryTreeNode[];
+};
+
+export type AdminModelCategoryTree = {
+  mainTypeGroups: AdminModelCategoryTreeNode[];
+  styleGroups: AdminModelCategoryTreeNode[];
+  sceneGroups: AdminModelCategoryTreeNode[];
+};
+
+export type AdminModelCreateBody = {
+  avatarUrl?: string | null;
+  agentUserId?: number | null;
+  status: number;
+  basicInfo: {
+    name: string;
+    gender: "女" | "男";
+    birthDate: string;
+    city: string;
+    intro: string;
+    phone: string;
+  };
+  categoryIds: number[];
+  card: {
+    photoAngles: Array<{
+      key: string;
+      label?: string;
+      url?: string;
+      width?: number;
+      height?: number;
+    }>;
+    measurements: Record<string, number | string>;
+    hairColor: string;
+    skinColor: string;
+  };
+  portfolio?: {
+    folders: Array<{ id: string; name: string; coverPhotoId?: string }>;
+    photos: Array<{ id: string; folderId: string; url: string }>;
+  };
+  stylePosition?: {
+    photos: Array<{ id: string; url: string }>;
+  };
+  pricing: {
+    hourly: number;
+    halfDay: number;
+    fullDay: number;
+  };
+  schedule?: {
+    scheduleMap: Record<string, "available" | "full" | "rest">;
+  };
+  orderSettings: {
+    settings: {
+      orderEnabled: boolean;
+      onlyLocal: boolean;
+      onlyFemale: boolean;
+    };
   };
 };
 
@@ -723,6 +793,45 @@ export async function updateAdminSplitRules(body: AdminSplitRulesUpdateBody): Pr
     body: JSON.stringify(body)
   });
   const data = (await res.json()) as AdminSplitRules;
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `保存失败 (${res.status})`);
+  }
+  return data;
+}
+
+export type AdminSystemSettings = {
+  ok?: boolean;
+  merchantOrderEnabled: boolean;
+  updatedAt: string;
+  message?: string;
+  code?: string;
+};
+
+export async function fetchAdminSystemSettings(): Promise<AdminSystemSettings> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl("/api/admin/system-settings"), {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  });
+  const data = (await res.json()) as AdminSystemSettings;
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `请求失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function updateAdminSystemSettings(body: {
+  merchantOrderEnabled: boolean;
+}): Promise<AdminSystemSettings> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl("/api/admin/system-settings"), {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as AdminSystemSettings;
   if (!res.ok || data.ok === false) {
     throw new Error(data.message || data.code || `保存失败 (${res.status})`);
   }
@@ -1421,6 +1530,66 @@ export async function fetchAdminAgentDetail(userId: number): Promise<AdminAgentR
     throw new Error(data.message || data.code || `请求失败 (${res.status})`);
   }
   return data.agent;
+}
+
+export async function fetchAdminModelCategoryTree(): Promise<AdminModelCategoryTree> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl("/api/admin/models/category-tree"), {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    tree?: AdminModelCategoryTree;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false || !data.tree) {
+    throw new Error(data.message || data.code || `分类加载失败 (${res.status})`);
+  }
+  return data.tree;
+}
+
+export type AdminModelImageUploadKind = "avatar" | "card" | "portfolio" | "style";
+
+export async function uploadAdminModelImage(
+  kind: AdminModelImageUploadKind,
+  file: File
+): Promise<string> {
+  const token = getAdminToken();
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(adminApiUrl(`/api/admin/models/${kind}/upload`), {
+    method: "POST",
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: fd
+  });
+  const data = (await res.json()) as { ok?: boolean; url?: string; message?: string; code?: string };
+  if (!res.ok || data.ok === false || !data.url) {
+    throw new Error(data.message || data.code || `上传失败 (${res.status})`);
+  }
+  return data.url;
+}
+
+export async function createAdminModel(body: AdminModelCreateBody): Promise<AdminModelBasicInfo> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl("/api/admin/models"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    basicInfo?: AdminModelBasicInfo;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false || !data.basicInfo) {
+    throw new Error(data.message || data.code || `创建失败 (${res.status})`);
+  }
+  return data.basicInfo;
 }
 
 export async function createAdminAgent(body: AdminAgentFormBody): Promise<AdminAgentRow> {

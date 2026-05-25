@@ -1,4 +1,5 @@
 const { syncPendingAcceptOrderBadge } = require("../../utils/pending-accept-order-badge.js");
+const { updateTabBar } = require("../../utils/tab-bar.js");
 
 Page({
   /** 服务端 role 可能短暂为 0（同步延迟），本地已有选了身份时用存储兜底，避免菜单被清空 */
@@ -328,6 +329,7 @@ Page({
   },
 
   onShow() {
+    updateTabBar();
     const app = getApp();
     const role = this.resolveEffectiveRole(app);
     const identity = this.getIdentityByRole(role);

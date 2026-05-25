@@ -2,7 +2,9 @@ import type { PoolConnection } from "mysql2/promise";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { dbPool } from "../../config/db";
-import { ExistingUserRow, LoginUserRow } from "./auth.types";
+import { ExistingUserRow, LoginUserRow, PlatformBindModelRow } from "./auth.types";
+
+const MODEL_ROLE = 1;
 
 export async function findUserByOpenid(
   openid: string
@@ -37,6 +39,15 @@ export async function updateUnionid(
   );
 }
 
+export async function findUnionidByUserId(userId: number): Promise<string | null> {
+  const [rows] = await dbPool.query<RowDataPacket[]>(
+    "SELECT unionid FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1",
+    [userId]
+  );
+  const unionid = rows[0]?.unionid;
+  return unionid != null ? String(unionid) : null;
+}
+
 export async function findOpenidByUserId(userId: number): Promise<string | null> {
   const [rows] = await dbPool.query<RowDataPacket[]>(
     "SELECT openid FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1",
@@ -54,6 +65,62 @@ export async function findLoginUserByOpenid(
     [openid]
   );
   return rows;
+}
+
+export async function findModelUserByPhoneForPlatformBind(
+  phone: string
+): Promise<PlatformBindModelRow[]> {
+  const [rows] = await dbPool.query<PlatformBindModelRow[]>(
+    `SELECT id, user_no, openid, role, unionid
+     FROM users
+     WHERE deleted_at IS NULL
+       AND status = 1
+       AND phone = ?
+       AND role = ?
+     LIMIT 1`,
+    [phone, MODEL_ROLE]
+  );
+  return rows;
+}
+
+/** 将当前游客微信 openid 绑定到后台已预置的模特账号，并释放游客占位 openid */
+export async function transferVisitorOpenidToPlatformUser(input: {
+  visitorUserId: number;
+  visitorOpenid: string;
+  visitorUnionid: string | null;
+  platformUserId: number;
+  phone: string;
+}): Promise<void> {
+  const connection = await dbPool.getConnection();
+  const releasedOpenid = `released:${input.visitorUserId}:${Date.now()}`;
+  try {
+    await connection.beginTransaction();
+    await connection.query(
+      "UPDATE users SET openid = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND openid = ?",
+      [releasedOpenid, input.visitorUserId, input.visitorOpenid]
+    );
+    await connection.query(
+      `UPDATE users
+       SET openid = ?,
+           unionid = COALESCE(?, unionid),
+           phone = ?,
+           phone_verified = 1,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [
+        input.visitorOpenid,
+        input.visitorUnionid,
+        input.phone,
+        input.platformUserId
+      ]
+    );
+    await connection.commit();
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
 }
 
 export async function bindPhoneByUserId(
@@ -123,6 +190,29 @@ export async function completeRegistrationByUserId(
       referrerBrokerUserId,
       referrerBrokerUserId,
       userId
+    ]
+  );
+}
+
+export async function upsertBrokerProfileOnRegistration(input: {
+  userId: number;
+  realName: string;
+  isProfessional: boolean;
+  brokerLicenseUrl: string | null;
+}): Promise<void> {
+  await dbPool.query(
+    `INSERT INTO broker_profiles (user_id, real_name, is_professional, broker_license_url)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       real_name = VALUES(real_name),
+       is_professional = VALUES(is_professional),
+       broker_license_url = VALUES(broker_license_url),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      input.userId,
+      input.realName,
+      input.isProfessional ? 1 : 0,
+      input.brokerLicenseUrl
     ]
   );
 }

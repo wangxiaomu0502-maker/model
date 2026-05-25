@@ -26,6 +26,9 @@
     "pages/model-detail/model-detail",
     "pages/order-list/order-list",
     "pages/order-detail/order-detail",
+    "pages/model-list/model-list",
+    "pages/model-stats/model-stats",
+    "pages/broker-stats/broker-stats",
     "pages/home/home",
     "pages/model-income-detail/model-income-detail",
     "pages/broker-income-detail/broker-income-detail"
@@ -38,16 +41,23 @@
     "backgroundTextStyle": "light"
   },
   "tabBar": {
+    "custom": true,
     "color": "#999999",
     "selectedColor": "#222222",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
       {
-        "pagePath": "pages/home/home",
-        "text": "首页",
-        "iconPath": "assets/tab/home.png",
-        "selectedIconPath": "assets/tab/home-active.png"
+        "pagePath": "pages/model-stats/model-stats",
+        "text": "统计信息",
+        "iconPath": "assets/tab/stats.png",
+        "selectedIconPath": "assets/tab/stats-active.png"
+      },
+      {
+        "pagePath": "pages/model-list/model-list",
+        "text": "模特列表",
+        "iconPath": "assets/tab/list.png",
+        "selectedIconPath": "assets/tab/list-active.png"
       },
       {
         "pagePath": "pages/mine/mine",

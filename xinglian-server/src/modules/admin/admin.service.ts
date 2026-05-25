@@ -120,6 +120,12 @@ export async function listUsersForAdminByRole(
     boundMerchantCount: number;
     /** 经纪人列表：历史字段，v2 不再绑定模特 */
     boundModelCount: number;
+    /** 经纪人列表：是否专业经纪人 */
+    isProfessional?: boolean | null;
+    /** 经纪人列表：经纪人证 URL */
+    brokerLicenseUrl?: string | null;
+    /** 模特列表：是否后管创建 */
+    isAdminCreated?: boolean | null;
   }>;
   total: number;
   page: number;
@@ -181,7 +187,19 @@ export async function listUsersForAdminByRole(
           : null,
       agentUserLabel: Number(row.role) === 1 ? formatAgentUserLabelForAdmin(row) : null,
       boundMerchantCount: Number(row.bound_merchant_count ?? 0),
-      boundModelCount: Number(row.bound_model_count ?? 0)
+      boundModelCount: Number(row.bound_model_count ?? 0),
+      isProfessional:
+        Number(row.role) === 3 && row.broker_is_professional != null
+          ? Boolean(Number(row.broker_is_professional))
+          : null,
+      brokerLicenseUrl:
+        Number(row.role) === 3 && row.broker_license_url
+          ? String(row.broker_license_url)
+          : null,
+      isAdminCreated:
+        Number(row.role) === 1 && row.model_is_admin_created != null
+          ? Boolean(Number(row.model_is_admin_created))
+          : null
     })),
     total,
     page,
@@ -499,6 +517,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
   stylePosition: {
     photos: Array<{ id: string; url: string }>;
   };
+  isAdminCreated: boolean;
 }> {
   const row = await findModelBasicDetailForAdminByUserId(userId);
   if (!row) {
@@ -592,7 +611,8 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     portfolio,
     stylePosition,
     schedule,
-    orderSettings
+    orderSettings,
+    isAdminCreated: Boolean(Number(row.is_admin_created ?? 0))
   };
 }
 
@@ -689,6 +709,8 @@ export async function getBrokerBasicDetailForAdmin(userId: number): Promise<{
     nickname: string | null;
     realName: string | null;
   } | null;
+  isProfessional: boolean;
+  brokerLicenseUrl: string | null;
 }> {
   const row = await findBrokerBasicDetailForAdminByUserId(userId);
   if (!row) {
@@ -732,7 +754,9 @@ export async function getBrokerBasicDetailForAdmin(userId: number): Promise<{
       row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at ?? ""),
     boundMerchantCount: Number(row.bound_merchant_count ?? 0),
     boundModelCount: Number(row.bound_model_count ?? 0),
-    referrerBroker
+    referrerBroker,
+    isProfessional: Boolean(Number(row.broker_is_professional ?? 0)),
+    brokerLicenseUrl: row.broker_license_url ? String(row.broker_license_url) : null
   };
 }
 

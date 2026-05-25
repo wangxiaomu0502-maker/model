@@ -10,6 +10,7 @@ import { resolveImageUploadMime } from "../../core/utils/resolve-upload-mime";
 import { getCurrentUserProfile, signContractForCurrentUser } from "./user.service";
 import { updateUserAvatarUrl } from "./user.repository";
 import { uploadAvatarToCos } from "./user.avatar.storage";
+import { uploadBrokerLicenseToCos } from "./user.broker-license.storage";
 import { uploadContractSignatureToCos } from "./user.contract-signature.storage";
 
 const CONTRACT_SIGNATURE_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -53,6 +54,42 @@ export async function uploadAvatarController(
       );
     }
     return success(res, { avatarUrl });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function uploadBrokerLicenseController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response | void> {
+  try {
+    const userId = (req as AuthenticatedRequest).auth?.userId;
+    if (!userId) {
+      return fail(req, res, 401, {
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "unauthorized"
+      });
+    }
+
+    const file = (req as AuthenticatedRequest & { file?: Express.Multer.File })
+      .file;
+    const mimetype = file ? resolveImageUploadMime(file) : null;
+    if (!file || !mimetype) {
+      throw new AppError(
+        "经纪人证格式不支持，请使用 JPG 或 PNG 图片",
+        400,
+        ErrorCodes.VALIDATION_ERROR
+      );
+    }
+
+    const brokerLicenseUrl = await uploadBrokerLicenseToCos({
+      userId,
+      body: file.buffer,
+      mimetype
+    });
+    return success(res, { brokerLicenseUrl });
   } catch (error) {
     return next(error);
   }

@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS model_profiles (
   id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL COMMENT '关联users.id',
+  is_admin_created TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1=后管创建 0=用户端注册',
   stage_name VARCHAR(50) NULL COMMENT '艺名',
   gender TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0其他 1男 2女',
   birth_date DATE NULL COMMENT '出生日期',
@@ -125,6 +126,8 @@ CREATE TABLE IF NOT EXISTS broker_profiles (
   id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL COMMENT '关联users.id',
   real_name VARCHAR(50) NULL COMMENT '真实姓名',
+  is_professional TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1=专业经纪人 0=兼职经纪人',
+  broker_license_url VARCHAR(2048) NULL COMMENT '经纪人证图片 URL（专业经纪人）',
   city VARCHAR(50) NULL COMMENT '所在城市',
   service_package_expire DATETIME NULL COMMENT '服务包到期时间',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

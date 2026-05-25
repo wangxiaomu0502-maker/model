@@ -78,6 +78,7 @@ export type InsertOrderRow = {
   paymentChannel: string | null;
   paidAt: Date | null;
   orderStatus: number;
+  remark?: string | null;
 };
 
 export async function insertOrder(row: InsertOrderRow): Promise<number> {
@@ -86,8 +87,8 @@ export async function insertOrder(row: InsertOrderRow): Promise<number> {
        order_no, merchant_user_id, model_user_id, service_type,
        booking_date, duration_kind, hour_count,
        unit_price_snapshot, service_amount, platform_fee, payable_amount,
-       payment_status, payment_channel, paid_at, order_status
-     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       payment_status, payment_channel, paid_at, order_status, remark
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       row.orderNo,
       row.merchantUserId,
@@ -103,7 +104,8 @@ export async function insertOrder(row: InsertOrderRow): Promise<number> {
       row.paymentStatus,
       row.paymentChannel,
       row.paidAt,
-      row.orderStatus
+      row.orderStatus,
+      row.remark ?? null
     ]
   );
   return Number(result.insertId);

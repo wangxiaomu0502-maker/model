@@ -2,6 +2,7 @@ Page({
   data: {
     heroPaddingTop: 64,
     modelList: [],
+    modelListMode: "large",
     loading: false,
     loadError: ""
   },
@@ -88,6 +89,7 @@ Page({
         .filter(Boolean);
       const cardMeasureChips = this.buildCardMeasureChips(card);
       const hasCardSection = cardThumbUrls.length > 0 || cardMeasureChips.length > 0;
+      const coverImageUrl = cardThumbUrls[0] || (showAvatarImg ? avatarDisplayUrl : "");
       return {
         ...item,
         avatarText,
@@ -98,9 +100,17 @@ Page({
         fullDayText: this.formatPriceText(item?.price?.fullDay),
         cardThumbUrls,
         cardMeasureChips,
-        hasCardSection
+        hasCardSection,
+        coverImageUrl,
+        showCoverImage: Boolean(coverImageUrl)
       };
     });
+  },
+
+  onModelListModeChange(e) {
+    const mode = e.currentTarget.dataset.mode || "";
+    if (mode !== "list" && mode !== "large") return;
+    this.setData({ modelListMode: mode });
   },
 
   loadModelList() {

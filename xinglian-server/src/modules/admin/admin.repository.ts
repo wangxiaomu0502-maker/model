@@ -31,6 +31,9 @@ export type AdminUserListRow = RowDataPacket & {
   bound_merchant_count?: number | string | null;
   /** 作为转介绍经纪人时：referrer_id 指向本行的模特数（role=1，v2 已废弃） */
   bound_model_count?: number | string | null;
+  broker_is_professional?: number | string | null;
+  broker_license_url?: string | null;
+  model_is_admin_created?: number | string | null;
 };
 
 export type AdminModelBasicDetailRow = RowDataPacket & {
@@ -72,6 +75,7 @@ export type AdminModelBasicDetailRow = RowDataPacket & {
   is_available: number;
   only_local_orders: number;
   only_female_clients: number;
+  is_admin_created: number | string | null;
   card_json: string | null;
   portfolio_json: string | null;
   style_position_json: string | null;
@@ -145,9 +149,13 @@ export async function findUsersPageForAdminByRole(
             (SELECT COUNT(*) FROM users ub
              WHERE ub.deleted_at IS NULL AND ub.role = 2 AND ub.referrer_id = u.id) AS bound_merchant_count,
             (SELECT COUNT(*) FROM users ub
-             WHERE ub.deleted_at IS NULL AND ub.role = 1 AND ub.referrer_id = u.id) AS bound_model_count
+             WHERE ub.deleted_at IS NULL AND ub.role = 1 AND ub.referrer_id = u.id) AS bound_model_count,
+            bp_self.is_professional AS broker_is_professional,
+            bp_self.broker_license_url AS broker_license_url,
+            mp.is_admin_created AS model_is_admin_created
      FROM users u
      LEFT JOIN model_profiles mp ON mp.user_id = u.id
+     LEFT JOIN broker_profiles bp_self ON bp_self.user_id = u.id
      LEFT JOIN users ref ON ref.id = u.referrer_id AND ref.deleted_at IS NULL AND ref.role = 3
      LEFT JOIN broker_profiles bref ON bref.user_id = ref.id
      LEFT JOIN users ag ON ag.id = u.agent_user_id AND ag.deleted_at IS NULL AND ag.role = 4
@@ -177,6 +185,7 @@ export async function findModelBasicDetailForAdminByUserId(
             mp.shoe_size, mp.hair_color, mp.skin_tone,
             mp.price_hour, mp.price_halfday, mp.price_allday,
             mp.is_available, mp.only_local_orders, mp.only_female_clients,
+            mp.is_admin_created,
             mex.card_json, mex.portfolio_json, mex.style_position_json, mex.schedule_json, mex.order_settings_json
      FROM users u
      LEFT JOIN users ag ON ag.id = u.agent_user_id AND ag.deleted_at IS NULL
@@ -334,6 +343,8 @@ export type AdminBrokerBasicDetailRow = RowDataPacket & {
   created_at: Date | string;
   updated_at: Date | string;
   broker_real_name: string | null;
+  broker_is_professional: number | string | null;
+  broker_license_url: string | null;
   referrer_broker_user_no: string | null;
   referrer_broker_nickname: string | null;
   referrer_broker_real_name: string | null;
@@ -352,6 +363,8 @@ export async function findBrokerBasicDetailForAdminByUserId(
             u.contract_platform_broker_signed_at, u.contract_platform_broker_signature_url,
             u.created_at, u.updated_at,
             bp.real_name AS broker_real_name,
+            bp.is_professional AS broker_is_professional,
+            bp.broker_license_url AS broker_license_url,
             ref.user_no AS referrer_broker_user_no,
             ref.nickname AS referrer_broker_nickname,
             bref.real_name AS referrer_broker_real_name,

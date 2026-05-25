@@ -52,6 +52,11 @@ import { contractKindParamSchema, contractTemplateUpdateBodySchema } from "./con
 import { adminGetSplitRulesController, adminPutSplitRulesController } from "./split-rules.controller";
 import { splitRulesUpdateSchema } from "./split-rules.types";
 import {
+  adminGetSystemSettingsController,
+  adminPutSystemSettingsController
+} from "../system-settings/system-settings.controller";
+import { systemSettingsUpdateSchema } from "../system-settings/system-settings.types";
+import {
   adminCreateAgentController,
   adminDeleteAgentController,
   adminGetAgentDetailController,
@@ -66,6 +71,16 @@ import {
   adminAgentCreateBodySchema,
   adminAgentUpdateBodySchema
 } from "./admin-agent.types";
+import {
+  adminCreateModelController,
+  adminGetModelCategoryTreeController,
+  adminUploadModelAvatarController,
+  adminUploadModelCardImageController,
+  adminUploadModelPortfolioImageController,
+  adminUploadModelStyleImageController
+} from "./admin-model.controller";
+import { adminModelImageUploader } from "./admin-model-media.middleware";
+import { adminModelCreateBodySchema } from "./admin-model.types";
 import {
   addPendingOrderNoteHandler,
   completePendingOrderHandler,
@@ -178,6 +193,41 @@ adminRouter.get(
   requireAdminAuth,
   validate(adminUserListQuerySchema, "query"),
   createAdminListUsersByRoleController(1)
+);
+adminRouter.get(
+  "/models/category-tree",
+  requireAdminAuth,
+  adminGetModelCategoryTreeController
+);
+adminRouter.post(
+  "/models/avatar/upload",
+  requireAdminAuth,
+  adminModelImageUploader.single("file"),
+  adminUploadModelAvatarController
+);
+adminRouter.post(
+  "/models/card/upload",
+  requireAdminAuth,
+  adminModelImageUploader.single("file"),
+  adminUploadModelCardImageController
+);
+adminRouter.post(
+  "/models/portfolio/upload",
+  requireAdminAuth,
+  adminModelImageUploader.single("file"),
+  adminUploadModelPortfolioImageController
+);
+adminRouter.post(
+  "/models/style/upload",
+  requireAdminAuth,
+  adminModelImageUploader.single("file"),
+  adminUploadModelStyleImageController
+);
+adminRouter.post(
+  "/models",
+  requireAdminAuth,
+  validate(adminModelCreateBodySchema),
+  adminCreateModelController
 );
 adminRouter.get(
   "/models/:userId/detail",
@@ -358,6 +408,13 @@ adminRouter.put(
   requireAdminAuth,
   validate(splitRulesUpdateSchema),
   adminPutSplitRulesController
+);
+adminRouter.get("/system-settings", requireAdminAuth, adminGetSystemSettingsController);
+adminRouter.put(
+  "/system-settings",
+  requireAdminAuth,
+  validate(systemSettingsUpdateSchema),
+  adminPutSystemSettingsController
 );
 adminRouter.get("/contract-templates", requireAdminAuth, adminListContractTemplatesController);
 adminRouter.put(

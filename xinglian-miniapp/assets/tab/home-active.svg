@@ -1,11 +1,8 @@
-<svg width="81" height="81" viewBox="0 0 81 81" xmlns="http://www.w3.org/2000/svg">
-  <g fill="none" fill-rule="evenodd">
-    <rect width="81" height="81" />
-    <path
-      d="M40.5 17L15 37.5V62a4 4 0 0 0 4 4h15V48h13v18h15a4 4 0 0 0 4-4V37.5L40.5 17z"
-      stroke="#222222"
-      stroke-width="4"
-      stroke-linejoin="round"
-    />
-  </g>
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path
+    d="M10 20.5L24 10l14 10.5V34a2.5 2.5 0 0 1-2.5 2.5h-7v-9h-3v9h-7A2.5 2.5 0 0 1 10 34V20.5Z"
+    stroke="#222222"
+    stroke-width="2.5"
+    stroke-linejoin="round"
+  />
 </svg>

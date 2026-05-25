@@ -1,0 +1,3 @@
+-- 清空所有非 mock 的模特(1)、商家(2)、经纪人(3)；保留 is_mock=1 的 mock 账号。
+-- 推荐在 xinglian-server 目录执行：npm run purge:non-mock-role-users
+-- 预览：npm run purge:non-mock-role-users -- --dry-run

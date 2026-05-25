@@ -8,7 +8,55 @@
         <text class="hero-kicker">账户安全</text>
         <text class="hero-title">实名认证</text>
         <text class="hero-subtitle">完成昵称、头像、手机号与身份证识别后即可提交注册。</text>
-        <text class="hero-tip">请按顺序完成以下 4 步</text>
+        <text class="hero-tip">{{isBrokerRole ? '请先选择经纪人类型，再按顺序完成以下 4 步' : '请按顺序完成以下 4 步'}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{isBrokerRole}}" class="card broker-kind-card">
+      <view class="step-head">
+        <view class="step-num-wrap step-num-wrap-accent"><text class="step-num">★</text></view>
+        <text class="step-title">经纪人类型</text>
+      </view>
+      <text class="step-tip">专业经纪人需上传经纪人证；兼职经纪人无需上传。</text>
+      <view class="broker-kind-row">
+        <view
+          class="broker-kind-opt {{brokerKind === 'professional' ? 'broker-kind-opt-active' : ''}}"
+          data-kind="professional"
+          bindtap="onBrokerKindTap"
+        >
+          <text class="broker-kind-opt-title">专业经纪人</text>
+          <text class="broker-kind-opt-sub">需上传经纪人证</text>
+        </view>
+        <view
+          class="broker-kind-opt {{brokerKind === 'part-time' ? 'broker-kind-opt-active' : ''}}"
+          data-kind="part-time"
+          bindtap="onBrokerKindTap"
+        >
+          <text class="broker-kind-opt-title">兼职经纪人</text>
+          <text class="broker-kind-opt-sub">无需上传证件</text>
+        </view>
+      </view>
+
+      <view wx:if="{{brokerKind === 'professional'}}" class="broker-license-block">
+        <text class="broker-license-label">经纪人证</text>
+        <view
+          class="broker-license-upload"
+          bindtap="onPickBrokerLicense"
+          hover-class="broker-license-upload-hover"
+        >
+          <image
+            wx:if="{{brokerLicensePreviewUrl}}"
+            class="broker-license-img"
+            src="{{brokerLicensePreviewUrl}}"
+            mode="aspectFit"
+          />
+          <view wx:else class="broker-license-placeholder">
+            <text class="broker-license-ph-main">点击上传经纪人证</text>
+            <text class="broker-license-ph-sub">支持相册或拍照</text>
+          </view>
+        </view>
+        <text wx:if="{{brokerLicenseStoredUrl}}" class="mini-success">经纪人证已上传</text>
+        <text wx:elif="{{brokerLicenseUploading}}" class="mini-muted">上传中…</text>
       </view>
     </view>
 

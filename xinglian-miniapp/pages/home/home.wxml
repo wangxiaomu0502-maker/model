@@ -186,6 +186,23 @@
       <text class="stats-hint merchant-empty-hint">暂无可展示模特</text>
     </view>
 
+    <view wx:else class="model-list-toolbar">
+      <text class="model-list-toolbar-title">展示方式</text>
+      <view class="model-list-mode-switch">
+        <view
+          class="model-list-mode-item {{modelListMode === 'list' ? 'model-list-mode-item--on' : ''}}"
+          data-mode="list"
+          bindtap="onModelListModeChange"
+        >传统列表</view>
+        <view
+          class="model-list-mode-item {{modelListMode === 'large' ? 'model-list-mode-item--on' : ''}}"
+          data-mode="large"
+          bindtap="onModelListModeChange"
+        >大图展示</view>
+      </view>
+    </view>
+
+    <block wx:if="{{modelList.length > 0 && modelListMode === 'list'}}">
     <view
       wx:for="{{modelList}}"
       wx:key="userNo"
@@ -278,6 +295,43 @@
 
       <view class="merchant-item-foot">
         <text class="merchant-item-more">查看详情</text>
+      </view>
+    </view>
+    </block>
+
+    <view wx:elif="{{modelList.length > 0}}" class="model-large-grid">
+      <view
+        wx:for="{{modelList}}"
+        wx:key="userNo"
+        class="model-large-card"
+        data-user-no="{{item.userNo}}"
+        bindtap="goModelDetail"
+      >
+        <view class="model-large-cover">
+          <image
+            wx:if="{{item.showCoverImage}}"
+            class="model-large-cover-img"
+            src="{{item.coverImageUrl}}"
+            mode="aspectFill"
+          />
+          <view wx:else class="model-large-cover-fallback">{{item.avatarText}}</view>
+          <view class="model-large-gradient"></view>
+          <view class="model-large-count" wx:if="{{item.cardThumbUrls.length}}">
+            {{item.cardThumbUrls.length}} 张
+          </view>
+        </view>
+        <view class="model-large-body">
+          <text class="model-large-name">{{item.nickname}}</text>
+          <text class="model-large-sub">{{item.city || "未填写"}} · {{item.hourlyText}}/小时</text>
+          <view class="model-large-tags" wx:if="{{item.categories && item.categories.length > 0}}">
+            <text
+              wx:for="{{item.categories}}"
+              wx:for-item="tag"
+              wx:key="*this"
+              class="model-large-tag"
+            >{{tag}}</text>
+          </view>
+        </view>
       </view>
     </view>
   </view>

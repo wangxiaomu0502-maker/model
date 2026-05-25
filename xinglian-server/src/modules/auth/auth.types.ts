@@ -37,6 +37,17 @@ export type LoginUserRow = RowDataPacket & {
   role: number;
 };
 
+export type PlatformBindModelRow = RowDataPacket & {
+  id: number;
+  user_no: string;
+  openid: string;
+  role: number;
+  unionid: string | null;
+};
+
+export const PLATFORM_MODEL_BIND_FAIL_MESSAGE =
+  "平台暂未帮您绑定账号，请联系管理员";
+
 export const identityRoleMap: Record<string, number> = {
   模特: 1,
   商家: 2,

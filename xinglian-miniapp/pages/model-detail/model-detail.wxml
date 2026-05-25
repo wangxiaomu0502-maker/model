@@ -1,7 +1,4 @@
-<page-meta
-  wx:if="{{showBookingPopup || showPortfolioPopup}}"
-  page-style="overflow: hidden;"
-></page-meta>
+<page-meta page-style="{{showBookingPopup || showPortfolioPopup ? 'overflow: hidden;' : ''}}"></page-meta>
 <view
   class="page page-themed-root page-themed-root--bottombar detail-page {{showBookingPopup || showPortfolioPopup ? 'detail-page--modal-open' : ''}}"
 >
@@ -32,14 +29,6 @@
         <view class="detail-hero-text">
           <text class="detail-hero-name">{{model.nickname}}</text>
           <text class="detail-hero-sub">{{model.city || "城市未填"}} · {{model.gender || "—"}}</text>
-        </view>
-        <view
-          wx:if="{{portfolioSections.length}}"
-          class="detail-hero-portfolio-btn"
-          bindtap="onOpenPortfolioPopup"
-        >
-          <text class="detail-hero-portfolio-btn-text">作品集</text>
-          <text class="detail-hero-portfolio-btn-count">{{portfolioPhotoCount}}</text>
         </view>
       </view>
 
@@ -79,40 +68,41 @@
           </view>
           <text wx:if="{{cardUrls.length}}" class="detail-card-count">{{cardUrls.length}} 张</text>
         </view>
-        <view class="detail-card-cover" wx:if="{{cardUrls.length}}">
-          <image
-            class="detail-card-cover-img"
-            src="{{cardUrls[0]}}"
-            mode="aspectFill"
-            data-url="{{cardUrls[0]}}"
-            data-from="card"
-            bindtap="onPreviewImage"
-          />
-          <view class="detail-card-cover-mask">
-            <text class="detail-card-cover-kicker">Model Card</text>
-            <text class="detail-card-cover-title">点击查看大图</text>
+        <view class="detail-card-swiper-wrap" wx:if="{{cardUrls.length}}">
+          <swiper
+            class="detail-card-swiper"
+            current="{{cardSwiperIndex}}"
+            bindchange="onCardSwiperChange"
+            circular="{{cardUrls.length > 1}}"
+            duration="300"
+            easing-function="easeOutCubic"
+          >
+            <swiper-item wx:for="{{cardPhotoItems}}" wx:key="url">
+              <view
+                class="detail-card-slide"
+                data-url="{{item.url}}"
+                data-from="card"
+                bindtap="onPreviewImage"
+              >
+                <image class="detail-card-slide-img" src="{{item.url}}" mode="aspectFill" />
+                <view class="detail-card-slide-mask">
+                  <text class="detail-card-slide-label">{{item.label}}</text>
+                  <text class="detail-card-slide-hint">点击查看大图</text>
+                </view>
+              </view>
+            </swiper-item>
+          </swiper>
+          <view class="detail-card-swiper-foot" wx:if="{{cardUrls.length > 1}}">
+            <view class="detail-card-dots">
+              <view
+                wx:for="{{cardUrls}}"
+                wx:key="*this"
+                class="detail-card-dot {{cardSwiperIndex === index ? 'detail-card-dot--on' : ''}}"
+              ></view>
+            </view>
+            <text class="detail-card-page">{{cardSwiperPageText}}</text>
           </view>
         </view>
-        <scroll-view
-          wx:if="{{cardPhotoItems.length > 1}}"
-          scroll-x
-          class="detail-card-photo-strip"
-          enhanced
-          show-scrollbar="{{false}}"
-          enable-flex
-        >
-          <view
-            wx:for="{{cardPhotoItems}}"
-            wx:key="url"
-            class="detail-card-photo-item"
-            data-url="{{item.url}}"
-            data-from="card"
-            bindtap="onPreviewImage"
-          >
-            <image class="detail-card-photo-img" src="{{item.url}}" mode="aspectFill" />
-            <text class="detail-card-photo-label">{{item.label}}</text>
-          </view>
-        </scroll-view>
         <view class="detail-card-metrics" wx:if="{{cardPrimaryMetrics.length}}">
           <view class="detail-card-metric" wx:for="{{cardPrimaryMetrics}}" wx:key="label">
             <text class="detail-card-metric-label">{{item.label}}</text>
@@ -137,11 +127,15 @@
         </view>
       </view>
 
-      <!-- 接单说明 -->
-      <view class="detail-panel detail-panel--style" wx:if="{{stylePositionPhotos.length}}">
+      <!-- 风格定位 -->
+      <view class="detail-panel detail-panel--style" wx:if="{{showStylePanel}}">
         <view class="detail-panel-head">
-          <view class="detail-panel-mark"></view>
-          <text class="detail-panel-title">风格定位</text>
+          <view class="detail-panel-mark detail-panel-mark--accent"></view>
+          <view class="detail-panel-head-text">
+            <text class="detail-panel-title">风格定位</text>
+            <text class="detail-panel-sub">个人风格与拍摄方向</text>
+          </view>
+          <text class="detail-section-count">{{stylePositionPhotos.length}} 张</text>
         </view>
         <scroll-view
           scroll-x
@@ -162,6 +156,54 @@
             bindtap="onPreviewImage"
           />
         </scroll-view>
+        <text class="detail-strip-hint" wx:if="{{stylePositionPhotos.length > 1}}">左右滑动查看更多</text>
+      </view>
+
+      <!-- 作品集 -->
+      <view class="detail-panel detail-panel--portfolio" wx:if="{{showPortfolioPanel}}">
+        <view class="detail-panel-head">
+          <view class="detail-panel-mark"></view>
+          <view class="detail-panel-head-text">
+            <text class="detail-panel-title">作品集</text>
+            <text class="detail-panel-sub">按文件夹分类展示</text>
+          </view>
+          <text class="detail-section-count">{{portfolioPhotoCount}} 张</text>
+        </view>
+        <view
+          class="detail-portfolio-folder"
+          wx:for="{{portfolioSections}}"
+          wx:for-item="folder"
+          wx:key="id"
+        >
+          <view class="detail-portfolio-folder-head">
+            <text class="detail-portfolio-folder-name">{{folder.name}}</text>
+            <text class="detail-portfolio-folder-meta">{{folder.urls.length}} 张</text>
+          </view>
+          <scroll-view
+            scroll-x
+            class="detail-media-strip"
+            enhanced
+            show-scrollbar="{{false}}"
+            enable-flex
+          >
+            <image
+              wx:for="{{folder.urls}}"
+              wx:for-item="photoUrl"
+              wx:for-index="pidx"
+              wx:key="pidx"
+              class="detail-media-thumb"
+              src="{{photoUrl}}"
+              mode="aspectFill"
+              data-url="{{photoUrl}}"
+              data-section-id="{{folder.id}}"
+              bindtap="onPreviewImage"
+            />
+          </scroll-view>
+        </view>
+        <view class="detail-portfolio-more" bindtap="onOpenPortfolioPopup">
+          <text class="detail-portfolio-more-text">查看全部作品集</text>
+          <text class="detail-portfolio-more-arrow">›</text>
+        </view>
       </view>
 
       <!-- 接单说明 -->
@@ -203,15 +245,19 @@
         <button class="visitor-detail-cta-btn" size="mini" bindtap="goRegister">去注册</button>
       </view>
 
-      <view class="detail-scroll-pad"></view>
+      <view class="detail-scroll-pad" style="height: calc(128rpx + {{safeAreaBottomPx}}px);"></view>
     </view>
   </scroll-view>
 
-  <view class="bottom-bar bottom-bar--detail">
+  <view class="bottom-bar bottom-bar--detail" style="padding-bottom: calc(16rpx + {{safeAreaBottomPx}}px);">
     <view wx:if="{{quoteLine}}" class="bottom-quote">
       <text class="bottom-quote-line">{{quoteLine}}</text>
     </view>
-    <button class="save-btn detail-order-btn" bindtap="onPlaceOrder" disabled="{{!model}}">
+    <button
+      class="save-btn detail-order-btn {{bookingRestricted ? 'detail-order-btn--restricted' : ''}}"
+      bindtap="onPlaceOrder"
+      disabled="{{!model || bookingRestricted}}"
+    >
       {{orderBtnTitle}}
     </button>
   </view>
@@ -223,16 +269,17 @@
   ></view>
 
   <view wx:if="{{showBookingPopup}}" class="popup-mask" bindtap="onCloseBookingPopup" catchtouchmove="preventTouchMove">
-    <view class="popup-panel" catchtap="preventPopupTapBubble">
+    <view class="popup-panel popup-panel--booking" style="padding-bottom: calc(28rpx + {{safeAreaBottomPx}}px);" catchtap="preventPopupTapBubble">
       <view class="popup-head">
         <text class="popup-title">预约模特</text>
         <text class="popup-close" bindtap="onCloseBookingPopup">关闭</text>
       </view>
 
+      <scroll-view scroll-y class="booking-popup-scroll" enhanced show-scrollbar="{{false}}">
       <view class="popup-section">
         <text class="popup-section-title">1. 选择预约日期</text>
         <view wx:if="{{bookableDateOptions.length === 0}}" class="empty-hint">暂无可预约日期，请稍后再试。</view>
-        <scroll-view wx:else scroll-y class="date-scroll">
+        <view wx:else class="date-list">
           <view
             wx:for="{{bookableDateOptions}}"
             wx:key="dateKey"
@@ -243,7 +290,7 @@
             <text class="date-row-main">{{item.label}}</text>
             <text class="date-row-check" wx:if="{{selectedDateKey === item.dateKey}}">已选</text>
           </view>
-        </scroll-view>
+        </view>
       </view>
 
       <view class="popup-section">
@@ -293,6 +340,21 @@
         </view>
       </view>
 
+      <view class="popup-section">
+        <text class="popup-section-title">4. 备注信息（选填）</text>
+        <textarea
+          class="booking-remark-input"
+          value="{{merchantRemark}}"
+          maxlength="500"
+          placeholder="可填写拍摄需求、到场时间、联系人等备注"
+          placeholder-class="booking-remark-placeholder"
+          auto-height="{{false}}"
+          bindinput="onMerchantRemarkInput"
+        />
+        <text class="booking-remark-count">{{merchantRemark.length}}/500</text>
+      </view>
+      </scroll-view>
+
       <button class="save-btn popup-btn" bindtap="onConfirmBooking" disabled="{{!canSubmit}}">{{orderBtnTitle}}</button>
     </view>
   </view>
@@ -308,19 +370,19 @@
       </view>
       <scroll-view scroll-y class="portfolio-popup-scroll" enhanced show-scrollbar="{{false}}">
         <view class="portfolio-popup-body">
-          <view class="portfolio-folder" wx:for="{{portfolioSections}}" wx:key="id">
-            <text class="portfolio-folder-name">{{item.name}}</text>
+          <view class="portfolio-folder" wx:for="{{portfolioSections}}" wx:for-item="folder" wx:key="id">
+            <text class="portfolio-folder-name">{{folder.name}}</text>
             <view class="portfolio-popup-grid">
               <image
-                wx:for="{{item.urls}}"
-                wx:for-item="src"
+                wx:for="{{folder.urls}}"
+                wx:for-item="photoUrl"
                 wx:for-index="pidx"
                 wx:key="pidx"
                 class="portfolio-popup-thumb"
-                src="{{src}}"
+                src="{{photoUrl}}"
                 mode="aspectFill"
-                data-url="{{src}}"
-                data-section-id="{{item.id}}"
+                data-url="{{photoUrl}}"
+                data-section-id="{{folder.id}}"
                 bindtap="onPreviewImage"
               />
             </view>

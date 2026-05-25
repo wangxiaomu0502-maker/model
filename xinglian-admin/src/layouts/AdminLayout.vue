@@ -9,6 +9,7 @@ import {
   Money,
   Odometer,
   PieChart,
+  Setting,
   Shop,
   SwitchButton,
   UserFilled
@@ -26,6 +27,7 @@ const activeMenu = computed(() => {
   if (p === "/platform-billing" || p.startsWith("/platform-billing")) return "/platform-billing";
   if (p === "/pending-orders" || p.startsWith("/pending-orders")) return "/pending-orders";
   if (p === "/cs-users" || p.startsWith("/cs-users")) return "/cs-users";
+  if (p === "/system-settings" || p.startsWith("/system-settings")) return "/system-settings";
   return p;
 });
 
@@ -139,6 +141,10 @@ function logout(): void {
                 <el-icon><List /></el-icon>
                 <span>待客服处理订单</span>
               </el-menu-item>
+              <el-menu-item index="/system-settings">
+                <el-icon><Setting /></el-icon>
+                <span>系统管理</span>
+              </el-menu-item>
             </template>
           </el-menu>
         </nav>
@@ -146,7 +152,9 @@ function logout(): void {
       <el-main class="admin-main">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
-            <component :is="Component" />
+            <div :key="route.fullPath" class="admin-route-view">
+              <component :is="Component" />
+            </div>
           </transition>
         </router-view>
       </el-main>
@@ -356,6 +364,10 @@ function logout(): void {
   padding: 22px 24px 28px;
   background: linear-gradient(180deg, var(--el-fill-color-light) 0%, #eef2f7 100%);
   overflow: auto;
+}
+
+.admin-route-view {
+  min-height: 100%;
 }
 
 .fade-enter-active,

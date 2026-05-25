@@ -1,0 +1,23 @@
+<cover-view class="tabbar" wx:if="{{list.length}}">
+  <cover-view
+    wx:for="{{list}}"
+    wx:key="pagePath"
+    wx:for-index="idx"
+    class="tabbar-item {{selected === idx ? 'tabbar-item--active' : ''}}"
+    data-path="{{item.pagePath}}"
+    data-index="{{idx}}"
+    bindtap="switchTab"
+  >
+    <cover-image
+      wx:if="{{selected === idx}}"
+      class="tabbar-icon"
+      src="{{item.selectedIconPath}}"
+    />
+    <cover-image
+      wx:else
+      class="tabbar-icon"
+      src="{{item.iconPath}}"
+    />
+    <cover-view class="tabbar-text">{{item.text}}</cover-view>
+  </cover-view>
+</cover-view>

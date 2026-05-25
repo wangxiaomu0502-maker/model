@@ -1,10 +1,14 @@
-/** 「我的」Tab 在 app.json 中为 index 1（首页 0） */
-const MINE_TAB_INDEX = 1;
-
 function hideMineTabRedDot() {
-  try {
-    wx.hideTabBarRedDot({ index: MINE_TAB_INDEX });
-  } catch (_e) {}
+  [0, 1, 2].forEach((index) => {
+    try {
+      wx.hideTabBarRedDot({ index });
+    } catch (_e) {}
+  });
+}
+
+function mineTabIndexForRole(role) {
+  void role;
+  return 2;
 }
 
 /**
@@ -35,7 +39,7 @@ function syncPendingAcceptOrderBadge(opts) {
       const n = ok ? Number(d.total) || 0 : 0;
       if (n > 0) {
         try {
-          wx.showTabBarRedDot({ index: MINE_TAB_INDEX });
+          wx.showTabBarRedDot({ index: mineTabIndexForRole(role) });
         } catch (_e) {}
       } else {
         hideMineTabRedDot();

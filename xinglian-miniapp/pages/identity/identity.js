@@ -1,3 +1,5 @@
+const PLATFORM_BIND_FAIL_TEXT = "平台暂未帮您绑定账号，请联系管理员";
+
 Page({
   data: {
     identityList: [
@@ -36,7 +38,11 @@ Page({
       }
     ],
     currentIdentity: "",
-    currentRole: 0
+    currentRole: 0,
+    showModelModal: false,
+    modelModalStep: "choose",
+    platformBindError: "",
+    platformBindLoading: false
   },
 
   onLoad() {
@@ -54,9 +60,176 @@ Page({
     const disabled = Boolean(e.currentTarget.dataset.disabled);
     if (!identity || disabled) return;
     const role = Number(e.currentTarget.dataset.role || 0);
+
+    if (role === 1) {
+      this.setData({
+        currentIdentity: identity,
+        currentRole: role,
+        showModelModal: true,
+        modelModalStep: "choose",
+        platformBindError: ""
+      });
+      return;
+    }
+
     this.setData({
       currentIdentity: identity,
-      currentRole: role
+      currentRole: role,
+      showModelModal: false,
+      modelModalStep: "choose",
+      platformBindError: ""
+    });
+  },
+
+  closeModelModal() {
+    this.setData({
+      showModelModal: false,
+      modelModalStep: "choose",
+      platformBindError: "",
+      platformBindLoading: false
+    });
+  },
+
+  preventModalBubble() {},
+
+  onModelSelfRegister() {
+    const app = getApp();
+    app.globalData.role = 1;
+    app.globalData.identity = "模特";
+    wx.setStorageSync("selectedRole", 1);
+    this.setData({
+      showModelModal: false,
+      modelModalStep: "choose",
+      platformBindError: ""
+    });
+    wx.navigateTo({
+      url: "/pages/realname-verify/realname-verify"
+    });
+  },
+
+  onModelPlatformBind() {
+    this.setData({
+      modelModalStep: "phone",
+      platformBindError: ""
+    });
+  },
+
+  onModelModalBack() {
+    this.setData({
+      modelModalStep: "choose",
+      platformBindError: ""
+    });
+  },
+
+  getIdentityByRole(role) {
+    const map = {
+      0: "游客",
+      1: "模特",
+      2: "商家",
+      3: "经纪人",
+      4: "代理人",
+      5: "管理员"
+    };
+    return map[Number(role)] || "游客";
+  },
+
+  enterHomeByRole(role) {
+    const r = Number(role);
+    const targetUrl =
+      r === 1 || r === 3 || r === 4
+        ? "/pages/model-stats/model-stats"
+        : r === 2
+          ? "/pages/model-list/model-list"
+          : "/pages/model-intro/model-intro";
+
+    if (targetUrl === "/pages/model-intro/model-intro") {
+      wx.reLaunch({ url: targetUrl });
+      return;
+    }
+    wx.switchTab({ url: targetUrl });
+  },
+
+  applyLoginResult(payload) {
+    const app = getApp();
+    const user = payload.user || {};
+    const role = Number(user.role || 1);
+    app.globalData.openId = user.openid || app.globalData.openId;
+    app.globalData.userId = user.id;
+    app.globalData.userNo = user.userNo || "";
+    app.globalData.role = role;
+    app.globalData.identity = this.getIdentityByRole(role);
+    if (payload.token) {
+      app.globalData.token = payload.token;
+      wx.setStorageSync("authToken", payload.token);
+    }
+    wx.setStorageSync("selectedRole", role);
+  },
+
+  onPlatformBindGetPhone(e) {
+    const detail = e.detail || {};
+    if (!detail.code) {
+      wx.showToast({
+        title: "手机号授权未完成",
+        icon: "none"
+      });
+      return;
+    }
+
+    const app = getApp();
+    if (!app.globalData.token) {
+      wx.showToast({
+        title: "登录状态失效，请重新打开小程序",
+        icon: "none"
+      });
+      return;
+    }
+
+    this.setData({
+      platformBindLoading: true,
+      platformBindError: ""
+    });
+
+    wx.request({
+      url: `${app.globalData.apiBaseUrl}/api/auth/model/platform-bind`,
+      method: "POST",
+      header: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${app.globalData.token}`
+      },
+      data: {
+        code: detail.code
+      },
+      success: (res) => {
+        const data = res.data || {};
+        if (!data.ok || !data.user) {
+          const msg = data.message || PLATFORM_BIND_FAIL_TEXT;
+          this.setData({ platformBindError: msg });
+          wx.showToast({ title: msg, icon: "none", duration: 2800 });
+          return;
+        }
+
+        this.applyLoginResult(data);
+        this.setData({
+          showModelModal: false,
+          modelModalStep: "choose",
+          platformBindError: ""
+        });
+        wx.showToast({
+          title: "绑定成功",
+          icon: "success"
+        });
+        setTimeout(() => {
+          this.enterHomeByRole(data.user.role);
+        }, 500);
+      },
+      fail: () => {
+        const msg = "网络异常，请稍后重试";
+        this.setData({ platformBindError: msg });
+        wx.showToast({ title: msg, icon: "none" });
+      },
+      complete: () => {
+        this.setData({ platformBindLoading: false });
+      }
     });
   },
 
@@ -69,6 +242,16 @@ Page({
       });
       return;
     }
+
+    if (Number(currentRole) === 1) {
+      this.setData({
+        showModelModal: true,
+        modelModalStep: "choose",
+        platformBindError: ""
+      });
+      return;
+    }
+
     const app = getApp();
     app.globalData.role = Number(currentRole);
     app.globalData.identity = currentIdentity;

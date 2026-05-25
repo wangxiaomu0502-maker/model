@@ -51,20 +51,67 @@
   margin-top: 0;
 }
 
+.model-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  padding: 8rpx 4rpx 0;
+}
+
+.model-list-toolbar-title {
+  flex-shrink: 0;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #475569;
+}
+
+.model-list-mode-switch {
+  flex: 1;
+  display: flex;
+  max-width: 420rpx;
+  margin-left: auto;
+  padding: 4rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid #e2e8f0;
+}
+
+.model-list-mode-item {
+  flex: 1;
+  text-align: center;
+  padding: 13rpx 0;
+  border-radius: 999rpx;
+  font-size: 23rpx;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.model-list-mode-item--on {
+  color: #ffffff;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  box-shadow: 0 6rpx 16rpx rgba(79, 70, 229, 0.28);
+}
+
 .merchant-item:active {
   opacity: 0.92;
+}
+
+.merchant-item {
+  padding: 18rpx 18rpx;
+  border-radius: 18rpx;
 }
 
 .merchant-item-head {
   display: flex;
   align-items: flex-start;
-  gap: 12rpx;
+  gap: 10rpx;
 }
 
 .merchant-av--media {
   flex-shrink: 0;
-  width: 76rpx;
-  height: 76rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 50%;
   overflow: hidden;
   background: #eef2ff;
@@ -79,10 +126,10 @@
 .merchant-av-fallback {
   display: block;
   width: 100%;
-  height: 76rpx;
-  line-height: 76rpx;
+  height: 64rpx;
+  line-height: 64rpx;
   text-align: center;
-  font-size: 30rpx;
+  font-size: 26rpx;
   font-weight: 700;
   color: #4338ca;
 }
@@ -92,11 +139,11 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 2rpx;
 }
 
 .merchant-item-name {
-  font-size: 28rpx;
+  font-size: 27rpx;
   font-weight: 600;
   color: #111827;
 }
@@ -108,16 +155,16 @@
 }
 
 .merchant-chip-row {
-  margin-top: 14rpx;
+  margin-top: 10rpx;
   display: flex;
   flex-wrap: wrap;
-  gap: 8rpx;
+  gap: 6rpx;
 }
 
 .merchant-chip {
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #64748b;
-  padding: 6rpx 14rpx;
+  padding: 4rpx 10rpx;
   border-radius: 999rpx;
   background: rgba(255, 255, 255, 0.9);
   border: 1rpx solid #e2e8f0;
@@ -129,9 +176,9 @@
 }
 
 .merchant-model-card {
-  margin-top: 16rpx;
-  padding: 18rpx 18rpx 16rpx;
-  border-radius: 18rpx;
+  margin-top: 10rpx;
+  padding: 12rpx 12rpx 10rpx;
+  border-radius: 14rpx;
   background: linear-gradient(165deg, #fafbff 0%, #f4f6ff 100%);
   border: 1rpx solid rgba(99, 102, 241, 0.14);
   box-shadow: 0 4rpx 14rpx rgba(67, 56, 202, 0.05);
@@ -141,19 +188,19 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12rpx;
-  margin-bottom: 12rpx;
+  gap: 10rpx;
+  margin-bottom: 8rpx;
 }
 
 .merchant-model-card-label {
-  font-size: 24rpx;
+  font-size: 22rpx;
   font-weight: 700;
   color: #312e81;
   letter-spacing: 0.06em;
 }
 
 .merchant-model-card-sub {
-  font-size: 20rpx;
+  font-size: 18rpx;
   color: #94a3b8;
   font-weight: 500;
 }
@@ -161,74 +208,190 @@
 .merchant-card-scroll {
   width: 100%;
   white-space: nowrap;
-  margin-bottom: 14rpx;
+  margin-bottom: 8rpx;
 }
 
 .merchant-card-thumb {
   display: inline-block;
   vertical-align: top;
-  width: 140rpx;
-  height: 186rpx;
-  margin-right: 12rpx;
-  border-radius: 12rpx;
+  width: 108rpx;
+  height: 144rpx;
+  margin-right: 8rpx;
+  border-radius: 10rpx;
   background: #e2e8f0;
   box-shadow: 0 4rpx 12rpx rgba(15, 23, 42, 0.06);
 }
 
 .merchant-card-measure-wrap {
-  padding-top: 4rpx;
+  padding-top: 2rpx;
 }
 
 .merchant-card-measure-title {
   display: block;
-  font-size: 20rpx;
+  font-size: 18rpx;
   font-weight: 600;
   color: #64748b;
   letter-spacing: 0.02em;
-  margin-bottom: 10rpx;
+  margin-bottom: 6rpx;
 }
 
 .merchant-card-chip-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10rpx 12rpx;
+  gap: 6rpx 8rpx;
 }
 
 .merchant-card-chip {
-  font-size: 22rpx;
+  font-size: 19rpx;
   line-height: 1.35;
   color: #4338ca;
-  padding: 8rpx 14rpx;
-  border-radius: 10rpx;
+  padding: 5rpx 9rpx;
+  border-radius: 8rpx;
   background: rgba(255, 255, 255, 0.92);
   border: 1rpx solid rgba(99, 102, 241, 0.22);
   font-variant-numeric: tabular-nums;
 }
 
 .merchant-price-row {
-  margin-top: 18rpx;
+  margin-top: 12rpx;
 }
 
 .merchant-intro-clamp {
   display: -webkit-box;
-  margin-top: 14rpx;
+  margin-top: 8rpx;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
 .merchant-item-foot {
-  margin-top: 14rpx;
-  padding-top: 14rpx;
+  margin-top: 10rpx;
+  padding-top: 10rpx;
   border-top: 1rpx solid rgba(129, 140, 248, 0.15);
   display: flex;
   justify-content: flex-end;
 }
 
 .merchant-item-more {
-  font-size: 24rpx;
+  font-size: 22rpx;
   font-weight: 600;
   color: #6366f1;
+}
+
+.model-large-grid {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 9rpx;
+  row-gap: 12rpx;
+}
+
+.model-large-card {
+  flex: 0 0 32%;
+  width: 32%;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 18rpx;
+  background: #ffffff;
+  border: 1rpx solid rgba(226, 232, 240, 0.96);
+  box-shadow: 0 8rpx 20rpx rgba(15, 23, 42, 0.07);
+}
+
+.model-large-card:active {
+  opacity: 0.92;
+  transform: scale(0.99);
+}
+
+.model-large-cover {
+  position: relative;
+  height: 236rpx;
+  background: linear-gradient(135deg, #e0e7ff, #f5f3ff);
+  overflow: hidden;
+}
+
+.model-large-cover-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.model-large-cover-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 54rpx;
+  font-weight: 800;
+  color: #4f46e5;
+}
+
+.model-large-gradient {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 86rpx;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.4) 100%);
+  pointer-events: none;
+}
+
+.model-large-count {
+  position: absolute;
+  right: 8rpx;
+  bottom: 8rpx;
+  padding: 4rpx 9rpx;
+  border-radius: 999rpx;
+  font-size: 18rpx;
+  font-weight: 700;
+  color: #ffffff;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.model-large-body {
+  padding: 10rpx 10rpx 12rpx;
+}
+
+.model-large-name {
+  display: block;
+  font-size: 23rpx;
+  font-weight: 700;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-large-sub {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 18rpx;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-large-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5rpx;
+  margin-top: 8rpx;
+  max-height: 40rpx;
+  overflow: hidden;
+}
+
+.model-large-tag {
+  max-width: 90rpx;
+  padding: 4rpx 8rpx;
+  border-radius: 999rpx;
+  font-size: 17rpx;
+  color: #4f46e5;
+  background: #eef2ff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ----- 模特首页数据看板 ----- */

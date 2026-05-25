@@ -8,6 +8,10 @@ export const bindPhoneSchema = z.object({
   code: z.string().min(1)
 });
 
+export const platformBindModelSchema = z.object({
+  code: z.string().min(1)
+});
+
 /** 允许缺省转空串，统一在 superRefine 中给出业务字段错误 */
 const trimMax = (max: number) =>
   z.preprocess(
@@ -30,7 +34,11 @@ export const completeRegistrationSchema = z
     idCardIssueAuthority: trimMax(120),
     idCardValidDate: trimMax(64),
     /** 经纪人推广链接携带的转介绍码（平台用户 ID / user_no） */
-    brokerUserNo: trimMax(64).optional()
+    brokerUserNo: trimMax(64).optional(),
+    /** 经纪人注册：是否专业经纪人 */
+    isProfessional: z.boolean().optional(),
+    /** 经纪人注册：经纪人证图片 URL（专业经纪人必填） */
+    brokerLicenseUrl: trimMax(2048).optional()
   })
   .refine((value) => value.role !== undefined || value.identity !== undefined, {
     message: "role or identity is required"
@@ -73,5 +81,22 @@ export const completeRegistrationSchema = z
         message: "valid date required",
         path: ["idCardValidDate"]
       });
+    }
+
+    const role = Number(value.role || 0);
+    if (role === 3) {
+      if (value.isProfessional === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "broker type required",
+          path: ["isProfessional"]
+        });
+      } else if (value.isProfessional && !value.brokerLicenseUrl) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "broker license required for professional broker",
+          path: ["brokerLicenseUrl"]
+        });
+      }
     }
   });

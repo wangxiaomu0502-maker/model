@@ -374,3 +374,136 @@
 .scroll-spacer {
   height: 8rpx;
 }
+
+.identity-modal-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 24rpx calc(24rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.identity-modal-panel {
+  width: 100%;
+  max-width: 680rpx;
+  padding: 28rpx 28rpx 32rpx;
+  border-radius: 28rpx 28rpx 24rpx 24rpx;
+  background: #ffffff;
+  box-shadow: 0 24rpx 60rpx rgba(15, 23, 42, 0.18);
+  box-sizing: border-box;
+}
+
+.identity-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+}
+
+.identity-modal-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.04em;
+}
+
+.identity-modal-close {
+  font-size: 26rpx;
+  color: #6366f1;
+  font-weight: 500;
+}
+
+.identity-modal-desc {
+  display: block;
+  font-size: 26rpx;
+  color: #64748b;
+  line-height: 1.5;
+  margin-bottom: 20rpx;
+}
+
+.identity-modal-back {
+  display: block;
+  font-size: 26rpx;
+  color: #4338ca;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.identity-modal-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 22rpx 20rpx;
+  margin-bottom: 14rpx;
+  border-radius: 22rpx;
+  border: 1rpx solid rgba(129, 140, 248, 0.22);
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+  box-sizing: border-box;
+}
+
+.identity-modal-option:active {
+  opacity: 0.9;
+}
+
+.identity-modal-option-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.identity-modal-option-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.identity-modal-option-sub {
+  font-size: 24rpx;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.identity-modal-option-arrow {
+  font-size: 36rpx;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.identity-phone-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  padding: 0;
+  border: none;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 45%, #7c3aed 100%);
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 14rpx 36rpx rgba(79, 70, 229, 0.32);
+}
+
+.identity-phone-btn::after {
+  border: none;
+}
+
+.identity-modal-error {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: #b91c1c;
+  line-height: 1.5;
+  text-align: center;
+}
