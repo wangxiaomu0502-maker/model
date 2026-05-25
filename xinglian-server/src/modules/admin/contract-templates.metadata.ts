@@ -22,8 +22,8 @@ export const CONTRACT_KIND_LABELS: Record<
     partiesLine: "平台和商家订立，由商家签署"
   },
   broker_model: {
-    label: "经纪人与模特",
-    partiesLine: "经纪人和模特订立，由模特签署"
+    label: "平台与模特",
+    partiesLine: "平台和模特订立，由模特签署"
   },
   platform_agent: {
     label: "平台与代理人",

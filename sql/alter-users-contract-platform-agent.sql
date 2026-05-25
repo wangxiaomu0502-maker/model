@@ -12,4 +12,4 @@ ALTER TABLE users
     AFTER contract_platform_agent_signed_at;
 
 INSERT IGNORE INTO contract_templates (contract_kind, title, content_html) VALUES
-  ('platform_agent', '平台与代理人服务合同', '');
+  ('platform_agent', '代理人平台入驻协议（线上版）', '');

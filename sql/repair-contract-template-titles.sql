@@ -4,6 +4,7 @@
 
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-UPDATE contract_templates SET title = '平台与经纪人服务合同' WHERE contract_kind = 'platform_broker';
-UPDATE contract_templates SET title = '平台与商家服务合同' WHERE contract_kind = 'platform_merchant';
-UPDATE contract_templates SET title = '经纪人与模特合作协议' WHERE contract_kind = 'broker_model';
+UPDATE contract_templates SET title = '经纪人入驻合作协议（线上版）' WHERE contract_kind = 'platform_broker';
+UPDATE contract_templates SET title = '商家入驻合作协议（线上版）' WHERE contract_kind = 'platform_merchant';
+UPDATE contract_templates SET title = '模特入驻合作协议（线上版）' WHERE contract_kind = 'broker_model';
+UPDATE contract_templates SET title = '代理人平台入驻协议（线上版）' WHERE contract_kind = 'platform_agent';

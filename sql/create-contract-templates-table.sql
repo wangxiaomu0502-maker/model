@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS contract_templates (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='合同正文模板';
 
 INSERT IGNORE INTO contract_templates (contract_kind, title, content_html) VALUES
-('platform_broker', '平台与经纪人服务合同', ''),
-('platform_merchant', '平台与商家服务合同', ''),
-('broker_model', '经纪人与模特合作协议', ''),
-('platform_agent', '平台与代理人服务合同', '');
+('platform_broker', '经纪人入驻合作协议（线上版）', ''),
+('platform_merchant', '商家入驻合作协议（线上版）', ''),
+('broker_model', '模特入驻合作协议（线上版）', ''),
+('platform_agent', '代理人平台入驻协议（线上版）', '');

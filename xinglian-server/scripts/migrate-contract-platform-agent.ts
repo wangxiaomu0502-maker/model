@@ -75,7 +75,7 @@ async function main(): Promise<void> {
   if (!tplRows.length) {
     await conn.query(
       `INSERT INTO contract_templates (contract_kind, title, content_html) VALUES (?, ?, ?)`,
-      ["platform_agent", "平台与代理人服务合同", ""]
+      ["platform_agent", "代理人平台入驻协议（线上版）", ""]
     );
     console.log("已插入 contract_templates.platform_agent");
   } else {
