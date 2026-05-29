@@ -1,0 +1,61 @@
+<view class="page-root">
+  <view class="hero-card">
+    <text class="hero-kicker">Tencent EID</text>
+    <text class="hero-title">E证通人脸核身 Demo</text>
+    <text class="hero-desc">输入姓名和身份证号，单独验证获取 EidToken、启动 SDK、拉取核验结果这条链路。</text>
+  </view>
+
+  <view class="card">
+    <text class="label">当前接口地址</text>
+    <text class="api-text">{{apiBaseUrl}}</text>
+  </view>
+
+  <view class="card">
+    <text class="label">姓名</text>
+    <input
+      class="input"
+      value="{{realName}}"
+      placeholder="请输入真实姓名"
+      placeholder-class="input-placeholder"
+      bindinput="onRealNameInput"
+    />
+
+    <text class="label label-gap">身份证号</text>
+    <input
+      class="input"
+      value="{{idCardNo}}"
+      placeholder="请输入身份证号"
+      placeholder-class="input-placeholder"
+      bindinput="onIdCardNoInput"
+    />
+
+    <button
+      class="primary-btn"
+      hover-class="primary-btn-hover"
+      loading="{{loading || loginLoading}}"
+      disabled="{{loading || loginLoading}}"
+      bindtap="onStartDemo"
+    >
+      {{loading || loginLoading ? '处理中...' : '开始E证通核身'}}
+    </button>
+  </view>
+
+  <view class="card">
+    <view class="status-row">
+      <text class="status-dot {{verified ? 'status-dot-ok' : ''}}"></text>
+      <text class="status-title">{{statusText}}</text>
+    </view>
+    <text wx:if="{{resultText}}" class="result-text {{verified ? 'result-ok' : 'result-error'}}">{{resultText}}</text>
+    <view wx:if="{{eidToken}}" class="token-box" bindtap="onCopyToken">
+      <text class="token-label">EidToken（点击复制）</text>
+      <text class="token-text">{{eidToken}}</text>
+    </view>
+  </view>
+
+  <view class="tips">
+    <text class="tips-title">测试提示</text>
+    <text class="tips-line">1. 进入页面会自动 wx.login；也可直接点按钮，会先登录再测 E证通。</text>
+    <text class="tips-line">2. 真机预览默认可能走线上 API，本地联调用开发者工具模拟器更稳。</text>
+    <text class="tips-line">3. E证通商户 ID 与腾讯云密钥账号必须一致。</text>
+  </view>
+</view>

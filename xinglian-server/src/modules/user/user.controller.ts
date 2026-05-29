@@ -12,6 +12,7 @@ import type { CompleteModelRealnameBody } from "./user.realname.types";
 import {
   completeModelRealnameForCurrentUser,
   getCurrentUserProfile,
+  getMyContractForCurrentUser,
   signContractForCurrentUser,
   updateNicknameForCurrentUser
 } from "./user.service";
@@ -185,6 +186,27 @@ export async function signMyContractController(
     const body = req.body as { signatureUrl?: string };
     const signedAt = await signContractForCurrentUser(userId, contractKind, String(body.signatureUrl || ""));
     return success(res, { contractKind, signedAt });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getMyContractController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response | void> {
+  try {
+    const { userId } = (req as AuthenticatedRequest).auth ?? {};
+    if (!userId) {
+      return fail(req, res, 401, {
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "unauthorized"
+      });
+    }
+    const { contractKind } = req.params as { contractKind: ContractKind };
+    const data = await getMyContractForCurrentUser(userId, contractKind);
+    return success(res, data);
   } catch (error) {
     return next(error);
   }

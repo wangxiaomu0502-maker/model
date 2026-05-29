@@ -4,6 +4,7 @@ import {
   ensureLeafCategoryIds,
   findCategoryTreeRows,
   findMerchantModelList,
+  MerchantModelListFilters,
   findMyCategoryIds,
   findModelExtra,
   findModelProfile,
@@ -27,6 +28,7 @@ import {
 import { basicInfoSchema } from "./model.types";
 import { findUserProfileById } from "../user/user.repository";
 import { isModelRealnameVerified } from "../user/user.service";
+import { listHonorsForPublicDisplay } from "./model-honor.service";
 
 type CategoryTreeNode = {
   id: number;
@@ -165,19 +167,74 @@ export async function getMyCategories(userId: number): Promise<{ categoryIds: nu
   return { categoryIds };
 }
 
-export async function getMerchantModelList(): Promise<{
+export type MerchantModelListQuery = {
+  province?: unknown;
+  city?: unknown;
+  gender?: unknown;
+  categoryId?: unknown;
+  categoryIds?: unknown;
+  category?: unknown;
+  priceSort?: unknown;
+  ratingSort?: unknown;
+  limit?: unknown;
+};
+
+function cleanText(value: unknown): string | undefined {
+  const text = value == null ? "" : String(value).trim();
+  return text || undefined;
+}
+
+function parseCategoryIds(value: unknown): number[] {
+  if (value == null || value === "") return [];
+  const rawList = Array.isArray(value) ? value : [value];
+  const ids = rawList
+    .flatMap((item) => String(item).split(","))
+    .map((part) => Number(String(part).trim()))
+    .filter((id) => Number.isInteger(id) && id > 0);
+  return Array.from(new Set(ids));
+}
+
+function toMerchantModelListFilters(query: MerchantModelListQuery = {}): MerchantModelListFilters {
+  const genderText = cleanText(query.gender);
+  const priceSort = cleanText(query.priceSort);
+  const ratingSort = cleanText(query.ratingSort);
+  const categoryId = Number(query.categoryId || 0);
+  const categoryIds = parseCategoryIds(query.categoryIds);
+  const limit = Number(query.limit || 50);
+  return {
+    province: cleanText(query.province),
+    city: cleanText(query.city),
+    gender: genderText === "男" || genderText === "女" ? genderText : undefined,
+    categoryId:
+      categoryIds.length > 0
+        ? undefined
+        : Number.isInteger(categoryId) && categoryId > 0
+          ? categoryId
+          : undefined,
+    categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
+    category: cleanText(query.category),
+    priceSort: priceSort === "asc" || priceSort === "desc" ? priceSort : undefined,
+    ratingSort: ratingSort === "desc" ? "desc" : undefined,
+    limit: Number.isFinite(limit) ? limit : 50
+  };
+}
+
+export async function getMerchantModelList(query: MerchantModelListQuery = {}): Promise<{
   list: Array<{
     userId: number;
     userNo: string;
     nickname: string;
     avatarUrl: string;
     city: string;
-      intro: string;
+    gender: string;
+    intro: string;
     price: {
       hourly: number | null;
       halfDay: number | null;
       fullDay: number | null;
     };
+    ratingScore: number;
+    categoryIds: number[];
     categories: string[];
     profileAuditStatus: number;
     /** 模卡：与详情页 /api/models/detail 中 card 结构一致 */
@@ -187,7 +244,7 @@ export async function getMerchantModelList(): Promise<{
     };
   }>;
 }> {
-  const rows = await findMerchantModelList(50);
+  const rows = await findMerchantModelList(toMerchantModelListFilters(query));
   return {
     list: rows.map((row) => {
       const parsed =
@@ -208,18 +265,25 @@ export async function getMerchantModelList(): Promise<{
         rawMeas && typeof rawMeas === "object" && !Array.isArray(rawMeas)
           ? (rawMeas as Record<string, unknown>)
           : {};
+      const categoryIds = String(row.category_ids || "")
+        .split(",")
+        .map((s) => Number(s.trim()))
+        .filter((n) => Number.isInteger(n) && n > 0);
       return {
         userId: row.id,
         userNo: row.user_no,
         nickname: row.nickname || `模特${row.user_no}`,
         avatarUrl: row.avatar_url != null ? String(row.avatar_url) : "",
         city: row.city || "",
+        gender: row.profile_gender === 1 ? "男" : row.profile_gender === 2 ? "女" : "",
         intro: row.intro || "",
         price: {
           hourly: row.price_hour,
           halfDay: row.price_halfday,
           fullDay: row.price_allday
         },
+        ratingScore: Number(row.rating_score || 5),
+        categoryIds,
         categories: String(row.category_names || "")
           .split(",")
           .map((s) => s.trim())
@@ -393,6 +457,7 @@ export async function getModelPublicDetail(
         };
 
   const gender = row.profile_gender === 1 ? "男" : "女";
+  const honors = await listHonorsForPublicDisplay(row.id);
 
   return {
     userId: row.id,
@@ -420,6 +485,7 @@ export async function getModelPublicDetail(
     }),
     portfolio,
     stylePosition,
+    honors,
     schedule: {
       scheduleMap
     },
@@ -460,6 +526,7 @@ export async function getModelData(userId: number): Promise<Record<string, unkno
         onlyFemale: Boolean(profile?.only_female_clients ?? 0)
       }
     };
+  const honors = await listHonorsForPublicDisplay(userId);
 
   return {
     basicInfo: {
@@ -479,6 +546,7 @@ export async function getModelData(userId: number): Promise<Record<string, unkno
     card,
     portfolio,
     stylePosition,
+    honors,
     schedule,
     orderSettings
   };

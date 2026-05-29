@@ -7,7 +7,7 @@
       <view class="broker-dash-hero-main">
         <text class="broker-dash-eyebrow">推广工具</text>
         <text class="broker-dash-title">链接推广</text>
-        <text class="broker-dash-desc">复制 HTTPS 链接发给商家，点击即可打开小程序并自动绑定</text>
+        <text class="broker-dash-desc">复制 HTTPS 链接发给客户，点击即可打开小程序并自动绑定</text>
       </view>
     </view>
   </view>
@@ -48,7 +48,7 @@
     <view class="card id-card">
       <view class="id-head">
         <text class="id-title">经纪人信息</text>
-        <text class="id-desc">商家以商户身份注册时将自动绑定您为推荐经纪人</text>
+        <text class="id-desc">客户注册时将自动绑定您为推荐经纪人</text>
       </view>
       <view class="id-row">
         <text class="id-label">我的昵称</text>
@@ -63,8 +63,8 @@
 
     <view class="tips card">
       <text class="tips-title">使用说明</text>
-      <text class="tips-line">1. 复制上方 https://wxaurl.cn/… 链接，通过短信、微信等方式发给商家。</text>
-      <text class="tips-line">2. 对方打开后进入小程序；选择商户注册即自动绑定您的用户 ID。</text>
+      <text class="tips-line">1. 复制上方 https://wxaurl.cn/… 链接，通过短信、微信等方式发给客户。</text>
+      <text class="tips-line">2. 对方打开后进入小程序；选择客户身份注册即自动绑定您的用户 ID。</text>
       <text class="tips-line">3. 链接最长有效 30 天，过期后在本页重新生成；长期使用请用「二维码推广」。</text>
     </view>
   </block>

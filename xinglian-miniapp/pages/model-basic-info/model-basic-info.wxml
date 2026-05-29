@@ -47,7 +47,7 @@
     <view class="field">
       <text class="label">联系方式（手机号）</text>
       <input class="input" type="number" maxlength="11" placeholder="请输入手机号" value="{{form.phone}}" data-field="phone" bindinput="onInput" />
-      <text class="hint">仅平台和合作商家可见，不公开</text>
+      <text class="hint">仅平台和合作客户可见，不公开</text>
     </view>
   </view>
 

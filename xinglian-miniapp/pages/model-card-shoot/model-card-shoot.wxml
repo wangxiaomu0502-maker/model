@@ -1,0 +1,28 @@
+<view class="promo-page promo-page--shoot">
+  <view class="promo-hero">
+    <text class="promo-kicker">MODEL CARD SHOOT</text>
+    <text class="promo-title">模卡拍摄服务</text>
+    <text class="promo-desc">为模特打造统一、清晰、有商业质感的个人展示素材，提升客户浏览与下单转化。</text>
+    <view class="promo-hero-badge">拍摄档期筹备中</view>
+  </view>
+
+  <view class="promo-card">
+    <text class="promo-section-title">拍摄套餐</text>
+    <view class="package-card" wx:for="{{packages}}" wx:key="name">
+      <text class="package-name">{{item.name}}</text>
+      <text class="package-desc">{{item.desc}}</text>
+    </view>
+  </view>
+
+  <view class="promo-card">
+    <text class="promo-section-title">服务包含</text>
+    <view class="promo-chip-row">
+      <text wx:for="{{services}}" wx:key="*this" class="promo-chip">{{item}}</text>
+    </view>
+  </view>
+
+  <view class="promo-card">
+    <text class="promo-section-title">交付内容</text>
+    <text class="promo-body">可用于头像、模卡、风格定位和作品集展示。后续可接入在线预约与拍摄档期选择。</text>
+  </view>
+</view>

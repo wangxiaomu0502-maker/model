@@ -2,6 +2,7 @@ import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { randomBytes } from "node:crypto";
 
 import { dbPool } from "../../config/db";
+import type { ContractKind } from "../admin/contract-templates.types";
 import { ExistingUserRow, LoginUserRow, PlatformBindModelRow } from "./auth.types";
 
 const MODEL_ROLE = 1;
@@ -175,14 +176,6 @@ export async function completeRegistrationByUserId(
          verified_status = 2,
          profile_audit_status = 0,
          referrer_id = IF(? IS NOT NULL, COALESCE(referrer_id, ?), referrer_id),
-         contract_platform_broker_signed_at = NULL,
-         contract_platform_merchant_signed_at = NULL,
-         contract_broker_model_signed_at = NULL,
-         contract_platform_agent_signed_at = NULL,
-         contract_platform_broker_signature_url = NULL,
-         contract_platform_merchant_signature_url = NULL,
-         contract_broker_model_signature_url = NULL,
-         contract_platform_agent_signature_url = NULL,
          updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,
     [
@@ -201,6 +194,51 @@ export async function completeRegistrationByUserId(
       userId
     ]
   );
+}
+
+/** 注册前换身份时，清除其它类型的预签署记录（仅游客 role=0） */
+export async function clearOtherRegistrationContracts(
+  userId: number,
+  keepKind: ContractKind
+): Promise<void> {
+  const parts: string[] = [];
+  const addClear = (kind: ContractKind, signedCol: string, urlCol: string) => {
+    if (kind === keepKind) return;
+    parts.push(`${signedCol} = NULL`, `${urlCol} = NULL`);
+  };
+  addClear(
+    "platform_broker",
+    "contract_platform_broker_signed_at",
+    "contract_platform_broker_signature_url"
+  );
+  addClear(
+    "platform_merchant",
+    "contract_platform_merchant_signed_at",
+    "contract_platform_merchant_signature_url"
+  );
+  addClear("broker_model", "contract_broker_model_signed_at", "contract_broker_model_signature_url");
+  if (parts.length === 0) return;
+  await dbPool.query(
+    `UPDATE users SET ${parts.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND role = 0`,
+    [userId]
+  );
+}
+
+/** 推广扫码登录：游客或未绑定客户的 referrer_id 仅写入一次 */
+export async function bindReferrerIfUnsetForPromo(
+  userId: number,
+  referrerBrokerUserId: number
+): Promise<boolean> {
+  const [result] = await dbPool.query<ResultSetHeader>(
+    `UPDATE users
+     SET referrer_id = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?
+       AND referrer_id IS NULL
+       AND deleted_at IS NULL
+       AND role IN (0, 2)`,
+    [referrerBrokerUserId, userId]
+  );
+  return (result.affectedRows ?? 0) > 0;
 }
 
 export async function upsertBrokerProfileOnRegistration(input: {

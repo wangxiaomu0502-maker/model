@@ -6,6 +6,7 @@ import { orderIdParamSchema } from "../order/order.types";
 import {
   getBrokerDashboardController,
   getBrokerOrderDetailController,
+  getBrokerPromoQrcodeController,
   getBrokerPromoUrlLinkController,
   listBrokerOrdersController,
   listMyMerchantsForBrokerController
@@ -16,6 +17,7 @@ const brokerRouter = Router();
 
 brokerRouter.get("/dashboard", requireAuth, getBrokerDashboardController);
 brokerRouter.get("/promo-url-link", requireAuth, getBrokerPromoUrlLinkController);
+brokerRouter.get("/promo-qrcode", requireAuth, getBrokerPromoQrcodeController);
 brokerRouter.get(
   "/my-merchants",
   requireAuth,

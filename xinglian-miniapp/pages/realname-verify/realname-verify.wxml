@@ -7,9 +7,11 @@
       <view class="hero-inner">
         <text class="hero-kicker">账户安全</text>
         <text class="hero-title">实名认证</text>
-        <text class="hero-subtitle" wx:if="{{isBoundModelMode}}">平台已为您开通账号，请上传身份证正反面并完成识别。</text>
+        <text class="hero-subtitle" wx:if="{{isBoundModelMode && realnameCompleted}}">您已完成实名认证，以下为已登记的证件信息。</text>
+        <text class="hero-subtitle" wx:elif="{{isBoundModelMode}}">平台已为您开通账号，请上传身份证正反面并完成识别。</text>
         <text class="hero-subtitle" wx:else>完成昵称、头像、手机号与身份证识别后即可提交注册。</text>
-        <text class="hero-tip" wx:if="{{isBoundModelMode}}">账号手机号已绑定，请完成身份证 OCR</text>
+        <text class="hero-tip" wx:if="{{isBoundModelMode && realnameCompleted}}">证件信息仅供本人查看</text>
+        <text class="hero-tip" wx:elif="{{isBoundModelMode}}">账号手机号已绑定，请完成身份证 OCR</text>
         <text class="hero-tip" wx:elif="{{isBrokerRole}}">请先选择经纪人类型，再按顺序完成以下 4 步</text>
         <text class="hero-tip" wx:else>请按顺序完成以下 4 步</text>
       </view>
@@ -148,9 +150,14 @@
         <view class="step-num-wrap"><text class="step-num">{{isBoundModelMode ? '2' : '4'}}</text></view>
         <text class="step-title">身份证 OCR 识别</text>
       </view>
-      <text class="step-tip">请分别上传人像面与国徽面，两张就绪后点击「开始识别」。单张照片不能超过5M。</text>
+      <text class="step-tip" wx:if="{{realnameCompleted}}">已登记的身份证正反面照片。</text>
+      <text class="step-tip" wx:else>请分别上传人像面与国徽面，两张就绪后点击「开始识别」。单张照片不能超过5M。</text>
       <view class="upload-grid">
-        <view class="upload-item" bindtap="onChooseIdCardFrontImage" hover-class="upload-item-hover">
+        <view
+          class="upload-item {{realnameCompleted ? 'upload-item-readonly' : ''}}"
+          bindtap="onChooseIdCardFrontImage"
+          hover-class="{{realnameCompleted ? '' : 'upload-item-hover'}}"
+        >
           <image
             wx:if="{{idCardFrontImageLocalPath}}"
             class="preview"
@@ -162,7 +169,11 @@
             <text class="placeholder-subtitle">拍照或相册</text>
           </view>
         </view>
-        <view class="upload-item" bindtap="onChooseIdCardBackImage" hover-class="upload-item-hover">
+        <view
+          class="upload-item {{realnameCompleted ? 'upload-item-readonly' : ''}}"
+          bindtap="onChooseIdCardBackImage"
+          hover-class="{{realnameCompleted ? '' : 'upload-item-hover'}}"
+        >
           <image
             wx:if="{{idCardBackImageLocalPath}}"
             class="preview"
@@ -175,7 +186,7 @@
           </view>
         </view>
       </view>
-      <view wx:if="{{idCardFrontImageLocalPath && idCardBackImageLocalPath}}" class="step-inline-actions">
+      <view wx:if="{{!realnameCompleted && idCardFrontImageLocalPath && idCardBackImageLocalPath}}" class="step-inline-actions">
         <button
           class="primary-btn primary-btn-compact"
           hover-class="primary-btn-hover"
@@ -197,6 +208,19 @@
         <text class="result-line">签发机关：{{issueAuthority}}</text>
         <text class="result-line">有效期：{{validDate}}</text>
       </view>
+      <view wx:if="{{!realnameCompleted && ocrFrontDone && ocrBackDone}}" class="step-inline-actions">
+        <button
+          class="primary-btn primary-btn-compact"
+          hover-class="primary-btn-hover"
+          hover-stay-time="70"
+          bindtap="onStartFaceVerify"
+          loading="{{faceVerifyLoading}}"
+          disabled="{{faceVerifyLoading}}"
+        >
+          {{eidVerified ? '人脸核身已完成' : '开始人脸核身'}}
+        </button>
+      </view>
+      <text wx:if="{{eidVerified}}" class="mini-success">E证通人脸核身已通过</text>
     </view>
 
     <view class="scroll-spacer"></view>
@@ -211,7 +235,7 @@
       loading="{{submitLoading}}"
       disabled="{{submitLoading}}"
     >
-      {{isBoundModelMode ? '完成实名认证' : '完成注册'}}
+      {{realnameCompleted ? '返回' : (isBoundModelMode ? '完成实名认证' : '下一步：签署协议')}}
     </button>
   </view>
 </view>

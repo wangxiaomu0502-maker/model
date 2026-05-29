@@ -394,6 +394,11 @@ export type AdminBrokerBasicInfo = {
   nickname: string;
   avatarUrl: string | null;
   realName: string | null;
+  idCardNo: string | null;
+  idCardFrontUrl: string | null;
+  idCardBackUrl: string | null;
+  idCardIssueAuthority: string | null;
+  idCardValidDate: string | null;
   phone: string | null;
   status: number;
   verifiedStatus: number;
@@ -500,6 +505,15 @@ export type AdminModelBasicInfo = {
   stylePosition?: {
     photos: Array<{ id: string; url: string }>;
   };
+  /** 个人荣誉 */
+  honors?: Array<{
+    id: number;
+    title: string;
+    imageUrl: string | null;
+    sortOrder?: number;
+    createdAt?: string;
+    updatedAt?: string;
+  }>;
   schedule: {
     scheduleMap: Record<string, "available" | "full" | "rest">;
   };
@@ -1754,6 +1768,7 @@ export async function fetchAdminModelDetail(userId: number): Promise<AdminModelB
   return {
     ...bi,
     portfolio: bi.portfolio ?? { folders: [], photos: [] },
+    honors: Array.isArray(bi.honors) ? bi.honors : [],
     profileAuditStatus: typeof bi.profileAuditStatus === "number" ? bi.profileAuditStatus : 0,
     profileAuditRejectReason:
       bi.profileAuditRejectReason != null ? String(bi.profileAuditRejectReason) : null

@@ -6,13 +6,17 @@ import {
   bindPhoneSchema,
   completeRegistrationSchema,
   platformBindModelSchema,
+  registrationContractQuerySchema,
+  signRegistrationContractSchema,
   wechatLoginSchema
 } from "./auth.dto";
 import {
   bindPhoneController,
   completeRegistrationController,
   deleteAccountController,
+  getRegistrationContractController,
   platformBindModelController,
+  signRegistrationContractController,
   wechatLoginController
 } from "./auth.controller";
 
@@ -25,6 +29,18 @@ authRouter.post(
   requireAuth,
   validate(platformBindModelSchema),
   platformBindModelController
+);
+authRouter.get(
+  "/registration-contract",
+  requireAuth,
+  validate(registrationContractQuerySchema, "query"),
+  getRegistrationContractController
+);
+authRouter.post(
+  "/sign-registration-contract",
+  requireAuth,
+  validate(signRegistrationContractSchema),
+  signRegistrationContractController
 );
 authRouter.post(
   "/complete-registration",

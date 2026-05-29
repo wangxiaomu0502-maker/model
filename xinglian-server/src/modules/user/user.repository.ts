@@ -1,4 +1,5 @@
 import { ResultSetHeader, RowDataPacket } from "mysql2";
+import type { PoolConnection } from "mysql2/promise";
 
 import { dbPool } from "../../config/db";
 import { ErrorCodes } from "../../core/constants/error-codes";
@@ -22,6 +23,24 @@ function isUnknownColumnError(err: unknown): boolean {
     if (/unknown column/i.test(String(e.sqlMessage || ""))) {
       return true;
     }
+    cur = e.cause;
+  }
+  return false;
+}
+
+function isMissingContractSnapshotSchemaError(err: unknown): boolean {
+  let cur: unknown = err;
+  for (let d = 0; d < 6 && cur; d++) {
+    const e = cur as {
+      code?: string;
+      errno?: number;
+      sqlMessage?: string;
+      cause?: unknown;
+    };
+    const code = String(e.code || "").toUpperCase();
+    if (code === "ER_NO_SUCH_TABLE" || Number(e.errno) === 1146) return true;
+    if (isUnknownColumnError(e)) return true;
+    if (/user_contract_snapshots/i.test(String(e.sqlMessage || ""))) return true;
     cur = e.cause;
   }
   return false;
@@ -113,6 +132,136 @@ export async function updateUserContractSignedAt(
       );
     }
     throw err;
+  }
+}
+
+export type UserContractSnapshotRow = RowDataPacket & {
+  user_id: number;
+  contract_kind: string;
+  contract_no: string;
+  title: string;
+  content_html: string;
+  signature_url: string;
+  template_updated_at: Date | string | null;
+  signed_at: Date | string;
+};
+
+export async function findUserContractSnapshot(
+  userId: number,
+  kind: ContractKind
+): Promise<UserContractSnapshotRow | null> {
+  try {
+    const [rows] = await dbPool.query<UserContractSnapshotRow[]>(
+      `SELECT user_id, contract_kind, contract_no, title, content_html,
+              signature_url, template_updated_at, signed_at
+         FROM user_contract_snapshots
+        WHERE user_id = ? AND contract_kind = ?
+        LIMIT 1`,
+      [userId, kind]
+    );
+    return rows[0] ?? null;
+  } catch (err) {
+    if (isMissingContractSnapshotSchemaError(err)) {
+      throw new AppError(
+        "数据库缺少合同签署快照表，请执行 sql/create-user-contract-snapshots-table.sql",
+        503,
+        ErrorCodes.UPSTREAM_ERROR
+      );
+    }
+    throw err;
+  }
+}
+
+function contractSignSql(kind: ContractKind): string | null {
+  switch (kind) {
+    case "platform_broker":
+      return "UPDATE users SET contract_platform_broker_signed_at = ?, contract_platform_broker_signature_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+    case "platform_merchant":
+      return "UPDATE users SET contract_platform_merchant_signed_at = ?, contract_platform_merchant_signature_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+    case "broker_model":
+      return "UPDATE users SET contract_broker_model_signed_at = ?, contract_broker_model_signature_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+    case "platform_agent":
+      return "UPDATE users SET contract_platform_agent_signed_at = ?, contract_platform_agent_signature_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+    default:
+      return null;
+  }
+}
+
+async function updateUserContractSignedAtWithConnection(
+  conn: PoolConnection,
+  userId: number,
+  kind: ContractKind,
+  signatureUrl: string,
+  signedAtSql: string
+): Promise<boolean> {
+  const sql = contractSignSql(kind);
+  if (!sql) return false;
+  const [result] = await conn.query<ResultSetHeader>(sql, [signedAtSql, signatureUrl, userId]);
+  return result.affectedRows > 0;
+}
+
+export async function signUserContractWithSnapshot(input: {
+  userId: number;
+  kind: ContractKind;
+  contractNo: string;
+  title: string;
+  contentHtml: string;
+  signatureUrl: string;
+  templateUpdatedAt: Date | string | null;
+  signedAtSql: string;
+}): Promise<boolean> {
+  const conn = await dbPool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const updated = await updateUserContractSignedAtWithConnection(
+      conn,
+      input.userId,
+      input.kind,
+      input.signatureUrl,
+      input.signedAtSql
+    );
+    if (!updated) {
+      await conn.rollback();
+      return false;
+    }
+    await conn.query(
+      `INSERT INTO user_contract_snapshots
+         (user_id, contract_kind, contract_no, title, content_html, signature_url,
+          template_updated_at, signed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         contract_no = VALUES(contract_no),
+         title = VALUES(title),
+         content_html = VALUES(content_html),
+         signature_url = VALUES(signature_url),
+         template_updated_at = VALUES(template_updated_at),
+         signed_at = VALUES(signed_at),
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        input.userId,
+        input.kind,
+        input.contractNo,
+        input.title,
+        input.contentHtml,
+        input.signatureUrl,
+        input.templateUpdatedAt,
+        input.signedAtSql
+      ]
+    );
+    await conn.commit();
+    return true;
+  } catch (err) {
+    await conn.rollback();
+    if (isMissingContractSnapshotSchemaError(err)) {
+      throw new AppError(
+        "数据库缺少合同签署快照表或字段，请执行 sql/create-user-contract-snapshots-table.sql",
+        503,
+        ErrorCodes.UPSTREAM_ERROR
+      );
+    }
+    throw err;
+  } finally {
+    conn.release();
   }
 }
 

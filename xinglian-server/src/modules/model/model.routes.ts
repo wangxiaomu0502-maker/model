@@ -16,12 +16,17 @@ import {
   uploadModelCardImageController,
   uploadModelPortfolioImageController,
   uploadModelStylePositionImageController,
+  uploadModelHonorImageController,
   saveCategoriesController,
   saveOrderSettingsController,
   savePortfolioController,
   savePricingController,
   saveScheduleController,
-  saveStylePositionController
+  saveStylePositionController,
+  listModelHonorsController,
+  createModelHonorController,
+  updateModelHonorController,
+  deleteModelHonorController
 } from "./model.controller";
 import { modelCardUploader } from "./model.card-upload.middleware";
 import { modelPortfolioUploader } from "./model.portfolio-upload.middleware";
@@ -36,10 +41,15 @@ import {
   scheduleSchema,
   stylePositionSchema
 } from "./model.types";
+import {
+  modelHonorCreateBodySchema,
+  modelHonorIdParamSchema,
+  modelHonorUpdateBodySchema
+} from "./model-honor.types";
 
 const modelRouter = Router();
 
-modelRouter.get("/category-tree", requireAuth, getCategoryTreeController);
+modelRouter.get("/category-tree", optionalAuth, getCategoryTreeController);
 modelRouter.get("/dashboard-stats", requireAuth, getModelDashboardStatsController);
 modelRouter.get("/list", optionalAuth, getMerchantModelListController);
 modelRouter.get("/detail", optionalAuth, validate(modelDetailQuerySchema, "query"), getModelPublicDetailController);
@@ -68,5 +78,27 @@ modelRouter.put("/style-position", requireAuth, validate(stylePositionSchema), s
 modelRouter.put("/pricing", requireAuth, validate(pricingSchema), savePricingController);
 modelRouter.put("/schedule", requireAuth, validate(scheduleSchema), saveScheduleController);
 modelRouter.put("/order-settings", requireAuth, validate(orderSettingsSchema), saveOrderSettingsController);
+
+modelRouter.get("/honors", requireAuth, listModelHonorsController);
+modelRouter.post("/honors", requireAuth, validate(modelHonorCreateBodySchema), createModelHonorController);
+modelRouter.patch(
+  "/honors/:honorId",
+  requireAuth,
+  validate(modelHonorIdParamSchema, "params"),
+  validate(modelHonorUpdateBodySchema),
+  updateModelHonorController
+);
+modelRouter.delete(
+  "/honors/:honorId",
+  requireAuth,
+  validate(modelHonorIdParamSchema, "params"),
+  deleteModelHonorController
+);
+modelRouter.post(
+  "/honors/upload",
+  requireAuth,
+  modelPortfolioUploader.single("file"),
+  uploadModelHonorImageController
+);
 
 export default modelRouter;

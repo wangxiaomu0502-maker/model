@@ -1,0 +1,28 @@
+<view class="promo-page promo-page--training">
+  <view class="promo-hero">
+    <text class="promo-kicker">MODEL TRAINING</text>
+    <text class="promo-title">模特培训计划</text>
+    <text class="promo-desc">从形体、镜头表现到商业接单，帮助新人快速建立专业展示能力。</text>
+    <view class="promo-hero-badge">课程预约筹备中</view>
+  </view>
+
+  <view class="promo-card">
+    <text class="promo-section-title">核心课程</text>
+    <view class="course-card" wx:for="{{courses}}" wx:key="title">
+      <text class="course-title">{{item.title}}</text>
+      <text class="course-desc">{{item.desc}}</text>
+    </view>
+  </view>
+
+  <view class="promo-card">
+    <text class="promo-section-title">可选方案</text>
+    <view class="promo-chip-row">
+      <text wx:for="{{plans}}" wx:key="*this" class="promo-chip">{{item}}</text>
+    </view>
+  </view>
+
+  <view class="promo-card">
+    <text class="promo-section-title">培训目标</text>
+    <text class="promo-body">让模特更清楚自己的风格定位，提升试镜、拍摄与客户沟通效率，为后续商业预约打好基础。</text>
+  </view>
+</view>

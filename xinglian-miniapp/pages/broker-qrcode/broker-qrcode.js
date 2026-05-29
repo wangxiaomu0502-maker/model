@@ -1,8 +1,8 @@
-const QR_IMAGE = "/assets/qrcode/qrcode.jpg";
-
 Page({
   data: {
-    qrImage: QR_IMAGE,
+    qrImage: "",
+    qrErrorText: "",
+    qrcodeLoading: false,
     loading: true,
     userNo: "",
     nickname: ""
@@ -43,15 +43,61 @@ Page({
           this.setData({ loading: false });
           return;
         }
+        const userNo = String(user.userNo || "").trim();
         this.setData({
           loading: false,
-          userNo: String(user.userNo || ""),
+          userNo,
           nickname: String(user.nickname || "")
         });
+        this.loadQrCode();
       },
       fail: () => {
         wx.showToast({ title: "网络异常", icon: "none" });
         this.setData({ loading: false });
+      }
+    });
+  },
+
+  loadQrCode() {
+    const app = getApp();
+    const { apiBaseUrl, token } = app.globalData;
+    if (!token) return;
+    this.setData({ qrcodeLoading: true, qrErrorText: "" });
+    wx.request({
+      url: `${apiBaseUrl}/api/broker/promo-qrcode?t=${Date.now()}`,
+      method: "GET",
+      header: { Authorization: `Bearer ${token}` },
+      responseType: "arraybuffer",
+      success: (res) => {
+        if (res.statusCode !== 200 || !res.data || !res.data.byteLength) {
+          this.setData({ qrErrorText: "二维码生成失败，请稍后重试" });
+          wx.showToast({ title: "二维码生成失败", icon: "none" });
+          return;
+        }
+        this.writeQrImageFile(res.data);
+      },
+      fail: () => {
+        this.setData({ qrErrorText: "网络异常，二维码生成失败" });
+        wx.showToast({ title: "网络异常", icon: "none" });
+      },
+      complete: () => {
+        this.setData({ qrcodeLoading: false });
+      }
+    });
+  },
+
+  writeQrImageFile(arrayBuffer) {
+    const fs = wx.getFileSystemManager();
+    const filePath = `${wx.env.USER_DATA_PATH}/broker-promo-qrcode-${Date.now()}.png`;
+    fs.writeFile({
+      filePath,
+      data: arrayBuffer,
+      success: () => {
+        this.setData({ qrImage: filePath, qrErrorText: "" });
+      },
+      fail: () => {
+        this.setData({ qrErrorText: "二维码保存失败，请稍后重试" });
+        wx.showToast({ title: "二维码保存失败", icon: "none" });
       }
     });
   },
@@ -70,44 +116,41 @@ Page({
 
   onPreviewQr() {
     const url = this.data.qrImage;
-    if (!url) return;
+    if (!url) {
+      wx.showToast({ title: this.data.qrcodeLoading ? "二维码生成中" : "暂无二维码", icon: "none" });
+      return;
+    }
     wx.previewImage({ urls: [url], current: url });
   },
 
   onSaveQr() {
     const url = this.data.qrImage;
-    if (!url) return;
+    if (!url) {
+      wx.showToast({ title: this.data.qrcodeLoading ? "二维码生成中" : "暂无二维码", icon: "none" });
+      return;
+    }
     wx.showLoading({ title: "保存中…" });
-    wx.getImageInfo({
-      src: url,
-      success: (info) => {
-        wx.saveImageToPhotosAlbum({
-          filePath: info.path,
-          success: () => {
-            wx.hideLoading();
-            wx.showToast({ title: "已保存到相册", icon: "success" });
-          },
-          fail: (err) => {
-            wx.hideLoading();
-            const msg = String((err && err.errMsg) || "");
-            if (msg.includes("auth deny") || msg.includes("authorize")) {
-              wx.showModal({
-                title: "需要相册权限",
-                content: "请在设置中允许保存图片到相册后重试",
-                confirmText: "去设置",
-                success: (r) => {
-                  if (r.confirm) wx.openSetting();
-                }
-              });
-              return;
-            }
-            wx.showToast({ title: "保存失败", icon: "none" });
-          }
-        });
-      },
-      fail: () => {
+    wx.saveImageToPhotosAlbum({
+      filePath: url,
+      success: () => {
         wx.hideLoading();
-        wx.showToast({ title: "读取图片失败", icon: "none" });
+        wx.showToast({ title: "已保存到相册", icon: "success" });
+      },
+      fail: (err) => {
+        wx.hideLoading();
+        const msg = String((err && err.errMsg) || "");
+        if (msg.includes("auth deny") || msg.includes("authorize")) {
+          wx.showModal({
+            title: "需要相册权限",
+            content: "请在设置中允许保存图片到相册后重试",
+            confirmText: "去设置",
+            success: (r) => {
+              if (r.confirm) wx.openSetting();
+            }
+          });
+          return;
+        }
+        wx.showToast({ title: "保存失败", icon: "none" });
       }
     });
   }

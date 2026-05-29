@@ -1,6 +1,6 @@
 <view class="page page-themed-root">
   <view class="section">
-    <view class="section-title">商家基本信息</view>
+    <view class="section-title">客户基本信息</view>
     <view class="field">
       <text class="label">所在城市</text>
       <picker

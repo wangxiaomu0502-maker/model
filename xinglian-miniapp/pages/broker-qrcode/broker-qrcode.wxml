@@ -7,7 +7,7 @@
       <view class="broker-dash-hero-main">
         <text class="broker-dash-eyebrow">推广工具</text>
         <text class="broker-dash-title">二维码推广</text>
-        <text class="broker-dash-desc">邀请商家扫码进入小程序注册</text>
+        <text class="broker-dash-desc">邀请客户扫码进入小程序注册，自动携带经纪人 ID</text>
       </view>
     </view>
   </view>
@@ -17,25 +17,28 @@
   <block wx:else>
     <view class="card qr-card">
       <text class="qr-card-title">星链模特 · 小程序码</text>
-      <text class="qr-card-sub">长按图片可识别；也可保存后分享给好友</text>
+      <text class="qr-card-sub">此二维码已绑定你的经纪人 ID，客户扫码注册后自动建立关联</text>
       <view class="qr-frame" bindtap="onPreviewQr">
         <image
+          wx:if="{{qrImage}}"
           class="qr-image"
           src="{{qrImage}}"
           mode="aspectFit"
           show-menu-by-longpress="{{true}}"
         />
+        <view wx:elif="{{qrcodeLoading}}" class="qr-placeholder">二维码生成中…</view>
+        <view wx:else class="qr-placeholder">{{qrErrorText || '暂无二维码'}}</view>
       </view>
       <view class="qr-actions">
-        <button class="qr-btn qr-btn--ghost" bindtap="onPreviewQr">预览大图</button>
-        <button class="qr-btn qr-btn--primary" bindtap="onSaveQr">保存到相册</button>
+        <button class="qr-btn qr-btn--ghost" bindtap="onPreviewQr" disabled="{{!qrImage}}">预览大图</button>
+        <button class="qr-btn qr-btn--primary" bindtap="onSaveQr" disabled="{{!qrImage}}">保存到相册</button>
       </view>
     </view>
 
     <view class="card id-card">
       <view class="id-head">
         <text class="id-title">我的用户 ID</text>
-        <text class="id-desc">商家注册后，绑定关系由平台在后台完成；如需核对可将下方 ID 提供给运营</text>
+        <text class="id-desc">二维码和链接都会携带下方 ID，用于客户注册时自动绑定</text>
       </view>
       <view class="id-row">
         <text class="id-label">我的昵称</text>
@@ -50,10 +53,10 @@
 
     <view class="tips card">
       <text class="tips-title">使用说明</text>
-      <text class="tips-line">1. 分享小程序码，对方扫码进入后选择身份并完成注册。</text>
-      <text class="tips-line">2. 商家注册后，平台会在后台为其绑定经纪人关系。</text>
-      <text class="tips-line">3. 绑定成功后，可在「我的商家」「关联订单」中查看。</text>
-      <text class="tips-line">4. 也可使用「链接推广」复制 https 短链发给商家（最长 30 天有效）。</text>
+      <text class="tips-line">1. 分享小程序码，对方扫码进入后会自动记录你的经纪人 ID。</text>
+      <text class="tips-line">2. 客户选择身份并完成注册后，系统自动绑定经纪人关系。</text>
+      <text class="tips-line">3. 绑定成功后，可在「我的客户」「关联订单」中查看。</text>
+      <text class="tips-line">4. 也可使用「链接推广」复制 https 短链发给客户（最长 30 天有效）。</text>
     </view>
   </block>
 

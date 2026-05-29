@@ -55,15 +55,45 @@ type MerchantModelListRow = RowDataPacket & {
   nickname: string | null;
   avatar_url: string | null;
   city: string | null;
+  profile_gender: number | null;
   intro: string | null;
   price_hour: number | null;
   price_halfday: number | null;
   price_allday: number | null;
+  rating_score: number | string | null;
   is_available: number;
   profile_audit_status: number;
+  category_ids: string | null;
   category_names: string | null;
   card_json: string | Buffer | null;
 };
+
+export type MerchantModelListFilters = {
+  province?: string;
+  city?: string;
+  gender?: "男" | "女";
+  categoryId?: number;
+  categoryIds?: number[];
+  category?: string;
+  priceSort?: "asc" | "desc";
+  ratingSort?: "desc";
+  limit?: number;
+};
+
+let modelRatingScoreColumnExists: boolean | null = null;
+
+async function hasModelRatingScoreColumn(): Promise<boolean> {
+  if (modelRatingScoreColumnExists != null) return modelRatingScoreColumnExists;
+  const [rows] = await dbPool.query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS cnt
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'model_profiles'
+       AND COLUMN_NAME = 'rating_score'`
+  );
+  modelRatingScoreColumnExists = Number(rows[0]?.cnt || 0) > 0;
+  return modelRatingScoreColumnExists;
+}
 
 type PublicModelDetailRow = RowDataPacket & {
   id: number;
@@ -336,20 +366,92 @@ export async function replaceMyCategoryIds(userId: number, categoryIds: number[]
   }
 }
 
-export async function findMerchantModelList(limit = 50): Promise<MerchantModelListRow[]> {
-  const safeLimit = Math.max(1, Math.min(100, Number(limit) || 50));
+export async function findMerchantModelList(filters: MerchantModelListFilters = {}): Promise<MerchantModelListRow[]> {
+  const safeLimit = Math.max(1, Math.min(100, Number(filters.limit) || 50));
+  const where: string[] = [
+    "u.role = 1",
+    "u.status = 1",
+    "u.deleted_at IS NULL",
+    "u.profile_audit_status = 2",
+    "mp.is_available = 1"
+  ];
+  const params: Array<string | number> = [];
+  const province = filters.province ? String(filters.province).trim() : "";
+  const city = filters.city ? String(filters.city).trim() : "";
+  const category = filters.category ? String(filters.category).trim() : "";
+  if (province && city) {
+    where.push("(mp.city = ? OR mp.city = ?)");
+    params.push(`${province} ${city}`, city);
+  } else if (province) {
+    where.push("mp.city LIKE ?");
+    params.push(`${province}%`);
+  } else if (city) {
+    where.push("mp.city = ?");
+    params.push(city);
+  }
+  if (filters.gender === "男" || filters.gender === "女") {
+    where.push("mp.gender = ?");
+    params.push(filters.gender === "男" ? 1 : 2);
+  }
+  const categoryIds = (filters.categoryIds || []).filter(
+    (id) => Number.isInteger(id) && id > 0
+  );
+  if (categoryIds.length > 0) {
+    const placeholders = categoryIds.map(() => "?").join(",");
+    where.push(
+      `EXISTS (
+         SELECT 1
+         FROM model_profile_categories pc_filter
+         WHERE pc_filter.user_id = u.id AND pc_filter.category_id IN (${placeholders})
+       )`
+    );
+    params.push(...categoryIds);
+  } else if (filters.categoryId && Number.isInteger(filters.categoryId) && filters.categoryId > 0) {
+    where.push(
+      `EXISTS (
+         SELECT 1
+         FROM model_profile_categories pc_filter
+         WHERE pc_filter.user_id = u.id AND pc_filter.category_id = ?
+       )`
+    );
+    params.push(filters.categoryId);
+  } else if (category) {
+    where.push(
+      `EXISTS (
+         SELECT 1
+         FROM model_profile_categories pc_filter
+         INNER JOIN model_category_nodes n_filter ON n_filter.id = pc_filter.category_id
+         WHERE pc_filter.user_id = u.id AND n_filter.name = ?
+       )`
+    );
+    params.push(category);
+  }
+  const ratingExpr = (await hasModelRatingScoreColumn()) ? "COALESCE(mp.rating_score, 5.0)" : "5.0";
+  const orderParts: string[] = [];
+  if (filters.ratingSort === "desc") {
+    orderParts.push("rating_score DESC");
+  }
+  if (filters.priceSort === "asc") {
+    orderParts.push("mp.price_hour IS NULL ASC", "mp.price_hour ASC");
+  } else if (filters.priceSort === "desc") {
+    orderParts.push("mp.price_hour IS NULL ASC", "mp.price_hour DESC");
+  }
+  orderParts.push("u.created_at DESC", "u.id DESC");
   const [rows] = await dbPool.query<MerchantModelListRow[]>(
     `SELECT u.id,
             u.user_no,
             u.nickname,
             u.avatar_url,
             mp.city,
+            mp.gender AS profile_gender,
             mp.intro,
             mp.price_hour,
             mp.price_halfday,
             mp.price_allday,
+            ${ratingExpr} AS rating_score,
             mp.is_available,
             u.profile_audit_status,
+            GROUP_CONCAT(DISTINCT n.id ORDER BY n.sort_order ASC, n.id ASC SEPARATOR ',') AS category_ids,
             GROUP_CONCAT(DISTINCT n.name ORDER BY n.sort_order ASC, n.id ASC SEPARATOR ',') AS category_names,
             MAX(mex.card_json) AS card_json
      FROM users u
@@ -357,26 +459,23 @@ export async function findMerchantModelList(limit = 50): Promise<MerchantModelLi
      LEFT JOIN model_extra_data mex ON mex.user_id = u.id
      LEFT JOIN model_profile_categories pc ON pc.user_id = u.id
      LEFT JOIN model_category_nodes n ON n.id = pc.category_id
-     WHERE u.role = 1
-       AND u.status = 1
-       AND u.deleted_at IS NULL
-       AND u.profile_audit_status = 2
-       AND mp.is_available = 1
+     WHERE ${where.join("\n       AND ")}
      GROUP BY u.id,
               u.user_no,
               u.nickname,
               u.avatar_url,
               mp.city,
+              mp.gender,
               mp.intro,
               mp.price_hour,
               mp.price_halfday,
               mp.price_allday,
+              rating_score,
               mp.is_available,
               u.profile_audit_status
-     ORDER BY COALESCE(u.is_mock, 0) ASC,
-              u.id DESC
+     ORDER BY ${orderParts.join(",\n              ")}
      LIMIT ?`,
-    [safeLimit]
+    [...params, safeLimit]
   );
   return rows;
 }

@@ -1,0 +1,262 @@
+@import "../../styles/xl-theme.wxss";
+
+.page {
+  min-height: 100vh;
+  padding: 24rpx 24rpx calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.top-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.top-bar-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.top-title {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #111827;
+}
+
+.top-sub {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.top-add-btn {
+  flex-shrink: 0;
+  padding: 14rpx 22rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #fff;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+}
+
+.empty-card {
+  padding: 48rpx 32rpx;
+  border-radius: 24rpx;
+  background: #fff;
+  box-shadow: 0 12rpx 28rpx rgba(148, 163, 184, 0.12);
+}
+
+.empty-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #111827;
+}
+
+.empty-desc {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.empty-btn {
+  margin-top: 28rpx;
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  color: #fff;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+}
+
+.honor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.honor-card {
+  padding: 22rpx;
+  border-radius: 24rpx;
+  background: #fff;
+  box-shadow: 0 12rpx 28rpx rgba(148, 163, 184, 0.12);
+}
+
+.honor-card-main {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+
+.honor-thumb {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 18rpx;
+  flex-shrink: 0;
+  background: #f8fafc;
+}
+
+.honor-thumb--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fdf2f8, #eef2ff);
+}
+
+.honor-thumb-mark {
+  font-size: 34rpx;
+  font-weight: 900;
+  color: #be185d;
+}
+
+.honor-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.honor-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.4;
+}
+
+.honor-sub {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #94a3b8;
+}
+
+.honor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 24rpx;
+  margin-top: 18rpx;
+}
+
+.honor-action {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #7c3aed;
+}
+
+.honor-action--danger {
+  color: #db2777;
+}
+
+.form-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-end;
+}
+
+.form-sheet {
+  width: 100%;
+  max-height: 82vh;
+  padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom));
+  border-radius: 28rpx 28rpx 0 0;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.form-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #111827;
+}
+
+.form-close {
+  font-size: 26rpx;
+  color: #64748b;
+}
+
+.form-field {
+  margin-bottom: 24rpx;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 12rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #334155;
+}
+
+.form-required {
+  color: #db2777;
+}
+
+.form-input {
+  height: 84rpx;
+  padding: 0 22rpx;
+  border-radius: 18rpx;
+  background: #f8fafc;
+  font-size: 28rpx;
+}
+
+.form-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 220rpx;
+  border-radius: 20rpx;
+  border: 2rpx dashed rgba(124, 58, 237, 0.28);
+  background: #faf5ff;
+}
+
+.form-upload-plus {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #7c3aed;
+}
+
+.form-upload-text {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #64748b;
+}
+
+.form-image-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+
+.form-image {
+  width: 220rpx;
+  height: 220rpx;
+  border-radius: 20rpx;
+}
+
+.form-image-remove {
+  font-size: 24rpx;
+  color: #db2777;
+}
+
+.form-submit {
+  margin-top: 8rpx;
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  color: #fff;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+}

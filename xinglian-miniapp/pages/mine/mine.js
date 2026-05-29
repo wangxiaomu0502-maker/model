@@ -54,7 +54,7 @@ Page({
     const map = {
       0: "游客",
       1: "模特",
-      2: "商家",
+      2: "客户",
       3: "经纪人",
       4: "代理人",
       5: "管理员"
@@ -65,7 +65,7 @@ Page({
   getHeaderSubtitleByRole(role) {
     const map = {
       1: "模特资料与平台审核进度",
-      2: "商家资料与合作信息",
+      2: "客户资料与合作信息",
       3: "资源管理与协作信息",
       4: "账户与业务信息",
       5: "平台管理信息"
@@ -422,6 +422,7 @@ Page({
         { name: "模卡管理", icon: "卡", menuKey: "modelCard" },
         { name: "风格定位", icon: "风", menuKey: "stylePosition" },
         { name: "作品集", icon: "集", menuKey: "portfolio" },
+        { name: "荣誉展示", icon: "荣", menuKey: "honors" },
         { name: "服务价格", icon: "价", menuKey: "pricing" },
         { name: "接单设置", icon: "开", menuKey: "orderSettings" },
         { name: "档期日历", icon: "期", menuKey: "scheduleCalendar" },
@@ -444,7 +445,7 @@ Page({
       return [
         { name: "二维码推广", icon: "码", menuKey: "brokerQrCode" },
         { name: "链接推广", icon: "链", menuKey: "brokerLinkPromo" },
-        { name: "我的商家", icon: "商", menuKey: "brokerMyMerchants" },
+        { name: "我的客户", icon: "客", menuKey: "brokerMyMerchants" },
         { name: "关联订单", icon: "单", menuKey: "brokerOrders" },
         { name: "收入明细", icon: "收", menuKey: "incomeDetail" },
         contractItem,
@@ -490,6 +491,10 @@ Page({
     }
     if (key === "portfolio") {
       wx.navigateTo({ url: "/pages/model-portfolio/model-portfolio" });
+      return;
+    }
+    if (key === "honors") {
+      wx.navigateTo({ url: "/pages/model-honors/model-honors" });
       return;
     }
     if (key === "pricing") {

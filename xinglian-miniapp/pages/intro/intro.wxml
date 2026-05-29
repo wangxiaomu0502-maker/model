@@ -16,7 +16,7 @@
         <text class="hero-label">模特经纪服务平台</text>
         <text class="title">星链模库</text>
         <text class="subtitle">透明撮合 · 合规履约 · 高效协作</text>
-        <text class="hero-desc">连接模特、商家、经纪人与代理人，覆盖筛选、下单、履约与结算，让合作可追溯、规则可查看。</text>
+        <text class="hero-desc">连接模特、客户、经纪人与代理人，覆盖筛选、下单、履约与结算，让合作可追溯、规则可查看。</text>
       </view>
     </view>
 
@@ -37,10 +37,10 @@
       <view class="role-grid">
         <view class="role-card role-tone-0">
           <text class="role-name">模特</text>
-          <text class="role-desc">免费入驻，完善资料后接单，管理档期与服务价格，查看收入与评价。</text>
+          <text class="role-desc">免费注册，完善资料后接单，管理档期与服务价格，查看收入与评价。</text>
         </view>
         <view class="role-card role-tone-1">
-          <text class="role-name">商家入驻</text>
+          <text class="role-name">客户</text>
           <text class="role-desc">按类型、城市、档期筛选模特，在线下单支付，服务完成后确认并评价。</text>
         </view>
         <view class="role-card role-tone-2">

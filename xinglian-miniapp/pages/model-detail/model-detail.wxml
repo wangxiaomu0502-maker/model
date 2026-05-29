@@ -2,6 +2,8 @@
 <view
   class="page page-themed-root page-themed-root--bottombar detail-page {{showBookingPopup || showPortfolioPopup ? 'detail-page--modal-open' : ''}}"
 >
+  <view class="detail-fancy-bg detail-fancy-bg--pink"></view>
+  <view class="detail-fancy-bg detail-fancy-bg--blue"></view>
   <view wx:if="{{loading}}" class="detail-state detail-state--loading">
     <text class="detail-state-text">加载中…</text>
   </view>
@@ -21,14 +23,25 @@
     <view class="detail-stack">
       <!-- 顶部人物 -->
       <view class="detail-hero">
+        <view class="detail-hero-orb detail-hero-orb--main"></view>
+        <view class="detail-hero-orb detail-hero-orb--sub"></view>
         <image
           class="detail-hero-avatar"
           src="{{model.avatarUrl || '/assets/logo/logo.png'}}"
           mode="aspectFill"
         />
         <view class="detail-hero-text">
+          <view class="detail-hero-kicker">
+            <text class="detail-hero-kicker-dot"></text>
+            <text>STAR MODEL PICK</text>
+          </view>
           <text class="detail-hero-name">{{model.nickname}}</text>
           <text class="detail-hero-sub">{{model.city || "城市未填"}} · {{model.gender || "—"}}</text>
+          <view class="detail-hero-tags">
+            <text class="detail-hero-tag">高颜值</text>
+            <text class="detail-hero-tag">可预约</text>
+            <text class="detail-hero-tag">详情档案</text>
+          </view>
         </view>
       </view>
 
@@ -159,6 +172,35 @@
         <text class="detail-strip-hint" wx:if="{{stylePositionPhotos.length > 1}}">左右滑动查看更多</text>
       </view>
 
+      <!-- 荣誉展示 -->
+      <view class="detail-panel detail-panel--honors" wx:if="{{showHonorsPanel}}">
+        <view class="detail-panel-head">
+          <view class="detail-panel-mark detail-panel-mark--accent"></view>
+          <view class="detail-panel-head-text">
+            <text class="detail-panel-title">荣誉展示</text>
+            <text class="detail-panel-sub">个人荣誉与奖项</text>
+          </view>
+          <text class="detail-section-count">{{honors.length}} 项</text>
+        </view>
+        <view class="detail-honor-list">
+          <view class="detail-honor-item" wx:for="{{honors}}" wx:key="id">
+            <image
+              wx:if="{{item.imageUrl}}"
+              class="detail-honor-thumb"
+              src="{{item.imageUrl}}"
+              mode="aspectFill"
+              data-url="{{item.imageUrl}}"
+              data-from="honor"
+              bindtap="onPreviewImage"
+            />
+            <view wx:else class="detail-honor-thumb detail-honor-thumb--empty">
+              <text class="detail-honor-mark">奖</text>
+            </view>
+            <text class="detail-honor-title">{{item.title}}</text>
+          </view>
+        </view>
+      </view>
+
       <!-- 作品集 -->
       <view class="detail-panel detail-panel--portfolio" wx:if="{{showPortfolioPanel}}">
         <view class="detail-panel-head">
@@ -222,8 +264,8 @@
             <text class="order-brief-val">{{model.orderSettings.onlyLocal ? "仅本地单" : "可接异地单"}}</text>
           </view>
           <view class="order-brief-line">
-            <text class="order-brief-label">商家</text>
-            <text class="order-brief-val">{{model.orderSettings.onlyFemale ? "仅女性商家" : "不限商家性别"}}</text>
+            <text class="order-brief-label">客户</text>
+            <text class="order-brief-val">{{model.orderSettings.onlyFemale ? "仅女性客户" : "不限客户性别"}}</text>
           </view>
         </view>
       </view>
@@ -240,7 +282,7 @@
       <view wx:if="{{isVisitor}}" class="detail-panel visitor-detail-cta">
         <view class="visitor-detail-cta-text">
           <text class="visitor-detail-cta-title">喜欢这位模特？</text>
-          <text class="visitor-detail-cta-desc">注册成为商家后即可发起预约、查看订单进度。</text>
+          <text class="visitor-detail-cta-desc">注册成为客户后即可发起预约、查看订单进度。</text>
         </view>
         <button class="visitor-detail-cta-btn" size="mini" bindtap="goRegister">去注册</button>
       </view>

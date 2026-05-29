@@ -103,7 +103,7 @@ const form = reactive({
   onlyLocal: false,
   onlyFemale: false,
   stylePhotos: [] as Array<{ id: string; url: string }>,
-  portfolioFolders: [] as Array<{ id: string; name: string }>,
+  portfolioFolders: [] as Array<{ id: string; name: string; coverPhotoId?: string }>,
   portfolioPhotos: [] as Array<{ id: string; folderId: string; url: string }>
 });
 
@@ -308,7 +308,8 @@ function applyModelToForm(model: AdminModelBasicInfo) {
   }));
   form.portfolioFolders = (model.portfolio?.folders || []).map((f) => ({
     id: f.id,
-    name: f.name
+    name: f.name,
+    coverPhotoId: f.coverPhotoId
   }));
   form.portfolioPhotos = (model.portfolio?.photos || []).map((p, index) => ({
     id: String(p.id || `p_${index}`),
@@ -556,8 +557,33 @@ function portfolioPhotosInFolder(folderId: string) {
   return form.portfolioPhotos.filter((p) => p.folderId === folderId);
 }
 
+function portfolioFolderCoverUrl(folder: { id: string; coverPhotoId?: string }): string {
+  const photos = portfolioPhotosInFolder(folder.id);
+  if (folder.coverPhotoId) {
+    const found = photos.find((p) => p.id === folder.coverPhotoId);
+    if (found) return found.url;
+  }
+  return photos[0]?.url || "";
+}
+
+function isPortfolioFolderCover(folderId: string, photoId: string): boolean {
+  const folder = form.portfolioFolders.find((f) => f.id === folderId);
+  return Boolean(folder?.coverPhotoId && folder.coverPhotoId === photoId);
+}
+
+function setPortfolioFolderCover(folderId: string, photoId: string) {
+  const folder = form.portfolioFolders.find((f) => f.id === folderId);
+  if (!folder) return;
+  if (!form.portfolioPhotos.some((p) => p.id === photoId && p.folderId === folderId)) return;
+  folder.coverPhotoId = photoId;
+  ElMessage.success("已设为文件夹封面");
+}
+
 function removePortfolioPhoto(id: string) {
   form.portfolioPhotos = form.portfolioPhotos.filter((p) => p.id !== id);
+  for (const f of form.portfolioFolders) {
+    if (f.coverPhotoId === id) f.coverPhotoId = undefined;
+  }
 }
 
 function addPortfolioFolder() {
@@ -627,7 +653,15 @@ function buildPayload(): AdminModelCreateBody {
   };
   body.stylePosition = { photos: form.stylePhotos };
   body.portfolio = {
-    folders: form.portfolioFolders.map((f) => ({ id: f.id, name: f.name })),
+    folders: form.portfolioFolders.map((f) => {
+      const row: { id: string; name: string; coverPhotoId?: string } = {
+        id: f.id,
+        name: f.name
+      };
+      const cid = f.coverPhotoId?.trim();
+      if (cid) row.coverPhotoId = cid;
+      return row;
+    }),
     photos: form.portfolioPhotos
   };
   return body;
@@ -1026,13 +1060,19 @@ function onClose() {
             新建文件夹
           </el-button>
           <p v-if="!form.portfolioFolders.length" class="mc-hint mc-portfolio-empty-hint">
-            可先新建文件夹，再在每个文件夹内批量上传作品图
+            可先新建文件夹，再在每个文件夹内批量上传作品图；每文件夹可点「设封面」指定列表展示图
           </p>
           <div v-for="folder in form.portfolioFolders" :key="folder.id" class="mc-portfolio-folder">
             <div class="mc-portfolio-folder-head">
+              <el-image
+                v-if="portfolioFolderCoverUrl(folder)"
+                :src="portfolioFolderCoverUrl(folder)"
+                fit="cover"
+                class="mc-portfolio-folder-cover-thumb"
+              />
               <el-input v-model="folder.name" maxlength="50" style="max-width: 240px" />
               <text class="mc-portfolio-folder-count">
-                {{ portfolioPhotosInFolder(folder.id).length }} 张
+                {{ portfolioPhotosInFolder(folder.id).length }} 张 · 封面用于列表展示
               </text>
             </div>
             <div class="mc-card-photos-grid mc-photos-grid--square">
@@ -1047,6 +1087,15 @@ function onClose() {
                   class="mc-card-photo-img"
                   :preview-src-list="portfolioPhotosInFolder(folder.id).map((p) => p.url)"
                 />
+                <div v-if="isPortfolioFolderCover(folder.id, ph.id)" class="mc-portfolio-cover-badge">封面</div>
+                <button
+                  v-else
+                  type="button"
+                  class="mc-portfolio-set-cover"
+                  @click="setPortfolioFolderCover(folder.id, ph.id)"
+                >
+                  设封面
+                </button>
                 <button type="button" class="mc-card-photo-del" @click="removePortfolioPhoto(ph.id)">×</button>
               </div>
               <el-upload
@@ -1371,10 +1420,42 @@ function onClose() {
   gap: 12px;
   margin-bottom: 12px;
 }
+.mc-portfolio-folder-cover-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
 .mc-portfolio-folder-count {
   font-size: 13px;
   color: var(--el-text-color-secondary);
   white-space: nowrap;
+}
+.mc-portfolio-cover-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(47, 107, 255, 0.92);
+  pointer-events: none;
+}
+.mc-portfolio-set-cover {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
+.mc-portfolio-set-cover:hover {
+  background: rgba(47, 107, 255, 0.92);
 }
 .mc-measure-grid {
   display: grid;

@@ -25,7 +25,7 @@ function formatDateKey(d) {
 }
 
 const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
-const MERCHANT_ONLY_ORDER_HINT = "仅商家可预约下单";
+const MERCHANT_ONLY_ORDER_HINT = "仅客户可预约下单";
 
 Page({
   data: {
@@ -35,6 +35,7 @@ Page({
     model: null,
     cardUrls: [],
     stylePositionPhotos: [],
+    honors: [],
     portfolioSections: [],
     bookableDateOptions: [],
     selectedDateKey: "",
@@ -75,6 +76,7 @@ Page({
     /** 有模卡照片或模卡身材任一有效时展示模卡区块 */
     showCardPanel: false,
     showStylePanel: false,
+    showHonorsPanel: false,
     showPortfolioPanel: false,
     cardSwiperIndex: 0,
     cardSwiperPageText: ""
@@ -325,6 +327,17 @@ Page({
     return photos.map((p) => p && p.url).filter(Boolean);
   },
 
+  buildHonors(model) {
+    const list = Array.isArray(model?.honors) ? model.honors : [];
+    return list
+      .map((item) => ({
+        id: item.id,
+        title: String(item.title || "").trim(),
+        imageUrl: item.imageUrl ? String(item.imageUrl).trim() : ""
+      }))
+      .filter((item) => item.title);
+  },
+
   buildBookableDateOptions(scheduleMap) {
     const map = scheduleMap && typeof scheduleMap === "object" ? scheduleMap : {};
     const today = new Date();
@@ -555,6 +568,7 @@ Page({
           model: null,
           cardUrls: [],
           stylePositionPhotos: [],
+          honors: [],
           portfolioSections: [],
           bookableDateOptions: [],
           quoteLine: "",
@@ -566,6 +580,7 @@ Page({
           portfolioPhotoCount: 0,
           showCardPanel: false,
           showStylePanel: false,
+          showHonorsPanel: false,
           showPortfolioPanel: false
         });
         wx.showToast({
@@ -578,6 +593,7 @@ Page({
       delete model.ok;
       const { cardUrls } = this.collectImageUrls(model);
       const stylePositionPhotos = this.buildStylePositionPhotos(model);
+      const honors = this.buildHonors(model);
       const portfolioSections = this.buildPortfolioSections(model);
       const portfolioPhotoCount = portfolioSections.reduce(
         (n, s) => n + (s.urls ? s.urls.length : 0),
@@ -596,12 +612,14 @@ Page({
         model,
         cardUrls,
         stylePositionPhotos,
+        honors,
         portfolioSections,
         portfolioPhotoCount,
         bookableDateOptions,
         ...cardDisplay,
         showCardPanel,
         showStylePanel: stylePositionPhotos.length > 0,
+        showHonorsPanel: honors.length > 0,
         showPortfolioPanel: portfolioSections.length > 0,
         ...this.cardSwiperState(cardUrls.length)
       });
@@ -710,7 +728,7 @@ Page({
   promptMerchantSignContract() {
     wx.showModal({
       title: "请先签署合同",
-      content: "商家需签署「平台与商家服务合同」后，方可预约下单。",
+      content: "客户需签署「平台与客户服务合同」后，方可预约下单。",
       confirmText: "去签署",
       cancelText: "取消",
       success: (res) => {
@@ -737,7 +755,7 @@ Page({
         wx.hideLoading();
         wx.showModal({
           title: "暂不可下单",
-          content: "目前商户不允许下单，请联系管理员",
+          content: "目前客户不允许下单，请联系管理员",
           showCancel: false,
           confirmText: "知道了"
         });
@@ -814,6 +832,8 @@ Page({
       urls = this.data.cardUrls || [];
     } else if (from === "stylePosition") {
       urls = this.data.stylePositionPhotos || [];
+    } else if (from === "honor") {
+      urls = (this.data.honors || []).map((h) => h.imageUrl).filter(Boolean);
     } else if (sectionId) {
       const sec = (this.data.portfolioSections || []).find((s) => s.id === sectionId);
       urls = sec && sec.urls ? sec.urls : [];

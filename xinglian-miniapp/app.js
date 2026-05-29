@@ -1,3 +1,10 @@
+import { initEid } from "./mp_ecard_sdk/main";
+
+const { capturePendingBrokerFromEntry } = require("./utils/broker-promo.js");
+const { installGlobalLoadingShare } = require("./utils/loading-share.js");
+
+installGlobalLoadingShare();
+
 /** 线上 API */
 const PROD_API_BASE = "https://api.xinglianmoku.cn";
 
@@ -10,7 +17,7 @@ const DEFAULT_LOCAL_API_BASE = "http://127.0.0.1:3000";
  * - "local" → 一律连本地（见 DEFAULT_LOCAL_API_BASE 或 storage xinglian_local_api_base）
  * - "auto"  → 体验版/正式版线上；开发版模拟器本地、真机预览线上
  */
-const API_ENV_OVERRIDE = "auto";
+const API_ENV_OVERRIDE = "prod";
 
 const STORAGE_LOCAL_API_BASE = "xinglian_local_api_base";
 
@@ -110,7 +117,7 @@ App({
     const map = {
       0: "游客",
       1: "模特",
-      2: "商家",
+      2: "客户",
       3: "经纪人",
       4: "代理人",
       5: "管理员"
@@ -130,6 +137,10 @@ App({
   },
 
   onLaunch() {
+    // 体验版也固定跳腾讯 E证通正式版，避免目标小程序体验权限限制。
+    initEid(undefined, "release");
+    capturePendingBrokerFromEntry({});
+
     const savedRole = Number(wx.getStorageSync("selectedRole") || 0);
     const savedToken = wx.getStorageSync("authToken");
     this.globalData.role = savedRole;
@@ -152,5 +163,9 @@ App({
       "| mpEnv=",
       getMiniProgramEnvVersion()
     );
+  },
+
+  onShow() {
+    capturePendingBrokerFromEntry({});
   }
 });

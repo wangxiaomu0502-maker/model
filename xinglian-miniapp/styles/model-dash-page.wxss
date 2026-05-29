@@ -1,4 +1,4 @@
-/* 统计看板 + 商家模特列表共用样式（原 pages/home/home.wxss） */
+/* 统计看板 + 客户模特列表共用样式（原 pages/home/home.wxss） */
 
 .container {
   min-height: 100vh;
@@ -8,7 +8,7 @@
   box-sizing: border-box;
 }
 
-/* ----- 商家首页 · 模特列表（复用 model-dash / dash-hero / stats-card / stat-*） ----- */
+/* ----- 客户首页 · 模特列表（复用 model-dash / dash-hero / stats-card / stat-*） ----- */
 .dash-hero--merchant {
   display: flex;
   flex-direction: row;

@@ -32,7 +32,7 @@
         </view>
       </view>
       <text class="line">服务日期 {{item.bookingDate}} · {{item.durationKindText}}{{item.hourCount ? ' · ' + item.hourCount + '小时' : ''}}</text>
-      <text class="line counterpart">商家 {{item.merchant.nickname || '—'}} · 模特 {{item.model.nickname || '—'}}</text>
+      <text class="line counterpart">客户 {{item.merchant.nickname || '—'}} · 模特 {{item.model.nickname || '—'}}</text>
       <view class="row-bottom">
         <text class="amount">¥{{item.payableAmount}}</text>
         <text class="more">查看详情 ›</text>

@@ -1,17 +1,30 @@
 import { AppError } from "../../core/errors/app-error";
 import { ErrorCodes } from "../../core/constants/error-codes";
+import { findContractTemplateByKind } from "../admin/contract-templates.repository";
 import type { ContractKind } from "../admin/contract-templates.types";
+import {
+  formatContractDateTimeCn,
+  formatSqlDateTime,
+  generateContractNo,
+  renderContractHtml
+} from "../contract/contract-render";
 
-import { contractKindAllowedForRole } from "./user.contract-sign";
+import {
+  contractKindAllowedForRole,
+  isUserContractSigned,
+  type RegistrationTargetRole
+} from "./user.contract-sign";
 import {
   findAgentPublicDisplayById,
   findBrokerPublicDisplayById,
+  findUserContractSnapshot,
   findUserProfileById,
+  signUserContractWithSnapshot,
   updateModelRealnameVerified,
-  updateUserContractSignedAt,
   updateUserNickname
 } from "./user.repository";
 import type { CompleteModelRealnameBody } from "./user.realname.types";
+import { assertEidVerified } from "../eid/eid.service";
 
 function dateFieldToIso(value: unknown): string | null {
   if (value == null) return null;
@@ -36,6 +49,38 @@ function dateFieldToIso(value: unknown): string | null {
   return null;
 }
 
+function contractPartiesLine(contractKind: ContractKind): string {
+  switch (contractKind) {
+    case "broker_model":
+      return "平台和模特订立，由模特签署";
+    case "platform_merchant":
+      return "平台和客户订立，由客户签署";
+    case "platform_broker":
+      return "平台和经纪人订立，由经纪人签署";
+    case "platform_agent":
+      return "平台和代理人订立，由代理人签署";
+    default:
+      return "平台和用户订立，由用户签署";
+  }
+}
+
+function pickUserContractSignedAt(user: Record<string, unknown>, contractKind: ContractKind): unknown {
+  if (contractKind === "platform_broker") return user.contract_platform_broker_signed_at;
+  if (contractKind === "platform_merchant") return user.contract_platform_merchant_signed_at;
+  if (contractKind === "platform_agent") return user.contract_platform_agent_signed_at;
+  return user.contract_broker_model_signed_at;
+}
+
+function pickUserContractSignatureUrl(user: Record<string, unknown>, contractKind: ContractKind): string | null {
+  let value: unknown;
+  if (contractKind === "platform_broker") value = user.contract_platform_broker_signature_url;
+  else if (contractKind === "platform_merchant") value = user.contract_platform_merchant_signature_url;
+  else if (contractKind === "platform_agent") value = user.contract_platform_agent_signature_url;
+  else value = user.contract_broker_model_signature_url;
+  const text = value == null ? "" : String(value).trim();
+  return text || null;
+}
+
 export type CurrentUserProfileDto = {
   id: number;
   userNo: string;
@@ -45,6 +90,11 @@ export type CurrentUserProfileDto = {
   realName: string | null;
   nickname: string | null;
   avatarUrl: string | null;
+  idCardNo: string | null;
+  idCardFrontUrl: string | null;
+  idCardBackUrl: string | null;
+  idCardIssueAuthority: string | null;
+  idCardValidDate: string | null;
   verifiedStatus: number;
   profileAuditStatus: number;
   profileAuditRejectReason: string | null;
@@ -147,6 +197,12 @@ export async function getCurrentUserProfile(userId: number): Promise<CurrentUser
     realName: user.real_name ?? null,
     nickname: user.nickname,
     avatarUrl: user.avatar_url,
+    idCardNo: user.id_card_no != null ? String(user.id_card_no) : null,
+    idCardFrontUrl: user.id_card_front_url != null ? String(user.id_card_front_url) : null,
+    idCardBackUrl: user.id_card_back_url != null ? String(user.id_card_back_url) : null,
+    idCardIssueAuthority:
+      user.id_card_issue_authority != null ? String(user.id_card_issue_authority) : null,
+    idCardValidDate: user.id_card_valid_date != null ? String(user.id_card_valid_date) : null,
     verifiedStatus: user.verified_status,
     profileAuditStatus: user.profile_audit_status,
     profileAuditRejectReason:
@@ -208,6 +264,12 @@ export async function completeModelRealnameForCurrentUser(
   const back = String(body.idCardBackUrl).trim();
   const issue = String(body.idCardIssueAuthority).trim();
   const valid = String(body.idCardValidDate).trim();
+  await assertEidVerified({
+    userId,
+    eidToken: body.eidToken,
+    realName: rn,
+    idCardNo: idNo
+  });
 
   const ok = await updateModelRealnameVerified(userId, {
     realName: rn,
@@ -245,39 +307,170 @@ export async function updateNicknameForCurrentUser(
   return { nickname: trimmed };
 }
 
-export async function signContractForCurrentUser(
+function signedAtIsoForKind(
+  profile: CurrentUserProfileDto,
+  contractKind: ContractKind
+): string {
+  if (contractKind === "platform_broker") {
+    return profile.contractPlatformBrokerSignedAt ?? new Date().toISOString();
+  }
+  if (contractKind === "platform_merchant") {
+    return profile.contractPlatformMerchantSignedAt ?? new Date().toISOString();
+  }
+  if (contractKind === "platform_agent") {
+    return profile.contractPlatformAgentSignedAt ?? new Date().toISOString();
+  }
+  return profile.contractBrokerModelSignedAt ?? new Date().toISOString();
+}
+
+export async function signContractForUserId(
   userId: number,
   contractKind: ContractKind,
-  signatureUrl: string
+  signatureUrl: string,
+  options?: { enforceRoleMatch?: boolean }
 ): Promise<string> {
   const user = await findUserProfileById(userId);
   if (!user) {
     throw new AppError("user not found", 404, ErrorCodes.NOT_FOUND);
   }
 
-  const allowed = contractKindAllowedForRole(Number(user.role));
-  if (!allowed || allowed !== contractKind) {
-    throw new AppError("contract kind not allowed for this role", 403, ErrorCodes.FORBIDDEN);
+  if (options?.enforceRoleMatch !== false) {
+    const allowed = contractKindAllowedForRole(Number(user.role));
+    if (!allowed || allowed !== contractKind) {
+      throw new AppError("contract kind not allowed for this role", 403, ErrorCodes.FORBIDDEN);
+    }
   }
 
   if (!signatureUrl || !String(signatureUrl).trim()) {
     throw new AppError("signature url is required", 400, ErrorCodes.VALIDATION_ERROR);
   }
 
-  const ok = await updateUserContractSignedAt(userId, contractKind, String(signatureUrl).trim());
+  const template = await findContractTemplateByKind(contractKind);
+  if (!template) {
+    throw new AppError("合同模板不存在", 404, ErrorCodes.NOT_FOUND);
+  }
+
+  const signedAt = new Date();
+  const contractNo = generateContractNo({
+    contractKind,
+    userNo: user.user_no,
+    signedAt
+  });
+  const contentHtml = renderContractHtml(template.content_html, {
+    contractNo,
+    signedAt
+  });
+  const ok = await signUserContractWithSnapshot({
+    userId,
+    kind: contractKind,
+    contractNo,
+    title: template.title,
+    contentHtml,
+    signatureUrl: String(signatureUrl).trim(),
+    templateUpdatedAt: template.updated_at,
+    signedAtSql: formatSqlDateTime(signedAt)
+  });
   if (!ok) {
     throw new AppError("failed to sign contract", 500, ErrorCodes.INTERNAL_ERROR);
   }
 
   const refreshed = await getCurrentUserProfile(userId);
-  if (contractKind === "platform_broker") {
-    return refreshed.contractPlatformBrokerSignedAt ?? new Date().toISOString();
+  return signedAtIsoForKind(refreshed, contractKind);
+}
+
+export async function signContractForCurrentUser(
+  userId: number,
+  contractKind: ContractKind,
+  signatureUrl: string
+): Promise<string> {
+  return signContractForUserId(userId, contractKind, signatureUrl, { enforceRoleMatch: true });
+}
+
+export function assertRegistrationContractSigned(
+  user: Record<string, unknown>,
+  targetRole: RegistrationTargetRole
+): void {
+  const kind = contractKindAllowedForRole(targetRole);
+  if (!kind) {
+    throw new AppError("unsupported role", 400, ErrorCodes.VALIDATION_ERROR);
   }
-  if (contractKind === "platform_merchant") {
-    return refreshed.contractPlatformMerchantSignedAt ?? new Date().toISOString();
+  if (!isUserContractSigned(user, kind)) {
+    throw new AppError("请先阅读并签署协议后再完成注册", 400, ErrorCodes.VALIDATION_ERROR);
   }
-  if (contractKind === "platform_agent") {
-    return refreshed.contractPlatformAgentSignedAt ?? new Date().toISOString();
+}
+
+export async function getMyContractForCurrentUser(
+  userId: number,
+  contractKind: ContractKind,
+  options?: { enforceRoleMatch?: boolean }
+): Promise<{
+  contractKind: ContractKind;
+  title: string;
+  contentHtml: string;
+  partiesLine: string;
+  contractNo: string;
+  signedAt: string | null;
+  signedAtDisplay: string;
+  signatureUrl: string | null;
+  isSnapshot: boolean;
+}> {
+  const user = await findUserProfileById(userId);
+  if (!user) {
+    throw new AppError("user not found", 404, ErrorCodes.NOT_FOUND);
   }
-  return refreshed.contractBrokerModelSignedAt ?? new Date().toISOString();
+  if (options?.enforceRoleMatch !== false) {
+    const allowed = contractKindAllowedForRole(Number(user.role));
+    if (!allowed || allowed !== contractKind) {
+      throw new AppError("contract kind not allowed for this role", 403, ErrorCodes.FORBIDDEN);
+    }
+  }
+  const snapshot = await findUserContractSnapshot(userId, contractKind);
+  if (snapshot) {
+    const signedIso = dateFieldToIso(snapshot.signed_at) ?? null;
+    const signedDate = signedIso ? new Date(signedIso) : new Date(snapshot.signed_at);
+    const signedAtDisplay = Number.isNaN(signedDate.getTime())
+      ? String(snapshot.signed_at)
+      : formatContractDateTimeCn(signedDate);
+    return {
+      contractKind,
+      title: snapshot.title,
+      contentHtml: snapshot.content_html,
+      partiesLine: contractPartiesLine(contractKind),
+      contractNo: snapshot.contract_no,
+      signedAt: signedIso,
+      signedAtDisplay,
+      signatureUrl: snapshot.signature_url || null,
+      isSnapshot: true
+    };
+  }
+
+  const template = await findContractTemplateByKind(contractKind);
+  if (!template) {
+    throw new AppError("合同模板不存在", 404, ErrorCodes.NOT_FOUND);
+  }
+  const existingSignedIso = dateFieldToIso(pickUserContractSignedAt(user, contractKind));
+  const existingSignedDate = existingSignedIso ? new Date(existingSignedIso) : null;
+  const previewAt =
+    existingSignedDate && !Number.isNaN(existingSignedDate.getTime())
+      ? existingSignedDate
+      : new Date();
+  const contractNo = generateContractNo({
+    contractKind,
+    userNo: user.user_no,
+    signedAt: previewAt
+  });
+  return {
+    contractKind,
+    title: template.title,
+    contentHtml: renderContractHtml(template.content_html, {
+      contractNo,
+      signedAt: previewAt
+    }),
+    partiesLine: contractPartiesLine(contractKind),
+    contractNo,
+    signedAt: existingSignedIso,
+    signedAtDisplay: formatContractDateTimeCn(previewAt),
+    signatureUrl: pickUserContractSignatureUrl(user, contractKind),
+    isSnapshot: false
+  };
 }

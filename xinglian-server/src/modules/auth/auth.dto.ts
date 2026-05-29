@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 export const wechatLoginSchema = z.object({
-  code: z.string().min(1)
+  code: z.string().min(1),
+  /** 推广扫码/链接携带的经纪人 user_no，登录时写入 referrer_id（游客或未绑定客户） */
+  brokerUserNo: z
+    .preprocess((val) => (val === undefined || val === null ? "" : String(val)).trim(), z.string().max(64))
+    .optional()
 });
 
 export const bindPhoneSchema = z.object({
@@ -19,12 +23,26 @@ const trimMax = (max: number) =>
     z.string().max(max)
   );
 
+export const registrationContractQuerySchema = z.object({
+  role: z.coerce.number().int().refine((r) => [1, 2, 3].includes(r), {
+    message: "role must be 1, 2, or 3"
+  })
+});
+
+export const signRegistrationContractSchema = z.object({
+  role: z.number().int().refine((r) => [1, 2, 3].includes(r), {
+    message: "role must be 1, 2, or 3"
+  }),
+  signatureUrl: z.string().trim().min(1).max(512)
+});
+
 export const completeRegistrationSchema = z
   .object({
     role: z.number().int().optional(),
     identity: z.string().optional(),
     phone: z.string().min(1),
     faceVerified: z.boolean().optional(),
+    eidToken: z.string().trim().min(1).max(128),
     nickname: z.string().trim().min(1).max(50),
     avatarUrl: z.string().trim().min(1).max(512),
     realName: trimMax(50),

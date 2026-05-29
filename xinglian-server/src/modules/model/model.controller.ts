@@ -24,9 +24,16 @@ import {
 import { getModelDashboard } from "./model-dashboard.service";
 import {
   uploadModelCardImageToCos,
+  uploadModelHonorImageToCos,
   uploadModelPortfolioImageToCos,
   uploadModelStylePositionImageToCos
 } from "./model.card-upload.storage";
+import {
+  createHonorForModelUser,
+  deleteHonorForModelUser,
+  listHonorsForModelUser,
+  updateHonorForModelUser
+} from "./model-honor.service";
 
 function getUserId(req: Request): number | null {
   return (req as AuthenticatedRequest).auth?.userId ?? null;
@@ -132,7 +139,7 @@ export async function getMyCategoriesController(req: Request, res: Response, nex
 
 export async function getMerchantModelListController(req: Request, res: Response, next: NextFunction) {
   try {
-    const data = await getMerchantModelList();
+    const data = await getMerchantModelList(req.query);
     return success(res, data as Record<string, unknown>);
   } catch (error) {
     return next(error);
@@ -296,6 +303,80 @@ export async function saveOrderSettingsController(req: Request, res: Response, n
     if (!userId) return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
     await saveOrderSettings(userId, req.body as { settings: Record<string, unknown> });
     return success(res);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+const HONOR_IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+export async function listModelHonorsController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+    const data = await listHonorsForModelUser(userId);
+    return success(res, data as Record<string, unknown>);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createModelHonorController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+    const honor = await createHonorForModelUser(userId, req.body);
+    return success(res, { honor });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateModelHonorController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+    const { honorId } = req.params as { honorId: string };
+    const honor = await updateHonorForModelUser(userId, Number(honorId), req.body);
+    return success(res, { honor });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteModelHonorController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+    const { honorId } = req.params as { honorId: string };
+    await deleteHonorForModelUser(userId, Number(honorId));
+    return success(res);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function uploadModelHonorImageController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+    }
+    const file = (req as AuthenticatedRequest & { file?: Express.Multer.File }).file;
+    if (!file || !HONOR_IMAGE_MIME.has(file.mimetype)) {
+      throw new AppError("invalid honor image", 400, ErrorCodes.VALIDATION_ERROR);
+    }
+
+    const url = await uploadModelHonorImageToCos({
+      userId,
+      body: file.buffer,
+      mimetype: file.mimetype
+    });
+    return success(res, { url });
   } catch (error) {
     return next(error);
   }

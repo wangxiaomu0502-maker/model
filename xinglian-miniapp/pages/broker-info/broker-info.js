@@ -17,7 +17,7 @@ Page({
       return true;
     }
     this.setData({ canUse: false, loading: false });
-    wx.showToast({ title: "仅商家可查看", icon: "none" });
+    wx.showToast({ title: "仅客户可查看", icon: "none" });
     setTimeout(() => {
       wx.navigateBack();
     }, 1600);

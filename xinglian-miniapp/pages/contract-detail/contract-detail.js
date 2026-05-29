@@ -1,18 +1,16 @@
 const { prepareImageForUpload } = require("../../utils/image-upload.js");
+const { sanitizeReviewCopy } = require("../../utils/display-copy.js");
+const brokerPromo = require("../../utils/broker-promo.js");
+const { homeTabUrlForRole } = require("../../utils/role-tab.js");
+const {
+  ROLE_TO_KIND,
+  KIND_TYPE_LABEL,
+  PENDING_REGISTRATION_KEY,
+  contractKindForRole
+} = require("../../utils/registration-contract.js");
 
-const ROLE_TO_KIND = {
-  1: "broker_model",
-  2: "platform_merchant",
-  3: "platform_broker",
-  4: "platform_agent"
-};
-
-const KIND_TYPE_LABEL = {
-  broker_model: "平台与模特",
-  platform_merchant: "平台协议",
-  platform_broker: "合作协议",
-  platform_agent: "平台协议"
-};
+ROLE_TO_KIND[4] = "platform_agent";
+KIND_TYPE_LABEL.platform_agent = "平台协议";
 
 function pickSignedAt(user, kind) {
   if (!user || !kind) return "";
@@ -48,6 +46,8 @@ Page({
   data: {
     loading: true,
     signing: false,
+    isRegisterMode: false,
+    registerCompleting: false,
     contractKind: "",
     contractTypeLabel: "",
     title: "",
@@ -69,12 +69,40 @@ Page({
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   },
 
+  onLoad(options) {
+    const mode = options && options.mode ? String(options.mode) : "";
+    const isRegisterMode = mode === "register";
+    this.setData({ isRegisterMode });
+    if (isRegisterMode) {
+      wx.setNavigationBarTitle({ title: "签署协议" });
+    }
+  },
+
+  readPendingRegistration() {
+    try {
+      return wx.getStorageSync(PENDING_REGISTRATION_KEY) || null;
+    } catch {
+      return null;
+    }
+  },
+
   ensureRoleKind() {
     const app = getApp();
     if (!app.globalData.token) {
       wx.showToast({ title: "请先登录", icon: "none" });
       setTimeout(() => wx.navigateBack(), 1200);
       return null;
+    }
+    if (this.data.isRegisterMode) {
+      const pending = this.readPendingRegistration();
+      const role = Number((pending && pending.role) || app.globalData.role || 0);
+      const kind = contractKindForRole(role);
+      if (!pending || !kind) {
+        wx.showToast({ title: "注册信息已失效，请重新填写", icon: "none" });
+        setTimeout(() => wx.navigateBack(), 1200);
+        return null;
+      }
+      return kind;
     }
     const role = Number(app.globalData.role || 0);
     const kind = ROLE_TO_KIND[role];
@@ -86,11 +114,32 @@ Page({
     return kind;
   },
 
-  fetchTemplate(apiBase, kind) {
+  fetchRegistrationContract(apiBase, token, role) {
     return new Promise((resolve, reject) => {
       wx.request({
-        url: `${apiBase}/api/contracts/templates/${kind}`,
+        url: `${apiBase}/api/auth/registration-contract`,
         method: "GET",
+        header: { Authorization: `Bearer ${token}` },
+        data: { role },
+        success: (res) => {
+          const d = res.data || {};
+          if (res.statusCode === 200 && d && d.ok !== false && d.contentHtml != null) {
+            resolve(d);
+            return;
+          }
+          reject(new Error(d.message || "加载协议失败"));
+        },
+        fail: () => reject(new Error("网络错误"))
+      });
+    });
+  },
+
+  fetchContract(apiBase, token, kind) {
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: `${apiBase}/api/contracts/${kind}/my`,
+        method: "GET",
+        header: { Authorization: `Bearer ${token}` },
         success: (res) => {
           const d = res.data || {};
           if (res.statusCode === 200 && d && d.ok !== false && d.contentHtml != null) {
@@ -136,16 +185,23 @@ Page({
 
     this.setData({ loading: true, contractKind: kind });
 
-    Promise.all([this.fetchTemplate(apiBase, kind), this.fetchMe(apiBase, token)])
+    const pending = this.data.isRegisterMode ? this.readPendingRegistration() : null;
+    const registerRole = pending ? Number(pending.role) : 0;
+    const loadContract = this.data.isRegisterMode
+      ? this.fetchRegistrationContract(apiBase, token, registerRole)
+      : this.fetchContract(apiBase, token, kind);
+
+    Promise.all([loadContract, this.fetchMe(apiBase, token)])
       .then(([tpl, user]) => {
-        const signedRaw = pickSignedAt(user, kind);
+        const signedRaw = tpl.signedAt || pickSignedAt(user, kind);
         const app = getApp();
         const pendingRn = app.OCR_PENDING_REAL_NAME || "待OCR核验";
         let signerRealName = String(user.realName || "").trim();
         if (!signerRealName || signerRealName === pendingRn) {
-          signerRealName = String(user.nickname || "").trim() || "本人";
+          const fromReg = pending && pending.realName ? String(pending.realName).trim() : "";
+          signerRealName = fromReg || String(user.nickname || "").trim() || "本人";
         }
-        const html =
+        const rawHtml =
           typeof tpl.contentHtml === "string" && tpl.contentHtml.trim()
             ? tpl.contentHtml
             : "<p style=\"color:#94a3b8\">暂无正文</p>";
@@ -153,13 +209,13 @@ Page({
         this.setData({
           loading: false,
           contractTypeLabel: KIND_TYPE_LABEL[kind] || "电子合同",
-          title: tpl.title || "合同",
-          partiesLine: tpl.partiesLine || "",
-          contentHtml: html,
+          title: sanitizeReviewCopy(tpl.title || "合同"),
+          partiesLine: sanitizeReviewCopy(tpl.partiesLine || ""),
+          contentHtml: sanitizeReviewCopy(rawHtml),
           signedAt: signedRaw,
           isSigned: !!signedRaw,
           signerRealName,
-          signedAtDisplay: signedRaw ? this.formatCn(signedRaw) : ""
+          signedAtDisplay: signedRaw ? this.formatCn(signedRaw) : sanitizeReviewCopy(tpl.signedAtDisplay || "")
         });
       })
       .catch((err) => {
@@ -172,7 +228,9 @@ Page({
   },
 
   onShow() {
-    wx.setNavigationBarTitle({ title: "合同管理" });
+    if (!this.data.isRegisterMode) {
+      wx.setNavigationBarTitle({ title: "合同管理" });
+    }
     this.loadAll();
   },
 
@@ -376,6 +434,157 @@ Page({
     });
   },
 
+  postContractSign(apiBase, token, kind, signatureUrl) {
+    const pending = this.readPendingRegistration();
+    const isRegisterMode = this.data.isRegisterMode;
+    const url = isRegisterMode
+      ? `${apiBase}/api/auth/sign-registration-contract`
+      : `${apiBase}/api/contracts/${kind}/sign`;
+    const data = isRegisterMode
+      ? { role: Number(pending && pending.role), signatureUrl }
+      : { signatureUrl };
+
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url,
+        method: "POST",
+        data,
+        header: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        success: (res) => {
+          const d = res.data || {};
+          if (res.statusCode === 200 && d && d.ok !== false && d.signedAt) {
+            resolve(d.signedAt);
+            return;
+          }
+          reject(new Error((d.message || d.code || "") || `签署失败 (${res.statusCode})`));
+        },
+        fail: () => reject(new Error("网络错误"))
+      });
+    });
+  },
+
+  completeRegistrationAfterSign() {
+    const pending = this.readPendingRegistration();
+    if (!pending) {
+      wx.showToast({ title: "注册信息已失效，请重新填写", icon: "none" });
+      return;
+    }
+
+    const app = getApp();
+    if (!app.globalData.token) {
+      wx.showToast({ title: "请先登录", icon: "none" });
+      return;
+    }
+
+    this.setData({ registerCompleting: true });
+    wx.request({
+      url: `${app.globalData.apiBaseUrl}/api/auth/complete-registration`,
+      method: "POST",
+      header: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${app.globalData.token}`
+      },
+      data: pending,
+      success: (res) => {
+        if (!res.data?.ok) {
+          wx.showToast({
+            title: res.data?.message || "注册失败",
+            icon: "none"
+          });
+          return;
+        }
+
+        const role = Number(res.data.role || pending.role || 0);
+        wx.showToast({ title: "注册完成", icon: "success" });
+
+        try {
+          wx.removeStorageSync(PENDING_REGISTRATION_KEY);
+        } catch {
+          /* ignore */
+        }
+
+        if (Number(role) === 2) {
+          brokerPromo.clearPendingBrokerUserNo();
+        }
+
+        app.globalData.role = role;
+        wx.setStorageSync("selectedRole", role);
+
+        if (!app.globalData.userInfo) {
+          app.globalData.userInfo = {};
+        }
+        if (pending.nickname) {
+          app.globalData.userInfo.nickName = pending.nickname;
+        }
+        if (pending.avatarUrl) {
+          app.globalData.userInfo.avatarUrl = app.resolveAvatarUrl(
+            pending.avatarUrl,
+            app.globalData.apiBaseUrl
+          );
+        }
+
+        if (res.data.token) {
+          app.globalData.token = res.data.token;
+          wx.setStorageSync("authToken", res.data.token);
+        }
+
+        setTimeout(() => {
+          const targetUrl = homeTabUrlForRole(role) || "/pages/model-list/model-list";
+          wx.switchTab({ url: targetUrl });
+        }, 700);
+      },
+      fail: () => {
+        wx.showToast({ title: "网络异常，请稍后重试", icon: "none" });
+      },
+      complete: () => {
+        this.setData({ registerCompleting: false });
+      }
+    });
+  },
+
+  onRegisterCompleteTap() {
+    if (!this.data.isSigned) {
+      wx.showToast({ title: "请先签署协议", icon: "none" });
+      return;
+    }
+    this.completeRegistrationAfterSign();
+  },
+
+  afterSignSuccess(signedAt) {
+    const isRegisterMode = this.data.isRegisterMode;
+    wx.showToast({
+      title: isRegisterMode ? "签署成功，正在提交注册…" : "签署成功",
+      icon: "success",
+      duration: 1500
+    });
+    this._cleanupSigCanvas();
+    this.setData({
+      signing: false,
+      signatureModalVisible: false,
+      signatureReady: false,
+      signedAt,
+      isSigned: true,
+      signedAtDisplay: this.formatCn(signedAt)
+    });
+
+    if (isRegisterMode) {
+      setTimeout(() => this.completeRegistrationAfterSign(), 400);
+      return;
+    }
+
+    setTimeout(() => {
+      const pages = getCurrentPages();
+      if (pages.length > 1) {
+        wx.navigateBack();
+      } else {
+        wx.switchTab({ url: "/pages/mine/mine" });
+      }
+    }, 1600);
+  },
+
   submitContractSign() {
     const kind = this.data.contractKind;
     if (!kind || this.data.isSigned) return;
@@ -387,49 +596,8 @@ Page({
     this.setData({ signing: true });
     this.exportSignatureFilePath()
       .then((tempFilePath) => this.uploadSignatureToCos(tempFilePath))
-      .then((signatureUrl) => {
-        wx.request({
-          url: `${apiBase}/api/contracts/${kind}/sign`,
-          method: "POST",
-          data: { signatureUrl },
-          header: {
-            "content-type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          success: (res) => {
-            const d = res.data || {};
-            if (res.statusCode === 200 && d && d.ok !== false && d.signedAt) {
-              wx.showToast({ title: "签署成功", icon: "success", duration: 1500 });
-              const signedAt = d.signedAt;
-              this._cleanupSigCanvas();
-              this.setData({
-                signing: false,
-                signatureModalVisible: false,
-                signatureReady: false,
-                signedAt,
-                isSigned: true,
-                signedAtDisplay: this.formatCn(signedAt)
-              });
-              setTimeout(() => {
-                const pages = getCurrentPages();
-                if (pages.length > 1) {
-                  wx.navigateBack();
-                } else {
-                  wx.switchTab({ url: "/pages/mine/mine" });
-                }
-              }, 1600);
-              return;
-            }
-            const msg = (d.message || d.code || "") || `签署失败 (${res.statusCode})`;
-            wx.showToast({ title: msg, icon: "none" });
-            this.setData({ signing: false });
-          },
-          fail: () => {
-            wx.showToast({ title: "网络错误", icon: "none" });
-            this.setData({ signing: false });
-          }
-        });
-      })
+      .then((signatureUrl) => this.postContractSign(apiBase, token, kind, signatureUrl))
+      .then((signedAt) => this.afterSignSuccess(signedAt))
       .catch((err) => {
         wx.showToast({ title: err.message || "签名失败", icon: "none" });
         this.setData({ signing: false });

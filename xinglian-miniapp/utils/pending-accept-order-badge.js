@@ -13,8 +13,8 @@ function mineTabIndexForRole(role) {
 
 /**
  * 同步「待模特确认接单」订单数（order_status=1）相关 UI：
- * - 底部 Tab「我的」红点（模特 / 商家均有待对方接单类订单时提示）
- * - 可选 onMineMenuBadgeCount：更新「我的」页「我的订单」金刚区角标用数字（仅模特/商家会收到 >0）
+ * - 底部 Tab「我的」红点（模特 / 客户均有待对方接单类订单时提示）
+ * - 可选 onMineMenuBadgeCount：更新「我的」页「我的订单」金刚区角标用数字（仅模特/客户会收到 >0）
  */
 function syncPendingAcceptOrderBadge(opts) {
   const apiBaseUrl = opts.apiBaseUrl || "";

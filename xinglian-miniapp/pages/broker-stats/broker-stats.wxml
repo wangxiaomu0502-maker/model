@@ -3,18 +3,18 @@
     <view class="dash-hero">
       <view class="dash-hero-main">
         <text class="dash-title">推广概览</text>
-        <text class="dash-desc">锁定商家与推广佣金按北京时间统计（已完成订单）</text>
+        <text class="dash-desc">锁定客户与推广佣金按北京时间统计（已完成订单）</text>
       </view>
     </view>
 
     <view class="stats-card">
       <view class="stat-row">
         <view class="stat-block">
-          <text class="stat-label">锁定商家</text>
-          <view class="stat-value-row"><text class="stat-value">{{lockedMerchantCount}}</text><text class="stat-unit">家</text></view>
+          <text class="stat-label">锁定客户</text>
+          <view class="stat-value-row"><text class="stat-value">{{lockedMerchantCount}}</text><text class="stat-unit">位</text></view>
         </view>
       </view>
-      <text class="stats-hint">统计口径：商家账号已启用且 referrer 指向当前经纪人。</text>
+      <text class="stats-hint">统计口径：客户账号已启用且 referrer 指向当前经纪人。</text>
     </view>
 
     <view class="period-tabs">
@@ -38,7 +38,7 @@
         <text class="stat-pending-label">待结算（预估）</text>
         <text class="stat-pending-value">¥{{incomeStats.pendingYuan}}</text>
       </view>
-      <text class="stats-hint">已分账来自绑定商家订单分成；待结算为已支付待分账订单的佣金估算。</text>
+      <text class="stats-hint">已分账来自绑定客户订单分成；待结算为已支付待分账订单的佣金估算。</text>
     </view>
 
     <view class="trend-card">

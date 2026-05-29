@@ -1,20 +1,30 @@
+<page-meta page-style="{{categoryFilterPopupVisible ? 'overflow: hidden;' : ''}}" />
 <view class="container model-intro-page">
+  <view class="intro-fancy-bg intro-fancy-bg--pink"></view>
+  <view class="intro-fancy-bg intro-fancy-bg--blue"></view>
   <view class="model-dash">
-    <view class="dash-hero dash-hero--merchant intro-immersive-hero" style="padding-top: {{heroPaddingTop}}px;">
-      <view class="dash-hero-main">
-        <text class="dash-title">模特列表</text>
-        <text class="dash-desc">游客可先查看模特详情，注册后即可发起预约</text>
+    <view class="model-entry-row intro-entry-row" style="padding-top: {{entrySafeTopPx}}px;">
+      <view class="model-entry-card model-entry-card--contest" data-url="/pages/model-contest/model-contest" bindtap="goEntryPage">
+        <text class="model-entry-icon">赛</text>
+        <text class="model-entry-title">模特大赛</text>
+        <text class="model-entry-sub">报名展示</text>
       </view>
-      <view class="dash-hero-count">
-        <text class="dash-hero-count-num">{{modelList.length}}</text>
-        <text class="dash-hero-count-unit">位</text>
+      <view class="model-entry-card model-entry-card--training" data-url="/pages/model-training/model-training" bindtap="goEntryPage">
+        <text class="model-entry-icon">训</text>
+        <text class="model-entry-title">模特培训</text>
+        <text class="model-entry-sub">形体课程</text>
+      </view>
+      <view class="model-entry-card model-entry-card--shoot" data-url="/pages/model-card-shoot/model-card-shoot" bindtap="goEntryPage">
+        <text class="model-entry-icon">拍</text>
+        <text class="model-entry-title">模卡拍摄</text>
+        <text class="model-entry-sub">形象升级</text>
       </view>
     </view>
 
     <view class="visitor-tip-card stats-card">
       <view class="visitor-tip-main">
         <text class="visitor-tip-title">先逛逛，喜欢再注册</text>
-        <text class="stats-hint visitor-tip-text">点击模特卡片可查看详情；注册成为商家后，可发起预约与管理订单。</text>
+        <text class="stats-hint visitor-tip-text">点击模特卡片可查看详情；注册成为客户后，可发起预约与管理订单。</text>
       </view>
       <view class="visitor-register-btn" bindtap="goRegister">去注册</view>
     </view>
@@ -27,11 +37,74 @@
       <text class="stats-hint merchant-empty-hint">{{loadError}}</text>
     </view>
 
-    <view wx:elif="{{modelList.length === 0}}" class="stats-card merchant-empty-card">
-      <text class="stats-hint merchant-empty-hint">暂无可展示模特</text>
+    <block wx:else>
+    <view class="model-filter-card">
+      <view class="model-filter-head" bindtap="toggleFilterExpanded">
+        <view class="model-filter-title-wrap">
+          <text class="model-filter-title">筛选方式</text>
+          <text class="model-filter-badge" wx:if="{{activeFilterCount > 0}}">{{activeFilterCount}}</text>
+        </view>
+        <view class="model-filter-actions">
+          <text class="model-filter-reset" wx:if="{{activeFilterCount > 0}}" catchtap="resetFilters">重置</text>
+          <text class="model-filter-toggle">{{filterExpanded ? "收起" : "展开"}}</text>
+        </view>
+      </view>
+      <view wx:if="{{filterExpanded}}" class="model-filter-grid">
+        <picker
+          mode="multiSelector"
+          range="{{filterOptions.regionColumns}}"
+          value="{{filterState.regionIndex}}"
+          bindcolumnchange="onRegionColumnChange"
+          bindchange="onRegionChange"
+        >
+          <view class="model-filter-item">
+            <text class="model-filter-label">地域</text>
+            <text class="model-filter-value">{{regionFilterText}}</text>
+          </view>
+        </picker>
+        <picker mode="selector" range="{{filterOptions.genders}}" value="{{filterState.genderIndex}}" data-key="gender" bindchange="onFilterChange">
+          <view class="model-filter-item">
+            <text class="model-filter-label">性别</text>
+            <text class="model-filter-value">{{filterOptions.genders[filterState.genderIndex]}}</text>
+          </view>
+        </picker>
+        <picker mode="selector" range="{{filterOptions.prices}}" value="{{filterState.priceIndex}}" data-key="price" bindchange="onFilterChange">
+          <view class="model-filter-item">
+            <text class="model-filter-label">价格</text>
+            <text class="model-filter-value">{{filterOptions.prices[filterState.priceIndex]}}</text>
+          </view>
+        </picker>
+        <picker mode="selector" range="{{filterOptions.ratings}}" value="{{filterState.ratingIndex}}" data-key="rating" bindchange="onFilterChange">
+          <view class="model-filter-item">
+            <text class="model-filter-label">评分</text>
+            <text class="model-filter-value">{{filterOptions.ratings[filterState.ratingIndex]}}</text>
+          </view>
+        </picker>
+        <view class="model-filter-item model-filter-item--wide model-filter-item--tap" bindtap="openCategoryFilterPopup">
+          <text class="model-filter-label">类型</text>
+          <text class="model-filter-value">{{categoryFilterText}}</text>
+        </view>
+      </view>
+      <scroll-view
+        wx:if="{{appliedCategoryOptions.length > 0}}"
+        scroll-x
+        class="model-filter-applied-scroll"
+        enhanced
+        show-scrollbar="{{false}}"
+        enable-flex
+      >
+        <view class="model-filter-applied-row">
+          <text wx:for="{{appliedCategoryOptions}}" wx:key="id" class="model-filter-applied-chip">{{item.name}}</text>
+        </view>
+      </scroll-view>
+      <text class="model-filter-count">共 {{filteredModelList.length}} 位符合条件 · 当前评分均为 5.0</text>
     </view>
 
-    <block wx:else>
+    <view wx:if="{{filteredModelList.length === 0}}" class="stats-card merchant-empty-card">
+      <text class="stats-hint merchant-empty-hint">{{activeFilterCount > 0 ? '暂无符合筛选条件的模特' : '暂无可展示模特'}}</text>
+    </view>
+
+    <block wx:elif="{{filteredModelList.length > 0}}">
     <view class="model-list-toolbar">
       <text class="model-list-toolbar-title">展示方式</text>
       <view class="model-list-mode-switch">
@@ -50,12 +123,13 @@
 
     <block wx:if="{{modelListMode === 'list'}}">
     <view
-      wx:for="{{modelList}}"
+      wx:for="{{filteredModelList}}"
       wx:key="userNo"
-      class="stats-card merchant-item"
+      class="stats-card merchant-item intro-model-card"
       data-user-no="{{item.userNo}}"
       bindtap="goModelDetail"
     >
+      <view class="intro-model-card-shine"></view>
       <view class="merchant-item-head">
         <view class="merchant-av merchant-av--media">
           <image
@@ -67,9 +141,13 @@
           <text wx:else class="merchant-av-fallback">{{item.avatarText}}</text>
         </view>
         <view class="merchant-item-meta">
-          <text class="merchant-item-name">{{item.nickname}}</text>
+          <view class="model-list-name-row">
+            <text class="merchant-item-name">{{item.nickname}}</text>
+            <text wx:if="{{item.genderLabel}}" class="model-gender-pill {{item.genderLabel === '男' ? 'model-gender-pill--male' : 'model-gender-pill--female'}}">{{item.genderLabel}}</text>
+          </view>
           <text class="merchant-item-sub">所在 {{item.city || "未填写"}}</text>
         </view>
+        <view class="intro-model-card-badge">推荐</view>
       </view>
 
       <view class="merchant-chip-row" wx:if="{{item.categories && item.categories.length > 0}}">
@@ -147,9 +225,9 @@
 
     <view wx:else class="model-large-grid">
       <view
-        wx:for="{{modelList}}"
+        wx:for="{{filteredModelList}}"
         wx:key="userNo"
-        class="model-large-card"
+        class="model-large-card intro-large-card"
         data-user-no="{{item.userNo}}"
         bindtap="goModelDetail"
       >
@@ -161,13 +239,18 @@
             mode="aspectFill"
           />
           <view wx:else class="model-large-cover-fallback">{{item.avatarText}}</view>
+          <view class="intro-large-spotlight"></view>
           <view class="model-large-gradient"></view>
           <view class="model-large-count" wx:if="{{item.cardThumbUrls.length}}">
             {{item.cardThumbUrls.length}} 张
           </view>
+          <view class="intro-large-price">{{item.hourlyText}}/小时</view>
         </view>
         <view class="model-large-body">
-          <text class="model-large-name">{{item.nickname}}</text>
+          <view class="model-large-name-row">
+            <text class="model-large-name">{{item.nickname}}</text>
+            <text wx:if="{{item.genderLabel}}" class="model-gender-pill model-gender-pill--small {{item.genderLabel === '男' ? 'model-gender-pill--male' : 'model-gender-pill--female'}}">{{item.genderLabel}}</text>
+          </view>
           <text class="model-large-sub">{{item.city || "未填写"}} · {{item.hourlyText}}/小时</text>
           <view class="model-large-tags" wx:if="{{item.categories && item.categories.length > 0}}">
             <text
@@ -181,5 +264,117 @@
       </view>
     </view>
     </block>
+    </block>
+  </view>
+
+  <view wx:if="{{categoryFilterPopupVisible}}" class="category-filter-mask" bindtap="onCategoryFilterMaskTap" catchtouchmove="preventTouchMove">
+    <view class="category-filter-panel" catchtap="preventCategoryFilterBubble">
+      <view class="category-filter-head">
+        <text class="category-filter-title">选择类型</text>
+        <text class="category-filter-clear" catchtap="clearDraftCategoryFilter">清空</text>
+      </view>
+
+      <view class="category-filter-selected">
+        <view class="category-filter-selected-head">
+          <text class="category-filter-selected-title">已选 {{draftSelectedCount}} 项</text>
+          <text class="category-filter-selected-tip">可多选，匹配任意一个</text>
+        </view>
+        <scroll-view
+          wx:if="{{draftSelectedOptions.length > 0}}"
+          scroll-x
+          class="category-filter-selected-scroll"
+          enhanced
+          show-scrollbar="{{false}}"
+          enable-flex
+        >
+          <view class="category-filter-selected-row">
+            <view
+              class="category-filter-selected-chip"
+              wx:for="{{draftSelectedOptions}}"
+              wx:key="id"
+              data-value="{{item.id}}"
+              bindtap="onCategoryFilterDraftRemove"
+            >
+              <text>{{item.name}}</text>
+              <text class="category-filter-selected-close">×</text>
+            </view>
+          </view>
+        </scroll-view>
+        <text wx:else class="category-filter-selected-tip">点击下方分类进行选择</text>
+      </view>
+
+      <view class="category-filter-tabs">
+        <view
+          class="category-filter-tab {{categoryCurrentTab === item.key ? 'category-filter-tab--on' : ''}}"
+          wx:for="{{categoryTabs}}"
+          wx:key="key"
+          data-tab="{{item.key}}"
+          bindtap="onCategoryFilterTabTap"
+        >
+          {{item.label}}
+        </view>
+      </view>
+
+      <scroll-view
+        wx:if="{{majorGroups.length > 0}}"
+        scroll-x
+        class="category-filter-major-scroll"
+        enhanced
+        show-scrollbar="{{false}}"
+        enable-flex
+      >
+        <view class="category-filter-major-row">
+          <view
+            class="category-filter-major-tab {{activeMajorGroup.id === item.id ? 'category-filter-major-tab--on' : ''}}"
+            wx:for="{{majorGroups}}"
+            wx:key="id"
+            data-id="{{item.id}}"
+            bindtap="onCategoryFilterMajorTap"
+          >
+            {{item.name}}
+          </view>
+        </view>
+      </scroll-view>
+
+      <scroll-view scroll-y class="category-filter-body" enhanced show-scrollbar="{{false}}">
+        <view wx:if="{{!activeMajorGroup}}" class="category-filter-empty">暂无分类数据</view>
+        <view wx:elif="{{categoryCurrentTab === 'main'}}" class="category-filter-panel-inner">
+          <view class="category-filter-sub-block" wx:for="{{activeMajorGroup.children}}" wx:key="id">
+            <text class="category-filter-sub-title">{{item.name}}</text>
+            <view class="category-filter-chip-grid">
+              <view
+                class="category-filter-chip {{draftSelectedMap[optionNode.id] ? 'category-filter-chip--on' : ''}}"
+                wx:for="{{item.children}}"
+                wx:for-item="optionNode"
+                wx:key="id"
+                data-value="{{optionNode.id}}"
+                bindtap="onCategoryFilterChipTap"
+              >
+                {{optionNode.name}}
+              </view>
+            </view>
+          </view>
+        </view>
+        <view wx:else class="category-filter-panel-inner">
+          <view class="category-filter-chip-grid">
+            <view
+              class="category-filter-chip {{draftSelectedMap[optionNode.id] ? 'category-filter-chip--on' : ''}}"
+              wx:for="{{activeMajorGroup.children}}"
+              wx:for-item="optionNode"
+              wx:key="id"
+              data-value="{{optionNode.id}}"
+              bindtap="onCategoryFilterChipTap"
+            >
+              {{optionNode.name}}
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="category-filter-foot">
+        <view class="category-filter-btn category-filter-btn--ghost" bindtap="closeCategoryFilterPopup">取消</view>
+        <view class="category-filter-btn category-filter-btn--primary" bindtap="confirmCategoryFilter">确定</view>
+      </view>
+    </view>
   </view>
 </view>

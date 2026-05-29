@@ -1,0 +1,82 @@
+<page-meta wx:if="{{formVisible}}" page-style="overflow: hidden;"></page-meta>
+<view class="page page-themed-root {{formVisible ? 'page--modal-open' : ''}}">
+  <view class="top-bar">
+    <view class="top-bar-text">
+      <text class="top-title">荣誉展示</text>
+      <text class="top-sub">添加个人荣誉、奖项或比赛经历。荣誉名称必填，可上传奖杯照片或证明材料。</text>
+    </view>
+    <view class="top-add-btn" bindtap="openCreateForm">+ 添加</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="empty-card">
+    <text class="empty-title">加载中…</text>
+  </view>
+
+  <view wx:elif="{{!honors.length}}" class="empty-card">
+    <text class="empty-title">还没有个人荣誉</text>
+    <text class="empty-desc">添加你的奖项、比赛名次或行业认证，展示在模特详情页，帮助商家更了解你。</text>
+    <button class="empty-btn" bindtap="openCreateForm">添加第一条荣誉</button>
+  </view>
+
+  <view wx:else class="honor-list">
+    <view class="honor-card" wx:for="{{honors}}" wx:key="id">
+      <view class="honor-card-main">
+        <image
+          wx:if="{{item.imageUrl}}"
+          class="honor-thumb"
+          src="{{item.imageUrl}}"
+          mode="aspectFill"
+          data-url="{{item.imageUrl}}"
+          bindtap="previewHonorImage"
+        />
+        <view wx:else class="honor-thumb honor-thumb--empty">
+          <text class="honor-thumb-mark">奖</text>
+        </view>
+        <view class="honor-meta">
+          <text class="honor-title">{{item.title}}</text>
+          <text class="honor-sub">{{item.imageUrl ? '已上传荣誉图片' : '未上传图片'}}</text>
+        </view>
+      </view>
+      <view class="honor-actions">
+        <text class="honor-action" data-id="{{item.id}}" bindtap="openEditForm">编辑</text>
+        <text class="honor-action honor-action--danger" data-id="{{item.id}}" bindtap="deleteHonor">删除</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{formVisible}}" class="form-mask" bindtap="closeForm">
+    <view class="form-sheet" catchtap="preventBubble">
+      <view class="form-head">
+        <text class="form-title">{{editingId ? '编辑荣誉' : '添加荣誉'}}</text>
+        <text class="form-close" bindtap="closeForm">关闭</text>
+      </view>
+
+      <view class="form-field">
+        <text class="form-label">荣誉名称<text class="form-required">*</text></text>
+        <input
+          class="form-input"
+          placeholder="例如：2025 国际模特大赛 金奖"
+          maxlength="100"
+          value="{{formTitle}}"
+          bindinput="onTitleInput"
+        />
+      </view>
+
+      <view class="form-field">
+        <text class="form-label">荣誉图片（选填）</text>
+        <view wx:if="{{formImagePreview}}" class="form-image-wrap">
+          <image class="form-image" src="{{formImagePreview}}" mode="aspectFill" bindtap="chooseHonorImage" />
+          <text class="form-image-remove" bindtap="removeHonorImage">移除图片</text>
+        </view>
+        <view wx:else class="form-upload" bindtap="chooseHonorImage">
+          <text class="form-upload-plus">+</text>
+          <text class="form-upload-text">上传奖杯照片或证明</text>
+        </view>
+      </view>
+
+      <button class="form-submit" loading="{{saving}}" disabled="{{saving}}" bindtap="submitForm">
+        {{editingId ? '保存修改' : '确认添加'}}
+      </button>
+    </view>
+  </view>
+</view>

@@ -14,9 +14,9 @@ Page({
       },
       {
         key: "merchant",
-        name: "商家",
+        name: "客户",
         role: 2,
-        icon: "商",
+        icon: "客",
         desc: "浏览模特并直接下单",
         disabled: false
       },
@@ -126,7 +126,7 @@ Page({
     const map = {
       0: "游客",
       1: "模特",
-      2: "商家",
+      2: "客户",
       3: "经纪人",
       4: "代理人",
       5: "管理员"

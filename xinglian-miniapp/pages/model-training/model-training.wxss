@@ -1,0 +1,122 @@
+.promo-page {
+  min-height: 100vh;
+  padding: 24rpx 24rpx calc(48rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 88% 7%, rgba(56, 189, 248, 0.3) 0, rgba(56, 189, 248, 0) 260rpx),
+    linear-gradient(180deg, #ecfeff 0%, #eef4ff 360rpx, #f8fbff 100%);
+}
+
+.promo-hero {
+  padding: 40rpx 32rpx;
+  border-radius: 34rpx;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.34) 0, rgba(255, 255, 255, 0) 170rpx),
+    linear-gradient(135deg, #2563eb 0%, #06b6d4 58%, #7c3aed 100%);
+  box-shadow: 0 18rpx 46rpx rgba(14, 165, 233, 0.25);
+}
+
+.promo-kicker,
+.promo-title,
+.promo-desc {
+  display: block;
+}
+
+.promo-kicker {
+  font-size: 19rpx;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  opacity: 0.88;
+}
+
+.promo-title {
+  margin-top: 18rpx;
+  font-size: 48rpx;
+  font-weight: 900;
+}
+
+.promo-desc {
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  line-height: 1.65;
+  opacity: 0.9;
+}
+
+.promo-hero-badge {
+  display: inline-flex;
+  margin-top: 24rpx;
+  padding: 12rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1rpx solid rgba(255, 255, 255, 0.24);
+}
+
+.promo-card {
+  margin-top: 24rpx;
+  padding: 28rpx;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16rpx 38rpx rgba(148, 163, 184, 0.16);
+}
+
+.promo-section-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 900;
+  color: #075985;
+  margin-bottom: 18rpx;
+}
+
+.course-card {
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid rgba(14, 165, 233, 0.12);
+}
+
+.course-card:last-child {
+  border-bottom: 0;
+}
+
+.course-title,
+.course-desc {
+  display: block;
+}
+
+.course-title {
+  font-size: 28rpx;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.course-desc {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.promo-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.promo-chip {
+  padding: 12rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #0369a1;
+  background: #ecfeff;
+  border: 1rpx solid rgba(14, 165, 233, 0.22);
+}
+
+.promo-body {
+  display: block;
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: #475569;
+}

@@ -1,3 +1,8 @@
+const {
+  buildLoadingShareAppMessage,
+  buildLoadingShareTimeline
+} = require("../../utils/loading-share.js");
+
 Page({
   data: {
     navPaddingTop: 24
@@ -29,18 +34,10 @@ Page({
   },
 
   onShareAppMessage() {
-    return {
-      title: "星链模库｜模特接单、商家找人一站式平台",
-      path: "/pages/loading/loading",
-      imageUrl: "/assets/logo/logo.png"
-    };
+    return buildLoadingShareAppMessage();
   },
 
   onShareTimeline() {
-    return {
-      title: "星链模库：连接模特、商家、经纪人的高效协作平台",
-      query: "",
-      imageUrl: "/assets/logo/logo.png"
-    };
+    return buildLoadingShareTimeline();
   }
 });

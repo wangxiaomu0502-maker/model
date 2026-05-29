@@ -1,0 +1,1 @@
+<view class="auth"><view class="auth-logo"><image src="https://faceid-h5-1254418846.file.myqcloud.com/mp_verify_sdk/images/ecard/logo.png"/></view><view class="title">即将进入"eID数字身份"小程序</view><view class="button-area"><button bindtap="handleStart">确认进入</button></view></view>

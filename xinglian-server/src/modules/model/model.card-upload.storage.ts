@@ -115,6 +115,36 @@ export async function uploadModelStylePositionImageToCos(input: {
   return `${base}/${objectKey}`;
 }
 
+export async function uploadModelHonorImageToCos(input: {
+  userId: number;
+  body: Buffer;
+  mimetype: string;
+}): Promise<string> {
+  if (!input.body || input.body.length === 0) {
+    throw new AppError("empty honor image", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  const ext = extFromMime(input.mimetype);
+  const objectKey = `models/honors/${input.userId}/${Date.now()}${ext}`;
+
+  try {
+    await putObjectToCos({
+      key: objectKey,
+      body: input.body,
+      contentType: input.mimetype
+    });
+  } catch (err) {
+    throw new AppError(
+      `failed to upload honor image to cos (${getCosErrorMessage(err)})`,
+      502,
+      ErrorCodes.UPSTREAM_ERROR
+    );
+  }
+
+  const base = normalizePublicBaseUrl(env.cos.publicBaseUrl);
+  return `${base}/${objectKey}`;
+}
+
 export async function uploadModelCardImageToCos(input: {
   userId: number;
   body: Buffer;

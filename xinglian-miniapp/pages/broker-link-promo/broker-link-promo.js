@@ -1,4 +1,5 @@
 const { buildBrokerPromoPagePath } = require("../../utils/broker-promo.js");
+const { buildLoadingShareAppMessage } = require("../../utils/loading-share.js");
 
 Page({
   data: {
@@ -143,11 +144,9 @@ Page({
   },
 
   onShareAppMessage() {
-    const path = this.data.promoPath || buildBrokerPromoPagePath(this.data.userNo);
-    return {
-      title: "星链模库｜商家注册",
-      path: path.startsWith("/") ? path.slice(1) : path,
-      imageUrl: "/assets/logo/logo.png"
-    };
+    return buildLoadingShareAppMessage({
+      title: "星链模库｜客户注册",
+      brokerUserNo: this.data.userNo
+    });
   }
 });

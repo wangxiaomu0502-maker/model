@@ -13,7 +13,7 @@ function channelLabel(ch) {
   return String(ch);
 }
 
-/** 与后端 orders.order_status 一致：3 = 模特已完成，此时商家不应再取消 */
+/** 与后端 orders.order_status 一致：3 = 模特已完成，此时客户不应再取消 */
 const ORDER_STATUS_MODEL_FINISHED = 3;
 
 function enrichOrder(o) {
@@ -34,7 +34,7 @@ function enrichOrder(o) {
   });
 }
 
-/** 兜底：旧接口仍返回 merchantCancel 时，按状态隐藏商家取消 */
+/** 兜底：旧接口仍返回 merchantCancel 时，按状态隐藏客户取消 */
 function normalizeOrderActions(o) {
   if (!o || !o.actions) return o;
   const st = Number(o.orderStatus);
@@ -332,7 +332,7 @@ Page({
   onConfirmService() {
     wx.showModal({
       title: "确认服务完成",
-      content: "请确认本次服务已向商家交付完成。提交后将等待商家确认。是否继续？",
+      content: "请确认本次服务已向客户交付完成。提交后将等待客户确认。是否继续？",
       confirmText: "确认完成",
       cancelText: "再想想",
       success: (r) => {
@@ -369,7 +369,7 @@ Page({
     this.setData({
       showCancelReasonSheet: true,
       cancelReasonDraft: "",
-      cancelReasonAudienceHint: "至少 2 个字，将作为订单备注供对方（商家）查看"
+      cancelReasonAudienceHint: "至少 2 个字，将作为订单备注供对方（客户）查看"
     });
   },
 
@@ -399,7 +399,7 @@ Page({
     const vr = this.data.order ? this.data.order.viewerRole : 0;
     const content =
       vr === 1
-        ? "提交后订单将关闭，对方（商家）可在订单备注中查看取消原因。是否确认？"
+        ? "提交后订单将关闭，对方（客户）可在订单备注中查看取消原因。是否确认？"
         : "提交后订单将关闭，对方（模特）可在订单备注中查看取消原因。是否确认？";
     wx.showModal({
       title: "确认取消订单",

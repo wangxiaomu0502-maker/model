@@ -1596,6 +1596,47 @@ onUnmounted(() => {
             </section>
           </el-tab-pane>
 
+          <el-tab-pane label="荣誉">
+            <section class="module-card">
+              <template v-if="(detailBasicInfo.honors?.length ?? 0) > 0">
+                <div class="style-position-head">
+                  <span class="style-position-title">个人荣誉</span>
+                  <span class="style-position-count">
+                    {{ detailBasicInfo.honors?.length ?? 0 }} 项
+                  </span>
+                </div>
+                <div class="honor-list">
+                  <div
+                    v-for="honor in detailBasicInfo.honors ?? []"
+                    :key="honor.id"
+                    class="honor-item"
+                  >
+                    <el-image
+                      v-if="honor.imageUrl"
+                      :src="honor.imageUrl"
+                      fit="cover"
+                      class="honor-thumb"
+                      :preview-src-list="(detailBasicInfo.honors ?? []).map((h) => h.imageUrl).filter(Boolean)"
+                      preview-teleported
+                    />
+                    <div v-else class="honor-thumb honor-thumb--empty">奖</div>
+                    <div class="honor-meta">
+                      <div class="honor-title">{{ honor.title }}</div>
+                      <div class="honor-sub">{{ honor.imageUrl ? "已上传荣誉图片" : "未上传图片" }}</div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <el-empty v-else description="暂无个人荣誉" :image-size="72">
+                <template #description>
+                  <p class="portfolio-empty-desc">
+                    模特在小程序「我的 → 荣誉展示」中维护；保存后此处只读展示。
+                  </p>
+                </template>
+              </el-empty>
+            </section>
+          </el-tab-pane>
+
           <el-tab-pane label="服务信息">
             <section class="module-card">
               <div class="module-title">服务价格</div>
@@ -2132,6 +2173,9 @@ onUnmounted(() => {
               <el-descriptions :column="2" border size="default" class="detail-group">
                 <template #title>账号资料</template>
                 <el-descriptions-item label="经纪人实名">{{ brokerBasicInfo.realName || "—" }}</el-descriptions-item>
+                <el-descriptions-item label="身份证号">{{ brokerBasicInfo.idCardNo || "—" }}</el-descriptions-item>
+                <el-descriptions-item label="签发机关">{{ brokerBasicInfo.idCardIssueAuthority || "—" }}</el-descriptions-item>
+                <el-descriptions-item label="有效期">{{ brokerBasicInfo.idCardValidDate || "—" }}</el-descriptions-item>
                 <el-descriptions-item label="经纪人类型">
                   <el-tag
                     :type="brokerBasicInfo.isProfessional ? 'success' : 'info'"
@@ -2174,6 +2218,46 @@ onUnmounted(() => {
                 <el-descriptions-item label="注册时间">{{ formatTime(brokerBasicInfo.createdAt) }}</el-descriptions-item>
                 <el-descriptions-item label="最近更新">{{ formatTime(brokerBasicInfo.updatedAt) }}</el-descriptions-item>
               </el-descriptions>
+
+              <div class="idcard-photo-wrap">
+                <div class="idcard-photo-title">身份证照片</div>
+                <div class="idcard-photo-grid">
+                  <div class="idcard-photo-item">
+                    <div class="idcard-photo-label">人像面</div>
+                    <el-image
+                      v-if="brokerBasicInfo.idCardFrontUrl"
+                      :src="brokerBasicInfo.idCardFrontUrl"
+                      fit="cover"
+                      class="idcard-photo-img"
+                      :preview-src-list="
+                        [
+                          brokerBasicInfo.idCardFrontUrl,
+                          brokerBasicInfo.idCardBackUrl
+                        ].filter(Boolean) as string[]
+                      "
+                      preview-teleported
+                    />
+                    <div v-else class="idcard-photo-empty">未上传</div>
+                  </div>
+                  <div class="idcard-photo-item">
+                    <div class="idcard-photo-label">国徽面</div>
+                    <el-image
+                      v-if="brokerBasicInfo.idCardBackUrl"
+                      :src="brokerBasicInfo.idCardBackUrl"
+                      fit="cover"
+                      class="idcard-photo-img"
+                      :preview-src-list="
+                        [
+                          brokerBasicInfo.idCardFrontUrl,
+                          brokerBasicInfo.idCardBackUrl
+                        ].filter(Boolean) as string[]
+                      "
+                      preview-teleported
+                    />
+                    <div v-else class="idcard-photo-empty">未上传</div>
+                  </div>
+                </div>
+              </div>
 
               <div v-if="brokerBasicInfo.isProfessional" class="signature-photo-wrap">
                 <div class="idcard-photo-title">经纪人证</div>
@@ -2727,6 +2811,57 @@ onUnmounted(() => {
   width: 100%;
   height: 150px;
   display: block;
+}
+
+.honor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.honor-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--el-border-color-lighter);
+  background: var(--el-fill-color-blank);
+}
+
+.honor-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.honor-thumb--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--el-color-danger);
+  background: var(--el-color-danger-light-9);
+}
+
+.honor-meta {
+  min-width: 0;
+}
+
+.honor-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  line-height: 1.45;
+}
+
+.honor-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .detail-audit-actions-bar {

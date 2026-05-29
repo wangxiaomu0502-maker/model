@@ -1,6 +1,9 @@
+import { startEid } from "../../mp_ecard_sdk/main";
+
 const brokerPromo = require("../../utils/broker-promo.js");
 const { prepareImageForUpload } = require("../../utils/image-upload.js");
 const { homeTabUrlForRole } = require("../../utils/role-tab.js");
+const { PENDING_REGISTRATION_KEY } = require("../../utils/registration-contract.js");
 
 Page({
   data: {
@@ -29,7 +32,50 @@ Page({
     idCardBackUrl: "",
     issueAuthority: "",
     validDate: "",
-    submitLoading: false
+    eidToken: "",
+    eidVerified: false,
+    faceVerifyLoading: false,
+    submitLoading: false,
+    realnameCompleted: false
+  },
+
+  resolveStoredImageUrl(stored) {
+    const app = getApp();
+    return app.resolveAvatarUrl(stored, app.globalData.apiBaseUrl);
+  },
+
+  applyVerifiedProfile(user) {
+    const app = getApp();
+    const pendingRn = app.OCR_PENDING_REAL_NAME || "待OCR核验";
+    const pendingId = app.OCR_PENDING_ID_CARD_NO || "000000000000000000";
+    const realNameRaw = user.realName != null ? String(user.realName).trim() : "";
+    const idCardNoRaw = user.idCardNo != null ? String(user.idCardNo).trim() : "";
+    const frontRaw = user.idCardFrontUrl != null ? String(user.idCardFrontUrl).trim() : "";
+    const backRaw = user.idCardBackUrl != null ? String(user.idCardBackUrl).trim() : "";
+    const issueRaw =
+      user.idCardIssueAuthority != null ? String(user.idCardIssueAuthority).trim() : "";
+    const validRaw = user.idCardValidDate != null ? String(user.idCardValidDate).trim() : "";
+
+    const realName = realNameRaw && realNameRaw !== pendingRn ? realNameRaw : "";
+    const idCardNo = idCardNoRaw && idCardNoRaw !== pendingId ? idCardNoRaw : "";
+    const frontUrl = frontRaw ? this.resolveStoredImageUrl(frontRaw) : "";
+    const backUrl = backRaw ? this.resolveStoredImageUrl(backRaw) : "";
+    const hasFront = Boolean(frontUrl);
+    const hasBack = Boolean(backUrl);
+
+    this.setData({
+      realnameCompleted: true,
+      realName,
+      idCardNo,
+      issueAuthority: issueRaw,
+      validDate: validRaw,
+      idCardFrontUrl: frontRaw,
+      idCardBackUrl: backRaw,
+      idCardFrontImageLocalPath: hasFront ? frontUrl : "",
+      idCardBackImageLocalPath: hasBack ? backUrl : "",
+      ocrFrontDone: hasFront,
+      ocrBackDone: hasBack
+    });
   },
 
   onLoad(options) {
@@ -43,6 +89,12 @@ Page({
       app.globalData.role = 1;
       app.globalData.identity = "模特";
       wx.setStorageSync("selectedRole", 1);
+      this.loadBoundModelProfile();
+    }
+  },
+
+  onShow() {
+    if (this.data.isBoundModelMode) {
       this.loadBoundModelProfile();
     }
   },
@@ -62,13 +114,14 @@ Page({
         const nick = user.nickname ? String(user.nickname).trim() : "";
         const patch = {
           phoneAuthorized: Boolean(phone),
-          phoneNumber: phone
+          phoneNumber: phone,
+          realnameCompleted: false
         };
         if (nick) patch.nickname = nick;
-        if (Number(user.verifiedStatus) === 2) {
-          wx.showToast({ title: "已完成实名认证", icon: "none" });
-        }
         this.setData(patch);
+        if (Number(user.verifiedStatus) === 2) {
+          this.applyVerifiedProfile(user);
+        }
       }
     });
   },
@@ -374,6 +427,7 @@ Page({
   },
 
   onChooseIdCardFrontImage() {
+    if (this.data.realnameCompleted) return;
     wx.chooseMedia({
       count: 1,
       mediaType: ["image"],
@@ -388,6 +442,8 @@ Page({
         this.setData({
           idCardFrontImageLocalPath: filePath,
           ocrFrontDone: false,
+          eidToken: "",
+          eidVerified: false,
           realName: "",
           idCardNo: "",
           idCardFrontUrl: ""
@@ -400,6 +456,7 @@ Page({
   },
 
   onChooseIdCardBackImage() {
+    if (this.data.realnameCompleted) return;
     wx.chooseMedia({
       count: 1,
       mediaType: ["image"],
@@ -414,6 +471,8 @@ Page({
         this.setData({
           idCardBackImageLocalPath: filePath,
           ocrBackDone: false,
+          eidToken: "",
+          eidVerified: false,
           issueAuthority: "",
           validDate: "",
           idCardBackUrl: ""
@@ -488,6 +547,8 @@ Page({
             }
             this.setData({
               [doneKey]: true,
+              eidToken: "",
+              eidVerified: false,
               realName,
               idCardNo,
               idCardFrontUrl
@@ -506,6 +567,8 @@ Page({
             }
             this.setData({
               [doneKey]: true,
+              eidToken: "",
+              eidVerified: false,
               issueAuthority,
               validDate,
               idCardBackUrl
@@ -536,6 +599,7 @@ Page({
   },
 
   async onRunOcr() {
+    if (this.data.realnameCompleted) return;
     if (this.data.ocrFrontLoading || this.data.ocrBackLoading) return;
     if (!this.data.idCardFrontImageLocalPath || !this.data.idCardBackImageLocalPath) {
       wx.showToast({ title: "请先上传身份证人像面和国徽面", icon: "none" });
@@ -552,6 +616,120 @@ Page({
     wx.hideLoading();
     if (!backOk) return;
     wx.showToast({ title: "人像面和国徽面识别完成", icon: "success" });
+  },
+
+  requestEidToken(realName, idCardNo) {
+    const app = getApp();
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: `${app.globalData.apiBaseUrl}/api/eid/token`,
+        method: "POST",
+        header: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${app.globalData.token}`
+        },
+        data: { realName, idCardNo },
+        success: (res) => {
+          const body = res.data || {};
+          if (res.statusCode !== 200 || !body.ok || !body.eidToken) {
+            reject(new Error(body.message || "获取E证通Token失败"));
+            return;
+          }
+          resolve(String(body.eidToken).trim());
+        },
+        fail: () => reject(new Error("网络异常，请稍后重试"))
+      });
+    });
+  },
+
+  verifyEidResult(eidToken, realName, idCardNo) {
+    const app = getApp();
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: `${app.globalData.apiBaseUrl}/api/eid/result`,
+        method: "POST",
+        header: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${app.globalData.token}`
+        },
+        data: { eidToken, realName, idCardNo },
+        success: (res) => {
+          const body = res.data || {};
+          if (res.statusCode !== 200 || !body.ok || !body.verified) {
+            reject(new Error(body.message || "E证通核验未通过"));
+            return;
+          }
+          resolve(true);
+        },
+        fail: () => reject(new Error("网络异常，请稍后重试"))
+      });
+    });
+  },
+
+  startFaceVerify(next) {
+    if (this.data.faceVerifyLoading) return;
+    if (!this.data.ocrFrontDone || !this.data.ocrBackDone) {
+      wx.showToast({ title: "请先完成身份证OCR识别", icon: "none" });
+      return;
+    }
+    const realName = String(this.data.realName || "").trim();
+    const idCardNo = String(this.data.idCardNo || "").trim();
+    if (!realName || !idCardNo) {
+      wx.showToast({ title: "识别结果不完整，请重试", icon: "none" });
+      return;
+    }
+
+    this.setData({ faceVerifyLoading: true });
+    wx.showLoading({ title: "准备人脸核身..." });
+    this.requestEidToken(realName, idCardNo)
+      .then((eidToken) => {
+        wx.hideLoading();
+        startEid({
+          data: {
+            token: eidToken,
+            needJumpPage: false,
+            enableEmbedded: false
+          },
+          verifyDoneCallback: (result) => {
+            const token = String((result && result.token) || eidToken).trim();
+            wx.showLoading({ title: "确认核身结果..." });
+            this.verifyEidResult(token, realName, idCardNo)
+              .then(() => {
+                this.setData({
+                  eidToken: token,
+                  eidVerified: true
+                });
+                wx.showToast({ title: "人脸核身完成", icon: "success" });
+                if (typeof next === "function") {
+                  setTimeout(next, 500);
+                }
+              })
+              .catch((err) => {
+                wx.showToast({
+                  title: (err && err.message) || "E证通核验未通过",
+                  icon: "none"
+                });
+              })
+              .finally(() => {
+                wx.hideLoading();
+                this.setData({ faceVerifyLoading: false });
+              });
+          }
+        });
+        this.setData({ faceVerifyLoading: false });
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        this.setData({ faceVerifyLoading: false });
+        wx.showToast({
+          title: (err && err.message) || "获取E证通Token失败",
+          icon: "none"
+        });
+      });
+  },
+
+  onStartFaceVerify() {
+    this.startFaceVerify();
   },
 
   submitBoundModelRealname(payload) {
@@ -592,8 +770,18 @@ Page({
   },
 
   goNext() {
-    const { nickname, phoneAuthorized, phoneNumber, submitLoading, isBoundModelMode } = this.data;
+    const { nickname, phoneAuthorized, phoneNumber, submitLoading, isBoundModelMode, realnameCompleted } =
+      this.data;
     if (submitLoading) return;
+
+    if (realnameCompleted) {
+      wx.navigateBack({
+        fail: () => {
+          wx.switchTab({ url: homeTabUrlForRole(1) });
+        }
+      });
+      return;
+    }
 
     const nick = String(nickname || "").trim();
     if (!isBoundModelMode && !nick) {
@@ -665,12 +853,17 @@ Page({
       wx.showToast({ title: "识别结果不完整，请重试", icon: "none" });
       return;
     }
+    if (!this.data.eidVerified || !String(this.data.eidToken || "").trim()) {
+      this.startFaceVerify(() => this.goNext());
+      return;
+    }
 
     this.setData({ submitLoading: true });
 
     if (isBoundModelMode) {
       this.submitBoundModelRealname({
         faceVerified: true,
+        eidToken: String(this.data.eidToken || "").trim(),
         realName,
         idCardNo,
         idCardFrontUrl,
@@ -685,6 +878,7 @@ Page({
       role,
       phone: phoneNumber,
       faceVerified: true,
+      eidToken: String(this.data.eidToken || "").trim(),
       nickname: nick,
       avatarUrl: avatarStored,
       realName,
@@ -708,63 +902,19 @@ Page({
       }
     }
 
-    wx.request({
-      url: `${app.globalData.apiBaseUrl}/api/auth/complete-registration`,
-      method: "POST",
-      header: {
-        "content-type": "application/json",
-        Authorization: `Bearer ${app.globalData.token}`
-      },
-      data: registrationData,
-      success: (res) => {
-        if (!res.data?.ok) {
-          wx.showToast({
-            title: res.data?.message || "提交失败",
-            icon: "none"
-          });
-          return;
-        }
+    try {
+      wx.setStorageSync(PENDING_REGISTRATION_KEY, registrationData);
+    } catch {
+      wx.showToast({ title: "无法保存注册信息", icon: "none" });
+      this.setData({ submitLoading: false });
+      return;
+    }
 
-        wx.showToast({
-          title: "注册完成",
-          icon: "success"
-        });
-
-        if (Number(role) === 2) {
-          brokerPromo.clearPendingBrokerUserNo();
-        }
-
-        app.globalData.role = Number(res.data.role || role);
-        wx.setStorageSync("selectedRole", app.globalData.role);
-
-        if (!app.globalData.userInfo) {
-          app.globalData.userInfo = {};
-        }
-        app.globalData.userInfo.nickName = nick;
-        app.globalData.userInfo.avatarUrl = app.resolveAvatarUrl(
-          avatarStored,
-          app.globalData.apiBaseUrl
-        );
-
-        if (res.data.token) {
-          app.globalData.token = res.data.token;
-          wx.setStorageSync("authToken", res.data.token);
-        }
-
-        setTimeout(() => {
-          const nextRole = Number(app.globalData.role || role || 0);
-          const targetUrl = homeTabUrlForRole(nextRole) || "/pages/model-list/model-list";
-          wx.switchTab({ url: targetUrl });
-        }, 700);
-      },
+    this.setData({ submitLoading: false });
+    wx.navigateTo({
+      url: "/pages/contract-detail/contract-detail?mode=register",
       fail: () => {
-        wx.showToast({
-          title: "网络异常，请稍后重试",
-          icon: "none"
-        });
-      },
-      complete: () => {
-        this.setData({ submitLoading: false });
+        wx.showToast({ title: "无法打开协议页", icon: "none" });
       }
     });
   }

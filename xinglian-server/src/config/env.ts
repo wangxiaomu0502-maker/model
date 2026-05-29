@@ -37,6 +37,12 @@ const cosSecretKey = normalizedEnvValue(process.env.TENCENT_SECRET_KEY);
 const cosBucket = normalizedEnvValue(process.env.COS_BUCKET);
 const cosRegion = normalizedEnvValue(process.env.COS_REGION);
 const ocrRegion = normalizedEnvValue(process.env.OCR_REGION) ?? cosRegion;
+const faceidRegion = normalizedEnvValue(process.env.FACEID_REGION) ?? "ap-guangzhou";
+const eidMerchantId =
+  normalizedEnvValue(process.env.EID_MERCHANT_ID) ?? "00EI2605181039455240";
+/** E证通须用申请商户ID的主账号密钥；未配置时回退 TENCENT_SECRET_* */
+const eidSecretId = normalizedEnvValue(process.env.EID_SECRET_ID) ?? cosSecretId;
+const eidSecretKey = normalizedEnvValue(process.env.EID_SECRET_KEY) ?? cosSecretKey;
 const cosPublicBaseUrl =
   normalizedEnvValue(process.env.COS_PUBLIC_BASE_URL) ??
   (cosBucket && cosRegion
@@ -170,6 +176,12 @@ export const env = {
   },
   ocr: {
     region: ocrRegion
+  },
+  faceid: {
+    region: faceidRegion,
+    eidMerchantId,
+    secretId: eidSecretId,
+    secretKey: eidSecretKey
   },
   db: {
     host: process.env.DB_HOST ?? "127.0.0.1",

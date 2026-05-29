@@ -8,8 +8,10 @@ import {
   bindPlatformModelByPhone,
   completeRegistration,
   deleteAccount,
+  getRegistrationContract,
   issueUserAccessToken,
-  loginByWechatCode
+  loginByWechatCode,
+  signRegistrationContract
 } from "./auth.service";
 
 export async function wechatLoginController(
@@ -18,9 +20,9 @@ export async function wechatLoginController(
   next: NextFunction
 ): Promise<Response | void> {
   try {
-    const { code } = req.body as { code: string };
+    const { code, brokerUserNo } = req.body as { code: string; brokerUserNo?: string };
 
-    const result = await loginByWechatCode(code);
+    const result = await loginByWechatCode(code, brokerUserNo);
     return success(res, {
       user: result.user,
       token: result.token
@@ -83,6 +85,49 @@ export async function platformBindModelController(
   }
 }
 
+export async function getRegistrationContractController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response | void> {
+  try {
+    const { userId } = (req as AuthenticatedRequest).auth ?? {};
+    if (!userId) {
+      return fail(req, res, 401, {
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "unauthorized"
+      });
+    }
+    const { role } = req.query as { role?: string };
+    const targetRole = Number(role);
+    const data = await getRegistrationContract(userId, targetRole);
+    return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function signRegistrationContractController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response | void> {
+  try {
+    const { userId } = (req as AuthenticatedRequest).auth ?? {};
+    if (!userId) {
+      return fail(req, res, 401, {
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "unauthorized"
+      });
+    }
+    const { role, signatureUrl } = req.body as { role: number; signatureUrl: string };
+    const result = await signRegistrationContract(userId, role, signatureUrl);
+    return success(res, result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export async function completeRegistrationController(
   req: Request,
   res: Response,
@@ -97,6 +142,7 @@ export async function completeRegistrationController(
       identity,
       phone,
       faceVerified,
+      eidToken,
       nickname,
       avatarUrl,
       realName,
@@ -113,6 +159,7 @@ export async function completeRegistrationController(
       identity?: string;
       phone: string;
       faceVerified?: boolean;
+      eidToken: string;
       nickname: string;
       avatarUrl: string;
       realName: string;
@@ -139,6 +186,7 @@ export async function completeRegistrationController(
       identity,
       phone,
       faceVerified,
+      eidToken,
       nickname,
       avatarUrl,
       realName,

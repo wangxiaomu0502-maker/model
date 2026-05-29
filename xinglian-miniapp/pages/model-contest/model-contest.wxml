@@ -1,0 +1,31 @@
+<view class="promo-page promo-page--contest">
+  <view class="promo-bg promo-bg--a"></view>
+  <view class="promo-bg promo-bg--b"></view>
+
+  <view class="promo-hero">
+    <text class="promo-kicker">STAR MODEL CONTEST</text>
+    <text class="promo-title">星链模特大赛</text>
+    <text class="promo-desc">面向新人模特与潜力达人，提供展示曝光、品牌拍摄和商业邀约机会。</text>
+    <view class="promo-hero-badge">报名通道筹备中</view>
+  </view>
+
+  <view class="promo-card">
+    <text class="promo-section-title">活动亮点</text>
+    <view class="promo-chip-row">
+      <text wx:for="{{highlights}}" wx:key="*this" class="promo-chip">{{item}}</text>
+    </view>
+  </view>
+
+  <view class="promo-card">
+    <text class="promo-section-title">参与流程</text>
+    <view class="promo-step" wx:for="{{steps}}" wx:key="*this">
+      <text class="promo-step-index">{{index + 1}}</text>
+      <text class="promo-step-text">{{item}}</text>
+    </view>
+  </view>
+
+  <view class="promo-card promo-card--notice">
+    <text class="promo-section-title">适合人群</text>
+    <text class="promo-body">想提升曝光、积累作品、尝试商业拍摄的模特均可关注。后续会开放报名资料提交与活动档期。</text>
+  </view>
+</view>

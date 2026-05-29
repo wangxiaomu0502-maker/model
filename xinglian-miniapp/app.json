@@ -7,11 +7,14 @@
     "pages/intro/intro",
     "pages/identity/identity",
     "pages/realname-verify/realname-verify",
+    "pages/eid-demo/eid-demo",
+    "mp_ecard_sdk/index/index",
     "pages/model-basic-info/model-basic-info",
     "pages/model-category/model-category",
     "pages/model-card/model-card",
     "pages/model-style-position/model-style-position",
     "pages/model-portfolio/model-portfolio",
+    "pages/model-honors/model-honors",
     "pages/model-pricing/model-pricing",
     "pages/model-schedule/model-schedule",
     "pages/model-order/model-order",
@@ -22,6 +25,9 @@
     "pages/broker-order-list/broker-order-list",
     "pages/merchant-basic-info/merchant-basic-info",
     "pages/model-intro/model-intro",
+    "pages/model-contest/model-contest",
+    "pages/model-training/model-training",
+    "pages/model-card-shoot/model-card-shoot",
     "pages/model-detail/model-detail",
     "pages/order-list/order-list",
     "pages/order-detail/order-detail",
@@ -72,5 +78,8 @@
     ]
   },
   "style": "v2",
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "navigateToMiniProgramAppIdList": [
+    "wx0e2cb0b052a91c92"
+  ]
 }

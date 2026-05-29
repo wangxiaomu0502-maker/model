@@ -50,13 +50,24 @@
     </scroll-view>
 
     <view class="contract-footer safe-bottom">
-      <view wx:if="{{isSigned}}" class="contract-signed-bar">
-        <view class="contract-signed-bar-icon">✓</view>
-        <view class="contract-signed-bar-text">
-          <text class="contract-signed-bar-title">您已完成签署</text>
-          <text wx:if="{{signedAtDisplay}}" class="contract-signed-bar-time">{{signedAtDisplay}}</text>
+      <block wx:if="{{isSigned}}">
+        <view wx:if="{{!isRegisterMode}}" class="contract-signed-bar">
+          <view class="contract-signed-bar-icon">✓</view>
+          <view class="contract-signed-bar-text">
+            <text class="contract-signed-bar-title">您已完成签署</text>
+            <text wx:if="{{signedAtDisplay}}" class="contract-signed-bar-time">{{signedAtDisplay}}</text>
+          </view>
         </view>
-      </view>
+        <button
+          wx:if="{{isRegisterMode}}"
+          class="contract-sign-btn"
+          loading="{{registerCompleting}}"
+          disabled="{{registerCompleting || signing}}"
+          bindtap="onRegisterCompleteTap"
+        >
+          完成注册
+        </button>
+      </block>
       <button
         wx:else
         class="contract-sign-btn"
@@ -64,7 +75,7 @@
         disabled="{{signing}}"
         bindtap="openSignatureModal"
       >
-        阅读完毕，去签署
+        {{isRegisterMode ? '阅读完毕，签署并完成注册' : '阅读完毕，去签署'}}
       </button>
     </view>
   </block>

@@ -1,4 +1,8 @@
-const { savePendingBrokerUserNo } = require("../../utils/broker-promo.js");
+const {
+  capturePendingBrokerFromEntry,
+  getMiniProgramEntryOptions,
+  readPendingBrokerUserNo
+} = require("../../utils/broker-promo.js");
 const { homeTabUrlForRole } = require("../../utils/role-tab.js");
 
 Page({
@@ -6,7 +10,7 @@ Page({
     const map = {
       0: "游客",
       1: "模特",
-      2: "商家",
+      2: "客户",
       3: "经纪人",
       4: "代理人",
       5: "管理员"
@@ -18,8 +22,13 @@ Page({
     text: "正在登录..."
   },
 
-  requestLogin(code) {
+  requestLogin(code, brokerUserNo) {
     const app = getApp();
+    const data = { code };
+    const no = String(brokerUserNo || "").trim();
+    if (no) {
+      data.brokerUserNo = no;
+    }
     return new Promise((resolve, reject) => {
       wx.request({
         url: `${app.globalData.apiBaseUrl}/api/auth/wechat/login`,
@@ -27,9 +36,7 @@ Page({
         header: {
           "content-type": "application/json"
         },
-        data: {
-          code
-        },
+        data,
         success: (res) => resolve(res.data),
         fail: (err) => reject(err)
       });
@@ -37,20 +44,22 @@ Page({
   },
 
   onLoad(options) {
-    const raw = options && options.brokerUserNo != null ? String(options.brokerUserNo) : "";
-    if (raw) {
-      try {
-        savePendingBrokerUserNo(decodeURIComponent(raw.trim()));
-      } catch (_e) {
-        savePendingBrokerUserNo(raw.trim());
-      }
+    const launch = getMiniProgramEntryOptions();
+    const mergedQuery = Object.assign({}, launch.query || {}, options || {});
+    let brokerUserNo = capturePendingBrokerFromEntry({
+      ...(options || {}),
+      query: mergedQuery
+    });
+    if (!brokerUserNo) {
+      brokerUserNo = readPendingBrokerUserNo();
     }
+
     wx.login({
       success: async (res) => {
         if (res.code) {
           try {
             const app = getApp();
-            const responseData = await this.requestLogin(res.code);
+            const responseData = await this.requestLogin(res.code, brokerUserNo);
             if (!responseData.ok || !responseData.user) {
               throw new Error(responseData.message || "登录接口返回异常");
             }

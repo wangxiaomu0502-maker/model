@@ -4,8 +4,8 @@ Page({
   behaviors: [boundListBehavior],
 
   data: {
-    pageTitle: "我的商家",
-    emptyHint: "暂无绑定商家。商家注册后由平台在后台绑定经纪人，绑定后将出现在此列表。"
+    pageTitle: "我的客户",
+    emptyHint: "暂无绑定客户。客户注册后由平台在后台绑定经纪人，绑定后将出现在此列表。"
   },
 
   getListApiPath() {

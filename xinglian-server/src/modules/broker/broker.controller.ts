@@ -7,7 +7,7 @@ import { AuthenticatedRequest } from "../../middlewares/auth";
 import { listMyMerchantsForBroker } from "./broker-bindings.service";
 import { getBrokerDashboard } from "./broker-dashboard.service";
 import { getBrokerRelatedOrderDetail, listBrokerRelatedOrders } from "./broker-order.service";
-import { createBrokerPromoUrlLink } from "./broker-promo.service";
+import { createBrokerPromoUrlLink, createBrokerPromoWxacode } from "./broker-promo.service";
 import type { BrokerBoundListQuery, BrokerOrderListQuery } from "./broker.types";
 import type { OrderIdParams } from "../order/order.types";
 
@@ -89,6 +89,29 @@ export async function getBrokerPromoUrlLinkController(
     assertBrokerRole(auth.role);
     const payload = await createBrokerPromoUrlLink(userId, Number(auth.role));
     success(res, payload);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getBrokerPromoQrcodeController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const auth = (req as AuthenticatedRequest).auth;
+    const userId = auth?.userId;
+    if (!userId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    assertBrokerRole(auth.role);
+    const payload = await createBrokerPromoWxacode(userId, Number(auth.role));
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.setHeader("X-Broker-User-No", payload.userNo);
+    res.send(payload.buffer);
   } catch (error) {
     next(error);
   }

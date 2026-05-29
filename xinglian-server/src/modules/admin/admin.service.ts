@@ -23,6 +23,7 @@ import {
 } from "./admin.repository";
 import { normalizePortfolioFromStorage } from "../model/model.portfolio";
 import { enrichCardFromProfile } from "../model/model.service";
+import { listHonorsForPublicDisplay } from "../model/model-honor.service";
 import { AppError } from "../../core/errors/app-error";
 import { ErrorCodes } from "../../core/constants/error-codes";
 
@@ -517,6 +518,14 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
   stylePosition: {
     photos: Array<{ id: string; url: string }>;
   };
+  honors: Array<{
+    id: number;
+    title: string;
+    imageUrl: string | null;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+  }>;
   isAdminCreated: boolean;
 }> {
   const row = await findModelBasicDetailForAdminByUserId(userId);
@@ -542,6 +551,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     onlyLocal: Boolean(row.only_local_orders),
     onlyFemale: Boolean(row.only_female_clients)
   });
+  const honors = await listHonorsForPublicDisplay(userId);
 
   const agentId =
     row.agent_user_id != null && Number.isFinite(Number(row.agent_user_id))
@@ -611,6 +621,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     card,
     portfolio,
     stylePosition,
+    honors,
     schedule,
     orderSettings,
     isAdminCreated: Boolean(Number(row.is_admin_created ?? 0))
@@ -694,6 +705,11 @@ export async function getBrokerBasicDetailForAdmin(userId: number): Promise<{
   nickname: string;
   avatarUrl: string | null;
   realName: string | null;
+  idCardNo: string | null;
+  idCardFrontUrl: string | null;
+  idCardBackUrl: string | null;
+  idCardIssueAuthority: string | null;
+  idCardValidDate: string | null;
   phone: string | null;
   status: number;
   verifiedStatus: number;
@@ -732,6 +748,11 @@ export async function getBrokerBasicDetailForAdmin(userId: number): Promise<{
     nickname: row.nickname || "",
     avatarUrl: row.avatar_url,
     realName: row.broker_real_name ? String(row.broker_real_name) : null,
+    idCardNo: row.id_card_no ? String(row.id_card_no) : null,
+    idCardFrontUrl: row.id_card_front_url ? String(row.id_card_front_url) : null,
+    idCardBackUrl: row.id_card_back_url ? String(row.id_card_back_url) : null,
+    idCardIssueAuthority: row.id_card_issue_authority ? String(row.id_card_issue_authority) : null,
+    idCardValidDate: row.id_card_valid_date ? String(row.id_card_valid_date) : null,
     phone: row.phone,
     status: Number(row.status ?? 0),
     verifiedStatus: Number(row.verified_status ?? 0),

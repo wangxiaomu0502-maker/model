@@ -4,7 +4,20 @@ import { randomBytes } from "node:crypto";
 import { ErrorCodes } from "../../core/constants/error-codes";
 import { AppError } from "../../core/errors/app-error";
 import { env } from "../../config/env";
-import { findActiveBrokerIdByUserNo, findUserProfileById } from "../user/user.repository";
+import {
+  findActiveBrokerIdByUserNo,
+  findUserProfileById
+} from "../user/user.repository";
+import {
+  assertRegistrationContractSigned,
+  getMyContractForCurrentUser,
+  signContractForUserId
+} from "../user/user.service";
+import {
+  contractKindAllowedForRole,
+  isRegistrationTargetRole,
+  type RegistrationTargetRole
+} from "../user/user.contract-sign";
 import {
   createVisitorUser,
   findLoginUserByOpenid,
@@ -12,6 +25,8 @@ import {
   findModelUserByPhoneForPlatformBind,
   findUnionidByUserId,
   bindPhoneByUserId,
+  bindReferrerIfUnsetForPromo,
+  clearOtherRegistrationContracts,
   completeRegistrationByUserId,
   upsertBrokerProfileOnRegistration,
   revertAccountToVisitorByUserIdAndOpenid,
@@ -19,6 +34,7 @@ import {
   updateUnionid
 } from "./auth.repository";
 import { getWechatAccessToken } from "../../integrations/wechat/client";
+import { assertEidVerified } from "../eid/eid.service";
 import {
   identityRoleMap,
   PLATFORM_MODEL_BIND_FAIL_MESSAGE,
@@ -69,7 +85,23 @@ function generateUserNo(length = 12): string {
   return value;
 }
 
-export async function loginByWechatCode(code: string): Promise<{
+async function tryBindPromoBrokerOnLogin(userId: number, userRole: number, brokerUserNo?: string): Promise<void> {
+  const role = Number(userRole);
+  if (role !== 0 && role !== ROLE_MERCHANT) return;
+
+  const brokerNo = String(brokerUserNo ?? "").trim();
+  if (!brokerNo) return;
+
+  const brokerId = await findActiveBrokerIdByUserNo(brokerNo);
+  if (brokerId == null || brokerId === userId) return;
+
+  await bindReferrerIfUnsetForPromo(userId, brokerId);
+}
+
+export async function loginByWechatCode(
+  code: string,
+  brokerUserNo?: string
+): Promise<{
   user: { id: number; userNo: string; openid: string; role: number; verifiedStatus: number };
   token: string;
 }> {
@@ -125,6 +157,8 @@ export async function loginByWechatCode(code: string): Promise<{
 
   const rows = await findLoginUserByOpenid(openid);
   const user = rows[0];
+
+  await tryBindPromoBrokerOnLogin(user.id, user.role, brokerUserNo);
 
   const token = issueUserAccessToken(user.id, user.openid, user.role);
   const prof = await findUserProfileById(user.id);
@@ -256,6 +290,55 @@ export async function bindPlatformModelByPhone(
   };
 }
 
+function assertVisitorForRegistration(user: { role: number }): void {
+  if (Number(user.role) !== 0) {
+    throw new AppError("仅未完成注册的用户可签署注册协议", 403, ErrorCodes.FORBIDDEN);
+  }
+}
+
+export async function getRegistrationContract(
+  userId: number,
+  targetRole: number
+): Promise<Awaited<ReturnType<typeof getMyContractForCurrentUser>>> {
+  if (!isRegistrationTargetRole(targetRole)) {
+    throw new AppError("unsupported role", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  const user = await findUserProfileById(userId);
+  if (!user) {
+    throw new AppError("user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  assertVisitorForRegistration(user);
+  const kind = contractKindAllowedForRole(targetRole);
+  if (!kind) {
+    throw new AppError("unsupported role", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  return getMyContractForCurrentUser(userId, kind, { enforceRoleMatch: false });
+}
+
+export async function signRegistrationContract(
+  userId: number,
+  targetRole: number,
+  signatureUrl: string
+): Promise<{ contractKind: string; signedAt: string }> {
+  if (!isRegistrationTargetRole(targetRole)) {
+    throw new AppError("unsupported role", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  const user = await findUserProfileById(userId);
+  if (!user) {
+    throw new AppError("user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  assertVisitorForRegistration(user);
+  const kind = contractKindAllowedForRole(targetRole);
+  if (!kind) {
+    throw new AppError("unsupported role", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  await clearOtherRegistrationContracts(userId, kind);
+  const signedAt = await signContractForUserId(userId, kind, signatureUrl, {
+    enforceRoleMatch: false
+  });
+  return { contractKind: kind, signedAt };
+}
+
 /** 小程序实名注册：faceVerified 只校验实名流程；profile_audit_status 不归入人脸识别，默认待提交，平台后续单独审核。 */
 export async function completeRegistration(input: {
   userId: number;
@@ -263,6 +346,7 @@ export async function completeRegistration(input: {
   identity?: string;
   phone: string;
   faceVerified?: boolean;
+  eidToken: string;
   nickname: string;
   avatarUrl: string;
   realName: string;
@@ -282,6 +366,7 @@ export async function completeRegistration(input: {
     identity,
     phone,
     faceVerified,
+    eidToken,
     nickname,
     avatarUrl,
     realName,
@@ -318,6 +403,7 @@ export async function completeRegistration(input: {
   if (!rn || !idNo || idNo.length < 15 || !front || !back || !issue || !valid) {
     throw new AppError("id card verification is required", 400, ErrorCodes.VALIDATION_ERROR);
   }
+  await assertEidVerified({ userId, eidToken, realName: rn, idCardNo: idNo });
 
   let referrerBrokerUserId: number | null = null;
   if (targetRole === ROLE_MERCHANT) {
@@ -340,6 +426,15 @@ export async function completeRegistration(input: {
       throw new AppError("professional broker license is required", 400, ErrorCodes.VALIDATION_ERROR);
     }
   }
+
+  const visitor = await findUserProfileById(userId);
+  if (!visitor) {
+    throw new AppError("user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  if (Number(visitor.role) !== 0) {
+    throw new AppError("account already registered", 409, ErrorCodes.CONFLICT);
+  }
+  assertRegistrationContractSigned(visitor, targetRole as RegistrationTargetRole);
 
   try {
     await completeRegistrationByUserId(

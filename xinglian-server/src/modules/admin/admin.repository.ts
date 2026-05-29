@@ -350,6 +350,11 @@ export type AdminBrokerBasicDetailRow = RowDataPacket & {
   created_at: Date | string;
   updated_at: Date | string;
   broker_real_name: string | null;
+  id_card_no: string | null;
+  id_card_front_url: string | null;
+  id_card_back_url: string | null;
+  id_card_issue_authority: string | null;
+  id_card_valid_date: string | null;
   broker_is_professional: number | string | null;
   broker_license_url: string | null;
   referrer_broker_user_no: string | null;
@@ -368,6 +373,8 @@ export async function findBrokerBasicDetailForAdminByUserId(
             u.verified_status, u.profile_audit_status, u.profile_audit_reject_reason,
             u.contract_platform_broker_signed_at, u.contract_platform_broker_signature_url,
             u.created_at, u.updated_at,
+            u.id_card_no, u.id_card_front_url, u.id_card_back_url,
+            u.id_card_issue_authority, u.id_card_valid_date,
             bp.real_name AS broker_real_name,
             bp.is_professional AS broker_is_professional,
             bp.broker_license_url AS broker_license_url,

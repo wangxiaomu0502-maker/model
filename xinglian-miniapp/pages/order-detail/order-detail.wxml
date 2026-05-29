@@ -23,7 +23,7 @@
         </view>
         <view class="detail-row">
           <text class="detail-k">当前视角</text>
-          <text class="detail-v">{{order.brokerView ? '经纪人' : order.viewerRole === 1 ? '模特' : order.viewerRole === 2 ? '商家' : '—'}}</text>
+          <text class="detail-v">{{order.brokerView ? '经纪人' : order.viewerRole === 1 ? '模特' : order.viewerRole === 2 ? '客户' : '—'}}</text>
         </view>
         <view class="detail-row">
           <text class="detail-k">下单时间</text>
@@ -159,7 +159,7 @@
         <view class="party-item">
           <view class="party-avatar party-avatar--m">商</view>
           <view class="party-meta">
-            <text class="party-role">商家</text>
+            <text class="party-role">客户</text>
             <text class="party-name">{{order.merchant.nickname || '—'}}</text>
             <text class="party-no" selectable>编号 {{order.merchant.userNo || '—'}}</text>
           </view>

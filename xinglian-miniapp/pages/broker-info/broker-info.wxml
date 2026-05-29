@@ -1,6 +1,6 @@
 <view class="page page-themed-root">
   <view wx:if="{{!canUse}}" class="card state-card">
-    <text class="state-lead">仅限商家</text>
+    <text class="state-lead">仅限客户</text>
     <text class="state-msg">当前身份无法使用本页，将自动返回上一页。</text>
   </view>
 

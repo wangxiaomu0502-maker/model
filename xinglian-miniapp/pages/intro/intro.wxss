@@ -1,4 +1,4 @@
-/* 主题与「我的」顶部卡、首页商户区对齐：indigo → violet 渐变 + slate 中性色 */
+/* 主题与「我的」顶部卡、首页客户区对齐：indigo → violet 渐变 + slate 中性色 */
 
 .page-root {
   min-height: 100vh;
