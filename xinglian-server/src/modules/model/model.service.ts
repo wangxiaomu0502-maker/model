@@ -1,4 +1,5 @@
 import {
+  countPublicHomeUsers,
   ensureModelExtra,
   ensureModelProfile,
   ensureLeafCategoryIds,
@@ -21,10 +22,12 @@ import {
 } from "./model.repository";
 import { ErrorCodes } from "../../core/constants/error-codes";
 import { AppError } from "../../core/errors/app-error";
+import { getHomeStatOffsets } from "../system-settings/system-settings.service";
 import {
   normalizePortfolioForPersist,
   normalizePortfolioFromStorage
 } from "./model.portfolio";
+import { buildModelLevel, ModelLevelInfo } from "./model-level";
 import { basicInfoSchema } from "./model.types";
 import { findUserProfileById } from "../user/user.repository";
 import { isModelRealnameVerified } from "../user/user.service";
@@ -38,6 +41,28 @@ type CategoryTreeNode = {
 
 function uniqIds(ids: number[]): number[] {
   return Array.from(new Set(ids.filter((id) => Number.isInteger(id) && id > 0)));
+}
+
+const EMPTY_PUBLIC_CARD = {
+  photoAngles: [] as Array<{ key?: string; label?: string; url?: string }>,
+  measurements: {} as Record<string, unknown>
+};
+const EMPTY_PUBLIC_PORTFOLIO = { folders: [], photos: [] };
+const EMPTY_PUBLIC_STYLE_POSITION = { photos: [] as Array<{ id: string; url: string }> };
+
+function isPhotosDisabledFlag(value: unknown): boolean {
+  return Boolean(Number(value ?? 0));
+}
+
+/** 用户端公开接口：禁用后清空模卡/作品集/形象定位 */
+function stripModelPhotosForPublic<T extends Record<string, unknown>>(payload: T, photosDisabled: boolean): T {
+  if (!photosDisabled) return payload;
+  return {
+    ...payload,
+    card: EMPTY_PUBLIC_CARD,
+    portfolio: EMPTY_PUBLIC_PORTFOLIO,
+    stylePosition: EMPTY_PUBLIC_STYLE_POSITION
+  };
 }
 
 function formatDateKey(date: Date): string {
@@ -167,6 +192,20 @@ export async function getMyCategories(userId: number): Promise<{ categoryIds: nu
   return { categoryIds };
 }
 
+export async function getHomeSummary(): Promise<{
+  modelCount: number;
+  merchantCount: number;
+  brokerCount: number;
+}> {
+  const [counts, offsets] = await Promise.all([countPublicHomeUsers(), getHomeStatOffsets()]);
+  return {
+    ...counts,
+    modelCount: Math.max(0, counts.modelCount + offsets.model),
+    merchantCount: Math.max(0, counts.merchantCount + offsets.merchant),
+    brokerCount: Math.max(0, counts.brokerCount + offsets.broker)
+  };
+}
+
 export type MerchantModelListQuery = {
   province?: unknown;
   city?: unknown;
@@ -176,6 +215,9 @@ export type MerchantModelListQuery = {
   category?: unknown;
   priceSort?: unknown;
   ratingSort?: unknown;
+  modelLevel?: unknown;
+  modelLevels?: unknown;
+  preferPortfolio?: unknown;
   limit?: unknown;
 };
 
@@ -194,12 +236,32 @@ function parseCategoryIds(value: unknown): number[] {
   return Array.from(new Set(ids));
 }
 
+function parseModelLevels(...values: unknown[]): number[] {
+  const ids = values
+    .filter((value) => value != null && value !== "")
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .flatMap((item) => String(item).split(","))
+    .map((part) => {
+      const text = part.trim().toUpperCase();
+      const normalized = text.startsWith("LV") ? text.slice(2) : text;
+      return Number(normalized);
+    })
+    .filter((level) => Number.isInteger(level) && level >= 0 && level <= 5);
+  return Array.from(new Set(ids));
+}
+
+function isTruthyQueryFlag(value: unknown): boolean {
+  const text = cleanText(value);
+  return text === "1" || text === "true" || text === "yes";
+}
+
 function toMerchantModelListFilters(query: MerchantModelListQuery = {}): MerchantModelListFilters {
   const genderText = cleanText(query.gender);
   const priceSort = cleanText(query.priceSort);
   const ratingSort = cleanText(query.ratingSort);
   const categoryId = Number(query.categoryId || 0);
   const categoryIds = parseCategoryIds(query.categoryIds);
+  const modelLevels = parseModelLevels(query.modelLevel, query.modelLevels);
   const limit = Number(query.limit || 50);
   return {
     province: cleanText(query.province),
@@ -215,6 +277,8 @@ function toMerchantModelListFilters(query: MerchantModelListQuery = {}): Merchan
     category: cleanText(query.category),
     priceSort: priceSort === "asc" || priceSort === "desc" ? priceSort : undefined,
     ratingSort: ratingSort === "desc" ? "desc" : undefined,
+    modelLevels: modelLevels.length > 0 ? modelLevels : undefined,
+    preferPortfolio: isTruthyQueryFlag(query.preferPortfolio),
     limit: Number.isFinite(limit) ? limit : 50
   };
 }
@@ -237,6 +301,8 @@ export async function getMerchantModelList(query: MerchantModelListQuery = {}): 
     categoryIds: number[];
     categories: string[];
     profileAuditStatus: number;
+    isPlatformFeatured: boolean;
+    modelLevel: ModelLevelInfo;
     /** 模卡：与详情页 /api/models/detail 中 card 结构一致 */
     card: {
       photoAngles: Array<{ key?: string; label?: string; url?: string }>;
@@ -265,6 +331,13 @@ export async function getMerchantModelList(query: MerchantModelListQuery = {}): 
         rawMeas && typeof rawMeas === "object" && !Array.isArray(rawMeas)
           ? (rawMeas as Record<string, unknown>)
           : {};
+      const portfolio = normalizePortfolioFromStorage(parseJsonField(row.portfolio_json), {
+        stripNonRemoteUrls: true
+      });
+      const stylePosition = normalizeStylePositionFromStorage(parseJsonField(row.style_position_json));
+      const card = { photoAngles, measurements };
+      const isPlatformFeatured = Boolean(Number(row.is_platform_featured ?? 0));
+      const photosDisabled = isPhotosDisabledFlag(row.photos_disabled);
       const categoryIds = String(row.category_ids || "")
         .split(",")
         .map((s) => Number(s.trim()))
@@ -290,7 +363,16 @@ export async function getMerchantModelList(query: MerchantModelListQuery = {}): 
           .filter(Boolean)
           .slice(0, 6),
         profileAuditStatus: Number(row.profile_audit_status || 0),
-        card: { photoAngles, measurements }
+        isPlatformFeatured,
+        modelLevel: buildModelLevel({
+          card,
+          portfolio,
+          stylePosition,
+          modelLevelOverride: row.model_level_override,
+          profileAuditStatus: row.profile_audit_status,
+          isPlatformFeatured
+        }),
+        card: photosDisabled ? EMPTY_PUBLIC_CARD : card
       };
     })
   };
@@ -434,16 +516,23 @@ export async function getModelPublicDetail(
     throw new AppError("model not found", 404, ErrorCodes.NOT_FOUND);
   }
 
-  /** 公开浏览仅展示资料审核已通过（2）的模特，与 /api/models/list 口径一致 */
-  if (Number(options?.viewerRole ?? 0) !== 1 && Number(row.profile_audit_status ?? 0) !== 2) {
-    throw new AppError("model not found", 404, ErrorCodes.NOT_FOUND);
-  }
-
   const card = parseJsonField(row.card_json) || { photoAngles: [], measurements: {} };
   const portfolio = normalizePortfolioFromStorage(parseJsonField(row.portfolio_json), {
     stripNonRemoteUrls: true
   });
   const stylePosition = normalizeStylePositionFromStorage(parseJsonField(row.style_position_json));
+  const enrichedCard = enrichCardFromProfile(card, {
+    height: row.height,
+    weight: row.weight,
+    bust: row.bust,
+    waist: row.waist,
+    hip: row.hip,
+    shoe_size: row.shoe_size,
+    hair_color: row.hair_color,
+    skin_tone: row.skin_tone
+  });
+  const isPlatformFeatured = Boolean(Number(row.is_platform_featured ?? 0));
+  const photosDisabled = isPhotosDisabledFlag(row.photos_disabled);
   const scheduleRaw = parseJsonField(row.schedule_json) || { scheduleMap: {} };
   const scheduleMap = normalizeScheduleMap(scheduleRaw.scheduleMap);
   const orderSettingsRaw = parseJsonField(row.order_settings_json);
@@ -459,50 +548,56 @@ export async function getModelPublicDetail(
   const gender = row.profile_gender === 1 ? "男" : "女";
   const honors = await listHonorsForPublicDisplay(row.id);
 
-  return {
-    userId: row.id,
-    userNo: row.user_no,
-    nickname: row.nickname || `模特${row.user_no}`,
-    avatarUrl: row.avatar_url || "",
-    city: row.city || "",
-    intro: row.intro || "",
-    gender,
-    price: {
-      hourly: row.price_hour,
-      halfDay: row.price_halfday,
-      fullDay: row.price_allday
+  return stripModelPhotosForPublic(
+    {
+      userId: row.id,
+      userNo: row.user_no,
+      nickname: row.nickname || `模特${row.user_no}`,
+      avatarUrl: row.avatar_url || "",
+      city: row.city || "",
+      intro: row.intro || "",
+      gender,
+      price: {
+        hourly: row.price_hour,
+        halfDay: row.price_halfday,
+        fullDay: row.price_allday
+      },
+      profileAuditStatus: Number(row.profile_audit_status || 0),
+      isPlatformFeatured,
+      modelLevel: buildModelLevel({
+        card: enrichedCard,
+        portfolio,
+        stylePosition,
+        modelLevelOverride: row.model_level_override,
+        profileAuditStatus: row.profile_audit_status,
+        isPlatformFeatured
+      }),
+      card: enrichedCard,
+      portfolio,
+      stylePosition,
+      honors,
+      schedule: {
+        scheduleMap
+      },
+      orderSettings: {
+        orderEnabled: Boolean(orderSettings.orderEnabled ?? row.is_available),
+        onlyLocal: Boolean(orderSettings.onlyLocal ?? row.only_local_orders),
+        onlyFemale: Boolean(orderSettings.onlyFemale ?? row.only_female_clients)
+      }
     },
-    profileAuditStatus: Number(row.profile_audit_status || 0),
-    card: enrichCardFromProfile(card, {
-      height: row.height,
-      weight: row.weight,
-      bust: row.bust,
-      waist: row.waist,
-      hip: row.hip,
-      shoe_size: row.shoe_size,
-      hair_color: row.hair_color,
-      skin_tone: row.skin_tone
-    }),
-    portfolio,
-    stylePosition,
-    honors,
-    schedule: {
-      scheduleMap
-    },
-    orderSettings: {
-      orderEnabled: Boolean(orderSettings.orderEnabled ?? row.is_available),
-      onlyLocal: Boolean(orderSettings.onlyLocal ?? row.only_local_orders),
-      onlyFemale: Boolean(orderSettings.onlyFemale ?? row.only_female_clients)
-    }
-  };
+    photosDisabled
+  );
 }
 
 export async function getModelData(userId: number): Promise<Record<string, unknown>> {
   await ensureModelProfile(userId);
   await ensureModelExtra(userId);
 
-  const profile = await findModelProfile(userId);
-  const extra = await findModelExtra(userId);
+  const [profile, extra, userRow] = await Promise.all([
+    findModelProfile(userId),
+    findModelExtra(userId),
+    findUserProfileById(userId)
+  ]);
 
   const categoryIds = await findMyCategoryIds(userId);
   const cardRaw =
@@ -512,6 +607,7 @@ export async function getModelData(userId: number): Promise<Record<string, unkno
     stripNonRemoteUrls: false
   });
   const stylePosition = normalizeStylePositionFromStorage(parseJsonColumn(extra?.style_position_json));
+  const isPlatformFeatured = Boolean(Number(profile?.is_platform_featured ?? 0));
   const scheduleRaw =
     (parseJsonColumn(extra?.schedule_json) as Record<string, unknown> | null) || { scheduleMap: {} };
   const schedule = {
@@ -543,6 +639,15 @@ export async function getModelData(userId: number): Promise<Record<string, unkno
       fullDay: toPositiveIntOrEmpty(profile?.price_allday)
     },
     categories: { categoryIds },
+    isPlatformFeatured,
+    modelLevel: buildModelLevel({
+      card,
+      portfolio,
+      stylePosition,
+      modelLevelOverride: profile?.model_level_override,
+      profileAuditStatus: userRow?.profile_audit_status ?? 0,
+      isPlatformFeatured
+    }),
     card,
     portfolio,
     stylePosition,

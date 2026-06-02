@@ -23,6 +23,9 @@ import {
   adminListBrokerBoundMerchantsController,
   adminReviewModelProfileAuditController,
   adminSetModelAgentController,
+  adminSetModelFeaturedController,
+  adminSetModelLevelController,
+  adminSetModelPhotosDisabledController,
   adminSetMerchantBrokerController,
   adminListOrdersController,
   adminListUsersWithRoleQueryController,
@@ -35,6 +38,9 @@ import {
 } from "./admin.controller";
 import {
   adminModelAgentBodySchema,
+  adminModelFeaturedBodySchema,
+  adminModelLevelBodySchema,
+  adminModelPhotosDisabledBodySchema,
   adminMerchantBrokerBodySchema,
   adminModelProfileAuditBodySchema,
   adminOrderIdParamSchema,
@@ -73,6 +79,7 @@ import {
 import {
   adminCreateModelController,
   adminGetModelCategoryTreeController,
+  adminUploadAssetImageController,
   adminUpdateModelController,
   adminUploadModelAvatarController,
   adminUploadModelCardImageController,
@@ -200,6 +207,12 @@ adminRouter.get(
   adminGetModelCategoryTreeController
 );
 adminRouter.post(
+  "/assets/upload",
+  requireAdminAuth,
+  adminModelImageUploader.single("file"),
+  adminUploadAssetImageController
+);
+adminRouter.post(
   "/models/avatar/upload",
   requireAdminAuth,
   adminModelImageUploader.single("file"),
@@ -268,6 +281,27 @@ adminRouter.patch(
   validate(adminUserIdParamSchema, "params"),
   validate(adminModelAgentBodySchema),
   adminSetModelAgentController
+);
+adminRouter.patch(
+  "/models/:userId/featured",
+  requireAdminAuth,
+  validate(adminUserIdParamSchema, "params"),
+  validate(adminModelFeaturedBodySchema),
+  adminSetModelFeaturedController
+);
+adminRouter.patch(
+  "/models/:userId/photos-disabled",
+  requireAdminAuth,
+  validate(adminUserIdParamSchema, "params"),
+  validate(adminModelPhotosDisabledBodySchema),
+  adminSetModelPhotosDisabledController
+);
+adminRouter.patch(
+  "/models/:userId/level",
+  requireAdminAuth,
+  validate(adminUserIdParamSchema, "params"),
+  validate(adminModelLevelBodySchema),
+  adminSetModelLevelController
 );
 adminRouter.get(
   "/agent-users",

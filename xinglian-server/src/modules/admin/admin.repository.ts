@@ -1,6 +1,8 @@
 import { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { dbPool } from "../../config/db";
+import { type AdminModelLevelOverride } from "../model/model-level";
+import { hasModelProfilesColumn, mpColumnExpr } from "../../shared/model-profile-columns";
 
 export type AdminUserListRow = RowDataPacket & {
   id: number;
@@ -33,6 +35,12 @@ export type AdminUserListRow = RowDataPacket & {
   broker_is_professional?: number | string | null;
   broker_license_url?: string | null;
   model_is_admin_created?: number | string | null;
+  model_is_platform_featured?: number | string | null;
+  model_photos_disabled?: number | string | null;
+  model_level_override?: number | string | null;
+  model_card_json?: string | null;
+  model_portfolio_json?: string | null;
+  model_style_position_json?: string | null;
 };
 
 export type AdminModelBasicDetailRow = RowDataPacket & {
@@ -76,6 +84,9 @@ export type AdminModelBasicDetailRow = RowDataPacket & {
   only_local_orders: number;
   only_female_clients: number;
   is_admin_created: number | string | null;
+  is_platform_featured: number | string | null;
+  photos_disabled: number | string | null;
+  model_level_override: number | string | null;
   card_json: string | null;
   portfolio_json: string | null;
   style_position_json: string | null;
@@ -88,6 +99,24 @@ export type AdminModelCategoryRow = RowDataPacket & {
   name: string;
   type: "main" | "style" | "scene";
 };
+
+type AdminUserListFilters = {
+  profileAuditStatus?: number;
+  modelLevel?: number;
+};
+
+function buildModelLevelSql(levelOverrideExpr: string): string {
+  return `COALESCE(
+    ${levelOverrideExpr},
+    CASE
+      WHEN (
+        CAST(mex.card_json AS CHAR) LIKE '%\\"url\\"%'
+        OR CAST(mex.card_json AS CHAR) LIKE '%\\"measurements\\"%'
+      ) THEN 1
+      ELSE 0
+    END
+  )`;
+}
 
 /** 工作台等场景：一次查询 role 1/2/3/4 用户数（未删除） */
 export async function countUsersGroupedByRole123(): Promise<{
@@ -114,12 +143,30 @@ export async function countUsersGroupedByRole123(): Promise<{
   };
 }
 
-export async function countUsersForAdminByRole(role: number): Promise<number> {
+export async function countUsersForAdminByRole(
+  role: number,
+  filters: AdminUserListFilters = {}
+): Promise<number> {
+  const where = ["u.deleted_at IS NULL", "u.role = ?"];
+  const params: number[] = [role];
+  if (Number.isInteger(filters.profileAuditStatus)) {
+    where.push("u.profile_audit_status = ?");
+    params.push(Number(filters.profileAuditStatus));
+  }
+  let joins = "";
+  if (role === 1 && Number.isInteger(filters.modelLevel)) {
+    const levelOverrideExpr = await mpColumnExpr("model_level_override", "NULL");
+    joins = `
+     LEFT JOIN model_profiles mp ON mp.user_id = u.id
+     LEFT JOIN model_extra_data mex ON mex.user_id = u.id`;
+    where.push(`${buildModelLevelSql(levelOverrideExpr)} = ?`);
+    params.push(Number(filters.modelLevel));
+  }
   const [rows] = await dbPool.query<RowDataPacket[]>(
-    `SELECT COUNT(*) AS cnt FROM users
-     WHERE deleted_at IS NULL
-       AND role = ?`,
-    [role]
+    `SELECT COUNT(*) AS cnt
+     FROM users u${joins}
+     WHERE ${where.join("\n       AND ")}`,
+    params
   );
   const cnt = rows[0]?.cnt;
   return Number(cnt ?? 0);
@@ -128,10 +175,25 @@ export async function countUsersForAdminByRole(role: number): Promise<number> {
 export async function findUsersPageForAdminByRole(
   role: number,
   offset: number,
-  limit: number
+  limit: number,
+  filters: AdminUserListFilters = {}
 ): Promise<AdminUserListRow[]> {
   const safeLimit = Math.max(1, Math.min(100, limit));
   const safeOffset = Math.max(0, offset);
+  const where = ["u.deleted_at IS NULL", "u.role = ?"];
+  const params: number[] = [role];
+  if (Number.isInteger(filters.profileAuditStatus)) {
+    where.push("u.profile_audit_status = ?");
+    params.push(Number(filters.profileAuditStatus));
+  }
+  const platformFeaturedSelect = `${await mpColumnExpr("is_platform_featured", "0")} AS model_is_platform_featured`;
+  const photosDisabledSelect = `${await mpColumnExpr("photos_disabled", "0")} AS model_photos_disabled`;
+  const levelOverrideSelect = `${await mpColumnExpr("model_level_override", "NULL")} AS model_level_override`;
+  const levelOverrideExpr = await mpColumnExpr("model_level_override", "NULL");
+  if (role === 1 && Number.isInteger(filters.modelLevel)) {
+    where.push(`${buildModelLevelSql(levelOverrideExpr)} = ?`);
+    params.push(Number(filters.modelLevel));
+  }
   const [rows] = await dbPool.query<AdminUserListRow[]>(
     `SELECT u.id, u.user_no, u.nickname, u.avatar_url, u.role, u.phone, u.status,
             u.verified_status, u.profile_audit_status, u.profile_audit_reject_reason,
@@ -159,19 +221,25 @@ export async function findUsersPageForAdminByRole(
              WHERE ub.deleted_at IS NULL AND ub.role = 2 AND ub.referrer_id = u.id) AS bound_merchant_count,
             bp_self.is_professional AS broker_is_professional,
             bp_self.broker_license_url AS broker_license_url,
-            mp.is_admin_created AS model_is_admin_created
+            mp.is_admin_created AS model_is_admin_created,
+            ${platformFeaturedSelect},
+            ${photosDisabledSelect},
+            ${levelOverrideSelect},
+            mex.card_json AS model_card_json,
+            mex.portfolio_json AS model_portfolio_json,
+            mex.style_position_json AS model_style_position_json
      FROM users u
      LEFT JOIN model_profiles mp ON mp.user_id = u.id
+     LEFT JOIN model_extra_data mex ON mex.user_id = u.id
      LEFT JOIN broker_profiles bp_self ON bp_self.user_id = u.id
      LEFT JOIN users ref ON ref.id = u.referrer_id AND ref.deleted_at IS NULL AND ref.role = 3
      LEFT JOIN broker_profiles bref ON bref.user_id = ref.id
      LEFT JOIN users ag ON ag.id = u.agent_user_id AND ag.deleted_at IS NULL AND ag.role = 4
      LEFT JOIN agent_profiles ap ON ap.user_id = ag.id
-     WHERE u.deleted_at IS NULL
-       AND u.role = ?
+     WHERE ${where.join("\n       AND ")}
      ORDER BY u.id DESC
      LIMIT ? OFFSET ?`,
-    [role, safeLimit, safeOffset]
+    [...params, safeLimit, safeOffset]
   );
   return rows;
 }
@@ -179,6 +247,9 @@ export async function findUsersPageForAdminByRole(
 export async function findModelBasicDetailForAdminByUserId(
   userId: number
 ): Promise<AdminModelBasicDetailRow | null> {
+  const platformFeaturedExpr = await mpColumnExpr("is_platform_featured", "0");
+  const photosDisabledExpr = await mpColumnExpr("photos_disabled", "0");
+  const levelOverrideExpr = await mpColumnExpr("model_level_override", "NULL");
   const [rows] = await dbPool.query<AdminModelBasicDetailRow[]>(
     `SELECT u.id, u.user_no, u.nickname, u.status, u.agent_user_id, u.avatar_url, u.phone,
             ag.user_no AS agent_user_no, ag.nickname AS agent_nickname,
@@ -192,7 +263,9 @@ export async function findModelBasicDetailForAdminByUserId(
             mp.shoe_size, mp.hair_color, mp.skin_tone,
             mp.price_hour, mp.price_halfday, mp.price_allday,
             mp.is_available, mp.only_local_orders, mp.only_female_clients,
-            mp.is_admin_created,
+            mp.is_admin_created, ${platformFeaturedExpr} AS is_platform_featured,
+            ${photosDisabledExpr} AS photos_disabled,
+            ${levelOverrideExpr} AS model_level_override,
             mex.card_json, mex.portfolio_json, mex.style_position_json, mex.schedule_json, mex.order_settings_json
      FROM users u
      LEFT JOIN users ag ON ag.id = u.agent_user_id AND ag.deleted_at IS NULL
@@ -219,6 +292,88 @@ export async function updateModelAgentUserIdForAdmin(
      SET agent_user_id = ?, updated_at = CURRENT_TIMESTAMP
      WHERE id = ? AND role = 1 AND deleted_at IS NULL`,
     [agentUserId, id]
+  );
+  return result.affectedRows > 0;
+}
+
+export async function updateModelPlatformFeaturedForAdmin(
+  modelUserId: number,
+  featured: boolean
+): Promise<boolean> {
+  const id = Math.floor(Number(modelUserId));
+  if (!Number.isFinite(id) || id <= 0) return false;
+  if (!(await hasModelProfilesColumn("is_platform_featured"))) return false;
+  const [result] = await dbPool.query<ResultSetHeader>(
+    `UPDATE model_profiles mp
+     INNER JOIN users u ON u.id = mp.user_id
+     SET mp.is_platform_featured = ?,
+         mp.updated_at = CURRENT_TIMESTAMP
+     WHERE mp.user_id = ? AND u.role = 1 AND u.deleted_at IS NULL`,
+    [featured ? 1 : 0, id]
+  );
+  return result.affectedRows > 0;
+}
+
+export async function updateModelPhotosDisabledForAdmin(
+  modelUserId: number,
+  photosDisabled: boolean
+): Promise<boolean> {
+  const id = Math.floor(Number(modelUserId));
+  if (!Number.isFinite(id) || id <= 0) return false;
+  if (!(await hasModelProfilesColumn("photos_disabled"))) return false;
+  const [result] = await dbPool.query<ResultSetHeader>(
+    `UPDATE model_profiles mp
+     INNER JOIN users u ON u.id = mp.user_id
+     SET mp.photos_disabled = ?,
+         mp.updated_at = CURRENT_TIMESTAMP
+     WHERE mp.user_id = ? AND u.role = 1 AND u.deleted_at IS NULL`,
+    [photosDisabled ? 1 : 0, id]
+  );
+  return result.affectedRows > 0;
+}
+
+export async function updateModelLevelOverrideForAdmin(
+  modelUserId: number,
+  levelOverride: AdminModelLevelOverride | null
+): Promise<boolean> {
+  const id = Math.floor(Number(modelUserId));
+  if (!Number.isFinite(id) || id <= 0) return false;
+  const hasLevelOverride = await hasModelProfilesColumn("model_level_override");
+  const hasFeatured = await hasModelProfilesColumn("is_platform_featured");
+  if (!hasLevelOverride && !hasFeatured) return false;
+
+  if (hasLevelOverride && hasFeatured) {
+    const [result] = await dbPool.query<ResultSetHeader>(
+      `UPDATE model_profiles mp
+       INNER JOIN users u ON u.id = mp.user_id
+       SET mp.model_level_override = ?,
+           mp.is_platform_featured = CASE WHEN ? = 5 THEN 1 ELSE 0 END,
+           mp.updated_at = CURRENT_TIMESTAMP
+       WHERE mp.user_id = ? AND u.role = 1 AND u.deleted_at IS NULL`,
+      [levelOverride, levelOverride, id]
+    );
+    return result.affectedRows > 0;
+  }
+
+  if (hasLevelOverride) {
+    const [result] = await dbPool.query<ResultSetHeader>(
+      `UPDATE model_profiles mp
+       INNER JOIN users u ON u.id = mp.user_id
+       SET mp.model_level_override = ?,
+           mp.updated_at = CURRENT_TIMESTAMP
+       WHERE mp.user_id = ? AND u.role = 1 AND u.deleted_at IS NULL`,
+      [levelOverride, id]
+    );
+    return result.affectedRows > 0;
+  }
+
+  const [result] = await dbPool.query<ResultSetHeader>(
+    `UPDATE model_profiles mp
+     INNER JOIN users u ON u.id = mp.user_id
+     SET mp.is_platform_featured = CASE WHEN ? = 5 THEN 1 ELSE 0 END,
+         mp.updated_at = CURRENT_TIMESTAMP
+     WHERE mp.user_id = ? AND u.role = 1 AND u.deleted_at IS NULL`,
+    [levelOverride, id]
   );
   return result.affectedRows > 0;
 }
@@ -290,6 +445,12 @@ export type AdminMerchantBasicDetailRow = RowDataPacket & {
   avatar_url: string | null;
   role: number;
   phone: string | null;
+  real_name: string | null;
+  id_card_no: string | null;
+  id_card_front_url: string | null;
+  id_card_back_url: string | null;
+  id_card_issue_authority: string | null;
+  id_card_valid_date: string | null;
   status: number;
   verified_status: number;
   profile_audit_status: number;
@@ -311,8 +472,10 @@ export async function findMerchantBasicDetailForAdminByUserId(
   const id = Math.floor(Number(userId));
   if (!Number.isFinite(id) || id <= 0) return null;
   const [rows] = await dbPool.query<AdminMerchantBasicDetailRow[]>(
-    `SELECT u.id, u.user_no, u.nickname, u.avatar_url, u.role, u.phone, u.status,
-            u.verified_status, u.profile_audit_status, u.profile_audit_reject_reason,
+    `SELECT u.id, u.user_no, u.nickname, u.avatar_url, u.role, u.phone,
+            u.real_name, u.id_card_no, u.id_card_front_url, u.id_card_back_url,
+            u.id_card_issue_authority, u.id_card_valid_date,
+            u.status, u.verified_status, u.profile_audit_status, u.profile_audit_reject_reason,
             u.contract_platform_merchant_signed_at, u.contract_platform_merchant_signature_url,
             u.created_at, u.updated_at,
             mp.city,

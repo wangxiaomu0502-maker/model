@@ -135,9 +135,9 @@ Page({
   },
 
   enterHomeByRole(role) {
-    const targetUrl = homeTabUrlForRole(role) || "/pages/model-intro/model-intro";
+    const targetUrl = homeTabUrlForRole(role) || "/pages/home-intro/home-intro";
 
-    if (targetUrl === "/pages/model-intro/model-intro") {
+    if (targetUrl === "/pages/home-intro/home-intro") {
       wx.reLaunch({ url: targetUrl });
       return;
     }

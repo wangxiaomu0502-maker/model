@@ -1,21 +1,24 @@
 1. 商家
 
-第一个tab显示模特列表 路由改为 model-list
-第二个tab显示我的，保持现在的功能不动
+第一个 tab 显示首页 → home
+第二个 tab 显示模特列表 → model-list
+第三个 tab 显示我的，保持现在的功能不动
 
 
 3. 经纪人 / 代理人
 
-第一个 tab 统计信息：经纪人 → broker-stats，代理人（role=4）暂共用 broker-stats
+第一个 tab 显示首页 → home
 第二个 tab 模特列表 → model-list
-第三个 tab 我的 → mine
+第三个 tab 统计信息：经纪人 → broker-stats，代理人（role=4）暂共用 broker-stats
+第四个 tab 我的 → mine
 
 4. 模特
 
-第一个 tab 统计信息 → model-stats
+第一个 tab 显示首页 → home
 第二个 tab 模特列表 → model-list
-第三个 tab 我的 → mine
+第三个 tab 统计信息 → model-stats
+第四个 tab 我的 → mine
 
 注意只有商家身份的可以下单
 
-登录/注册后默认 tab 见 miniapp/utils/role-tab.js（`model-stats` / `broker-stats` / `model-list`）。遗留 `pages/home/home` 已移除，共用样式见 `styles/model-dash-page.wxss`。
+登录/注册后默认 tab 见 miniapp/utils/role-tab.js（统一进入 `pages/home/home`）。未登录用户进入 `pages/home-intro/home-intro`。

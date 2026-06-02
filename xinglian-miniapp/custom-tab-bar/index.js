@@ -26,6 +26,12 @@ Component({
       const listActiveIcon = "/assets/tab/list-active.png";
       const mineIcon = "/assets/tab/mine.png";
       const mineActiveIcon = "/assets/tab/mine-active.png";
+      const home = {
+        pagePath: "pages/home/home",
+        text: "首页",
+        iconPath: listIcon,
+        selectedIconPath: listActiveIcon
+      };
       const modelList = {
         pagePath: "pages/model-list/model-list",
         text: "模特列表",
@@ -38,31 +44,27 @@ Component({
         iconPath: mineIcon,
         selectedIconPath: mineActiveIcon
       };
-      if (role === 1) {
-        return [
-          {
-            pagePath: "pages/model-stats/model-stats",
-            text: "统计信息",
-            iconPath: statsIcon,
-            selectedIconPath: statsActiveIcon
-          },
-          modelList,
-          mine
-        ];
+      const statsTab =
+        role === 1
+          ? {
+              pagePath: "pages/model-stats/model-stats",
+              text: "统计信息",
+              iconPath: statsIcon,
+              selectedIconPath: statsActiveIcon
+            }
+          : role === 3 || role === 4
+            ? {
+                pagePath: "pages/broker-stats/broker-stats",
+                text: "统计信息",
+                iconPath: statsIcon,
+                selectedIconPath: statsActiveIcon
+              }
+            : null;
+
+      if (statsTab) {
+        return [home, modelList, statsTab, mine];
       }
-      if (role === 3 || role === 4) {
-        return [
-          {
-            pagePath: "pages/broker-stats/broker-stats",
-            text: "统计信息",
-            iconPath: statsIcon,
-            selectedIconPath: statsActiveIcon
-          },
-          modelList,
-          mine
-        ];
-      }
-      return [modelList, mine];
+      return [home, modelList, mine];
     },
 
     indexForRoute(list, route) {

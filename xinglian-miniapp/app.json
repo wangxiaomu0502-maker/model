@@ -1,6 +1,9 @@
 {
   "pages": [
     "pages/loading/loading",
+    "pages/launch-intro/launch-intro",
+    "pages/home/home",
+    "pages/home-intro/home-intro",
     "pages/mine/mine",
     "pages/settings/settings",
     "pages/contract-detail/contract-detail",
@@ -24,7 +27,6 @@
     "pages/broker-my-merchants/broker-my-merchants",
     "pages/broker-order-list/broker-order-list",
     "pages/merchant-basic-info/merchant-basic-info",
-    "pages/model-intro/model-intro",
     "pages/model-contest/model-contest",
     "pages/model-training/model-training",
     "pages/model-card-shoot/model-card-shoot",
@@ -52,6 +54,18 @@
     "borderStyle": "black",
     "list": [
       {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "assets/tab/list.png",
+        "selectedIconPath": "assets/tab/list-active.png"
+      },
+      {
+        "pagePath": "pages/model-list/model-list",
+        "text": "模特列表",
+        "iconPath": "assets/tab/list.png",
+        "selectedIconPath": "assets/tab/list-active.png"
+      },
+      {
         "pagePath": "pages/model-stats/model-stats",
         "text": "统计信息",
         "iconPath": "assets/tab/stats.png",
@@ -62,12 +76,6 @@
         "text": "统计信息",
         "iconPath": "assets/tab/stats.png",
         "selectedIconPath": "assets/tab/stats-active.png"
-      },
-      {
-        "pagePath": "pages/model-list/model-list",
-        "text": "模特列表",
-        "iconPath": "assets/tab/list.png",
-        "selectedIconPath": "assets/tab/list-active.png"
       },
       {
         "pagePath": "pages/mine/mine",

@@ -4,6 +4,7 @@ import { optionalAuth, requireAuth } from "../../middlewares/auth";
 import { validate } from "../../middlewares/validate";
 import {
   getCategoryTreeController,
+  getHomeSummaryController,
   getMerchantModelListController,
   getModelPublicDetailController,
   getMyCategoriesController,
@@ -50,6 +51,7 @@ import {
 const modelRouter = Router();
 
 modelRouter.get("/category-tree", optionalAuth, getCategoryTreeController);
+modelRouter.get("/home-summary", optionalAuth, getHomeSummaryController);
 modelRouter.get("/dashboard-stats", requireAuth, getModelDashboardStatsController);
 modelRouter.get("/list", optionalAuth, getMerchantModelListController);
 modelRouter.get("/detail", optionalAuth, validate(modelDetailQuerySchema, "query"), getModelPublicDetailController);

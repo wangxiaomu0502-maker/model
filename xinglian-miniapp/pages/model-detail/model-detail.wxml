@@ -29,16 +29,19 @@
           class="detail-hero-avatar"
           src="{{model.avatarUrl || '/assets/logo/logo.png'}}"
           mode="aspectFill"
+          data-url="{{model.avatarUrl}}"
+          bindtap="onPreviewImage"
         />
         <view class="detail-hero-text">
           <view class="detail-hero-kicker">
             <text class="detail-hero-kicker-dot"></text>
-            <text>STAR MODEL PICK</text>
+            <text>{{model.modelLevel ? model.modelLevel.code + " " + model.modelLevel.name : "STAR MODEL PICK"}}</text>
           </view>
           <text class="detail-hero-name">{{model.nickname}}</text>
           <text class="detail-hero-sub">{{model.city || "城市未填"}} · {{model.gender || "—"}}</text>
           <view class="detail-hero-tags">
-            <text class="detail-hero-tag">高颜值</text>
+            <text class="detail-hero-tag">{{model.modelLevel ? model.modelLevel.temperament : "高颜值"}}</text>
+            <text wx:if="{{model.modelLevel && model.modelLevel.level === 5}}" class="detail-hero-tag detail-hero-tag--featured">平台优选</text>
             <text class="detail-hero-tag">可预约</text>
             <text class="detail-hero-tag">详情档案</text>
           </view>

@@ -27,10 +27,16 @@ import {
   listUsersForAdminByRole,
   reviewModelProfileAuditForAdmin,
   setModelAgentUserForAdmin,
+  setModelLevelOverrideForAdmin,
+  setModelPlatformFeaturedForAdmin,
+  setModelPhotosDisabledForAdmin,
   setMerchantBrokerForAdmin
 } from "./admin.service";
 import {
   AdminModelAgentBody,
+  AdminModelFeaturedBody,
+  AdminModelLevelBody,
+  AdminModelPhotosDisabledBody,
   AdminMerchantBrokerBody,
   AdminModelProfileAuditBody,
   AdminPlatformLedgerQuery,
@@ -200,7 +206,10 @@ export async function adminListUsersWithRoleQueryController(
       return;
     }
     const q = req.query as unknown as AdminUsersByRoleQuery;
-    const data = await listUsersForAdminByRole(q.page, q.pageSize, q.role);
+    const data = await listUsersForAdminByRole(q.page, q.pageSize, q.role, {
+      profileAuditStatus: q.profileAuditStatus,
+      modelLevel: q.modelLevel
+    });
     return success(res, data as Record<string, unknown>);
   } catch (error) {
     return next(error);
@@ -220,7 +229,10 @@ export function createAdminListUsersByRoleController(role: number) {
         return;
       }
       const q = req.query as unknown as AdminUserListQuery;
-      const data = await listUsersForAdminByRole(q.page, q.pageSize, role);
+      const data = await listUsersForAdminByRole(q.page, q.pageSize, role, {
+        profileAuditStatus: q.profileAuditStatus,
+        modelLevel: q.modelLevel
+      });
       success(res, data as Record<string, unknown>);
     } catch (error) {
       next(error);
@@ -416,6 +428,66 @@ export async function adminSetModelAgentController(
     const { userId } = req.params as unknown as AdminUserIdParam;
     const body = req.body as AdminModelAgentBody;
     const result = await setModelAgentUserForAdmin(userId, body.agentUserId);
+    success(res, result as Record<string, unknown>);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function adminSetModelFeaturedController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const adminAuth = (req as AdminAuthenticatedRequest).adminAuth;
+    if (!adminAuth?.adminUserId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { userId } = req.params as unknown as AdminUserIdParam;
+    const body = req.body as AdminModelFeaturedBody;
+    const result = await setModelPlatformFeaturedForAdmin(userId, body.isPlatformFeatured);
+    success(res, result as Record<string, unknown>);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function adminSetModelPhotosDisabledController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const adminAuth = (req as AdminAuthenticatedRequest).adminAuth;
+    if (!adminAuth?.adminUserId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { userId } = req.params as unknown as AdminUserIdParam;
+    const body = req.body as AdminModelPhotosDisabledBody;
+    const result = await setModelPhotosDisabledForAdmin(userId, body.photosDisabled);
+    success(res, result as Record<string, unknown>);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function adminSetModelLevelController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const adminAuth = (req as AdminAuthenticatedRequest).adminAuth;
+    if (!adminAuth?.adminUserId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { userId } = req.params as unknown as AdminUserIdParam;
+    const body = req.body as AdminModelLevelBody;
+    const result = await setModelLevelOverrideForAdmin(userId, body.modelLevelOverride);
     success(res, result as Record<string, unknown>);
   } catch (error) {
     next(error);

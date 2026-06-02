@@ -5,5 +5,9 @@ CREATE TABLE IF NOT EXISTS platform_system_settings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO platform_system_settings (setting_key, setting_value)
-VALUES ('merchant_order_enabled', '1')
+VALUES
+  ('merchant_order_enabled', '1'),
+  ('home_stat_model_offset', '0'),
+  ('home_stat_merchant_offset', '0'),
+  ('home_stat_broker_offset', '0')
 ON DUPLICATE KEY UPDATE setting_value = setting_value;

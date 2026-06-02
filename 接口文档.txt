@@ -98,6 +98,14 @@
 - 规则：仅当 **`profile_audit_status = 1`（审核中）** 可操作 → **`approve`** 置 **`2`（通过）** 并清空驳回说明；**`reject`** 置 **`3`（审核失败）** 并写入 **`profile_audit_reject_reason`**。
 - 返回：`ok`、`profileAuditStatus`（2 或 3）
 
+1-2m-PATCH) 管理端 — 手动设置模特等级（LV4 / LV5）
+- 方法：PATCH
+- 路径：**`/api/admin/models/:userId/level`**
+- 请求头：`Authorization`、`Content-Type: application/json`
+- 请求体：`{ "modelLevelOverride": 4 | 5 | null }`
+- 说明：**LV0-LV3 由系统按资料自动计算**；只有后台管理员手动指定时才会成为 **LV4 皇冠模特** 或 **LV5 天幕模特**。传 `null` 表示恢复自动计算。
+- 返回：`ok`、`modelLevelOverride`
+
 1-2b) 管理端 — 商家分页列表（users 表 role=2）
 - 方法：GET
 - 路径：/api/admin/merchants
@@ -187,7 +195,7 @@
   "list": [
     {
       "userId": 1,
-      "userNo": "MK0000000001",
+      "userNo": "MD2026050001",
       "nickname": "昵称",
       "role": 2,
       "phone": "13800138000",
@@ -348,7 +356,7 @@
 - 说明：仅 role=商家；服务端再次校验档期 `available`、报价与预约窗口；金额以后台模特报价快照为准。
 - 请求体：
 {
-  "modelUserNo": "MK0000000001",
+  "modelUserNo": "MD2026050001",
   "bookingDate": "2026-05-10",
   "durationKind": "hourly",
   "hourCount": 3
@@ -444,7 +452,7 @@
 - 方法：GET
 - 路径：/api/models/me
 - 请求头：Authorization: Bearer <token>
-- 返回：`basicInfo`、`categories`、`card`、`portfolio`、`pricing`、`schedule`、`orderSettings`
+- 返回：`basicInfo`、`categories`、`card`、`portfolio`、`pricing`、`schedule`、`orderSettings`、`modelLevel`
 - 说明：`categories` 当前为 `{ categoryIds: number[] }`
 
 11-a) 模特资料审核 — 完成度（小程序「提交审核」弹窗）
@@ -463,31 +471,60 @@
 - 行为：校验资料齐全后设为 **`1`（审核中）**，并清空 **`profile_audit_reject_reason`**（依赖数据库列，见上）。
 - 冲突：已在审核中 / 已通过时返回 400；并发更新失败时可能 409。
 
-12) 商家首页模特列表
+12) 模特列表 / 首页推荐模特
 - 方法：GET
 - 路径：/api/models/list
-- 请求头：Authorization: Bearer <token>
-- 过滤：**仅返回** `role=1`、`status=1`、`deleted_at IS NULL`、**`profile_audit_status = 2`（资料审核已通过）** 且 **`model_profiles.is_available = 1`**（接单中）的模特。
+- 请求头：Authorization: Bearer <token>（可选）
+- Query（均可选）：
+  - province / city：地域筛选
+  - gender：性别（男 / 女）
+  - categoryIds：类型 ID，逗号分隔
+  - modelLevel：模特等级（0–5，对应 LV0–LV5）
+  - priceSort：asc / desc（小时价）
+  - ratingSort：desc（评分）
+  - limit：返回条数上限，默认 50
+- 过滤：**仅返回** `role=1`、`status=1`、`deleted_at IS NULL`、**`profile_audit_status = 2`（资料审核已通过）** 且 **`model_profiles.is_available = 1`**（接单中）的模特；默认排序优先展示等级更高的模特（LV5 / LV4 优先）。
 - 返回示例：
 {
   "ok": true,
   "list": [
     {
       "userId": 2,
-      "userNo": "MK0000000001",
-      "nickname": "Mock模特01",
+      "userNo": "MD2026050001",
+      "nickname": "模特昵称",
       "city": "北京市 北京市",
       "price": {
         "hourly": 300,
         "halfDay": 1200,
         "fullDay": 2400
       },
-      "profileAuditStatus": 2
+      "profileAuditStatus": 2,
+      "modelLevel": {
+        "level": 5,
+        "code": "LV5",
+        "name": "天幕模特",
+        "requirement": "完成全部资料 + 平台认证 + 平台优选/重点推荐",
+        "temperament": "平台顶级优选，重点推荐",
+        "source": "admin"
+      }
     }
   ]
 }
 
-12-1) 模特详情（按对外 userNo 或内部 userId）
+12-1) 首页统计
+- 方法：GET
+- 路径：/api/models/home-summary
+- 请求头：Authorization: Bearer <token>（可选）
+- 说明：返回首页顶部统计用的注册模特数、注册商家数和注册经纪人数；统计口径与后台用户统计一致，按 `users.deleted_at IS NULL` 且 `role IN (1,2,3)` 计算。
+- 返回示例：
+{
+  "ok": true,
+  "modelCount": 128,
+  "merchantCount": 36,
+  "brokerCount": 12
+}
+
+12-2) 模特详情（按对外 userNo 或内部 userId）
 - 方法：GET
 - 路径：/api/models/detail
 - 请求头：Authorization: Bearer <token>
@@ -499,8 +536,8 @@
 {
   "ok": true,
   "userId": 2,
-  "userNo": "MK0000000001",
-  "nickname": "Mock模特01",
+  "userNo": "MD2026050001",
+  "nickname": "模特昵称",
   "avatarUrl": "https://...",
   "city": "北京市 北京市",
   "intro": "简介",
@@ -518,6 +555,14 @@
     "fullDay": 2400
   },
   "profileAuditStatus": 0,
+  "modelLevel": {
+    "level": 1,
+    "code": "LV1",
+    "name": "新锐模特",
+    "requirement": "完成基础模卡信息",
+    "temperament": "开始崭露头角",
+    "source": "auto"
+  },
   "card": { "photoAngles": [], "measurements": {} },
   "portfolio": { "categories": [], "photos": [] },
   "schedule": {

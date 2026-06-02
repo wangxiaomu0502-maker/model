@@ -1,7 +1,7 @@
 const { BROKER_QUERY_KEY, buildBrokerPromoPagePath } = require("./broker-promo.js");
 
-const DEFAULT_SHARE_TITLE = "星链模库｜模特接单、客户找人一站式平台";
-const DEFAULT_TIMELINE_TITLE = "星链模库：连接模特、客户、经纪人的高效协作平台";
+const DEFAULT_SHARE_TITLE = "星链相连，模库机遇无限";
+const DEFAULT_TIMELINE_TITLE = "星链相连，模库机遇无限";
 const DEFAULT_SHARE_IMAGE = "/assets/logo/logo.png";
 
 function getCurrentBrokerUserNo(fallbackUserNo) {

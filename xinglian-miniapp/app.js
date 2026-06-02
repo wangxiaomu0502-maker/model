@@ -17,7 +17,7 @@ const DEFAULT_LOCAL_API_BASE = "http://127.0.0.1:3000";
  * - "local" → 一律连本地（见 DEFAULT_LOCAL_API_BASE 或 storage xinglian_local_api_base）
  * - "auto"  → 体验版/正式版线上；开发版模拟器本地、真机预览线上
  */
-const API_ENV_OVERRIDE = "prod";
+const API_ENV_OVERRIDE = "auto";
 
 const STORAGE_LOCAL_API_BASE = "xinglian_local_api_base";
 

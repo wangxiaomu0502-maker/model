@@ -1,12 +1,12 @@
 模特列表实现说明（商家首页）
 
 一、目标
-- 商家身份（role=2）进入首页后，获取并展示可合作模特列表。
+- 登录用户可在模特列表 tab 获取并展示可合作模特列表；未登录首页也可展示推荐模特。
 
 二、当前已实现
 1) 后端接口
 - 路径：`GET /api/models/list`
-- 鉴权：需要 `Authorization: Bearer <token>`
+- 鉴权：可选 `Authorization: Bearer <token>`
 - 返回字段：
   - userId
   - userNo
@@ -21,9 +21,9 @@
 - `model_profiles.is_available = 1`（接单开启）
 
 3) 前端渲染
-- 页面：`pages/model-list/model-list`（商家 tab）；游客预览：`pages/model-intro/model-intro`
+- 页面：`pages/model-list/model-list`（登录后模特列表 tab）；首页推荐模块：`pages/home/home` / `pages/home-intro/home-intro`
 - 逻辑：
-  - 仅当 `role=2` 时请求 `/api/models/list`
+  - 页面展示时请求 `/api/models/list`
   - 列表为空时显示“暂无可展示模特”
   - 展示昵称、ID、城市、三档价格
 
@@ -32,7 +32,7 @@
 
 三、数据依赖说明
 - 若用户只有 `users` 记录、没有对应 `model_profiles` 记录，或 `is_available != 1`，则不会出现在列表中。
-- 为验证链路，已补齐 2 条 mock 模特的 `model_profiles`（含城市与价格，且 `is_available=1`）。
+- 列表数据来自真实模特资料，不再依赖 mock 模特数据。
 
 四、当前限制
 - 暂无筛选参数（城市/价格区间/分类等）

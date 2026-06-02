@@ -8,7 +8,7 @@ import { resolveImageUploadMime } from "../../core/utils/resolve-upload-mime";
 import { getCategoryTree } from "../model/model.service";
 
 import type { AdminModelCreateBody, AdminModelUpdateBody } from "./admin-model.types";
-import { uploadAdminModelImageToCos } from "./admin-model-media.storage";
+import { uploadAdminAssetImageToCos, uploadAdminModelImageToCos } from "./admin-model-media.storage";
 import { createModelForAdmin, updateModelForAdmin } from "./admin-model.service";
 
 function requireAdmin(req: Request, res: Response): number | null {
@@ -123,4 +123,28 @@ export async function adminUploadModelStyleImageController(
   next: NextFunction
 ): Promise<void> {
   return adminUploadModelImage(req, res, next, "style");
+}
+
+export async function adminUploadAssetImageController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const adminUserId = requireAdmin(req, res);
+    if (adminUserId == null) return;
+    const file = (req as Request & { file?: Express.Multer.File }).file;
+    const mimetype = file ? resolveImageUploadMime(file) : null;
+    if (!file || !mimetype) {
+      throw new AppError("请上传 JPG、PNG 或 WEBP 图片", 400, ErrorCodes.VALIDATION_ERROR);
+    }
+    const url = await uploadAdminAssetImageToCos({
+      adminUserId,
+      body: file.buffer,
+      mimetype
+    });
+    success(res, { url });
+  } catch (error) {
+    next(error);
+  }
 }

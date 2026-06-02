@@ -13,12 +13,17 @@ const {
 const categoryFilterBehavior = require("../../behaviors/model-category-filter.js");
 
 function buildFilterPatch(modelList, filterState, filterOptions) {
-  const nextFilterOptions = filterOptions || buildModelFilterOptions(modelList);
+  const baseOptions = buildModelFilterOptions(modelList);
   const nextFilterState = {
     ...defaultModelFilterState(),
     ...(filterState || {})
   };
-  nextFilterOptions.regionColumns = buildRegionColumns(nextFilterState.regionIndex);
+  const nextFilterOptions = {
+    ...baseOptions,
+    ...(filterOptions || {}),
+    levels: baseOptions.levels,
+    regionColumns: buildRegionColumns(nextFilterState.regionIndex)
+  };
   return {
     filterOptions: nextFilterOptions,
     filterState: nextFilterState,

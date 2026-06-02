@@ -22,7 +22,12 @@ export function validate(
     }
 
     if (target === "query") {
-      Object.assign(req.query as object, result.data);
+      Object.defineProperty(req, "query", {
+        value: result.data,
+        configurable: true,
+        enumerable: true,
+        writable: true
+      });
     } else if (target === "params") {
       // 不要整对象替换 req.params（Express 5 上可能破坏内部引用）；合并且统一为字符串，与路由层约定一致
       const parsed = result.data as Record<string, unknown>;

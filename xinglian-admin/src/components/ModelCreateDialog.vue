@@ -329,14 +329,15 @@ function applyModelToForm(model: AdminModelBasicInfo) {
   applyCheckedKeysToTrees();
 }
 
+function validateBasicRequired(): string | null {
+  if (!form.name.trim()) return "请填写艺名/姓名";
+  if (!/^1\d{10}$/.test(form.phone.trim())) return "请填写正确的手机号";
+  return null;
+}
+
 function validateTab(key: TabKey): string | null {
   if (key === "basic") {
-    if (!form.name.trim()) return "请填写艺名/姓名";
-    if (!form.birthDate) return "请选择出生日期";
-    if (!form.cityCascader.length) return "请选择所在城市";
-    if (!form.intro.trim()) return "请填写简介";
-    if (!/^1\d{10}$/.test(form.phone.trim())) return "请填写正确的手机号";
-    return null;
+    return validateBasicRequired();
   }
   if (key === "categories") {
     return null;
@@ -668,8 +669,9 @@ function buildPayload(): AdminModelCreateBody {
 }
 
 function validateLocal(): string | null {
-  const basicErr = validateTab("basic");
+  const basicErr = validateBasicRequired();
   if (basicErr) return basicErr;
+  if (!isEditMode.value) return null;
   if (cardPhotoCount.value > 0) {
     const cardErr = validateTab("card");
     if (cardErr) return cardErr;
@@ -730,7 +732,7 @@ function onClose() {
           {{
             isEditMode
               ? "仅后管创建的模特支持在此编辑；保存后会同步基础资料、分类、模卡、价格、接单设置与作品集。"
-              : "仅需填写基本信息即可创建初始账号；分类、模卡、价格等可后续补充。资料审核与用户端一致，须模特完善后提交、后台审核通过才会在用户端列表展示。"
+              : "仅需填写艺名/姓名与手机号即可创建初始账号；性别、城市、分类、模卡、价格等均可后续补充。资料审核与用户端一致，须模特完善后提交、后台审核通过才会在用户端列表展示。"
           }}
         </p>
       </div>
@@ -758,26 +760,26 @@ function onClose() {
             <el-form-item label="艺名/姓名" required>
               <el-input v-model="form.name" maxlength="50" placeholder="对应用户端基本信息" />
             </el-form-item>
-            <el-form-item label="性别" required>
+            <el-form-item label="性别">
               <el-radio-group v-model="form.gender">
                 <el-radio value="女">女</el-radio>
                 <el-radio value="男">男</el-radio>
               </el-radio-group>
             </el-form-item>
-            <el-form-item label="出生日期" required>
+            <el-form-item label="出生日期">
               <el-date-picker
                 v-model="form.birthDate"
                 type="date"
                 value-format="YYYY-MM-DD"
-                placeholder="选择日期"
+                placeholder="选填"
                 class="field-full"
               />
             </el-form-item>
-            <el-form-item label="所在城市" required>
+            <el-form-item label="所在城市">
               <el-cascader
                 v-model="form.cityCascader"
                 :options="CITY_CASCADER_OPTIONS"
-                placeholder="省 / 市"
+                placeholder="选填：省 / 市"
                 filterable
                 clearable
                 class="field-full"
@@ -786,14 +788,14 @@ function onClose() {
             <el-form-item label="手机号" required>
               <el-input v-model="form.phone" maxlength="11" placeholder="11 位手机号，须唯一" />
             </el-form-item>
-            <el-form-item label="简介" required class="mc-span-2">
+            <el-form-item label="简介" class="mc-span-2">
               <el-input
                 v-model="form.intro"
                 type="textarea"
                 :rows="3"
                 maxlength="200"
                 show-word-limit
-                placeholder="200 字以内"
+                placeholder="选填，200 字以内"
               />
             </el-form-item>
             <el-form-item label="所属代理人">

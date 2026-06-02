@@ -1,7 +1,7 @@
 .category-filter-mask {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: 10050;
   background: rgba(15, 23, 42, 0.48);
 }
 
@@ -232,9 +232,10 @@
   flex-shrink: 0;
   display: flex;
   gap: 16rpx;
-  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  padding: 16rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
   background: #f8fbff;
   border-top: 1rpx solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 -8rpx 24rpx rgba(15, 23, 42, 0.06);
 }
 
 .category-filter-btn {

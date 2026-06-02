@@ -16,6 +16,19 @@ function toFiniteNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function normalizeModelLevel(value) {
+  const v = value && typeof value === "object" ? value : {};
+  const level = Math.max(0, Math.min(5, Number(v.level) || 0));
+  return {
+    level,
+    code: v.code ? String(v.code) : `LV${level}`,
+    name: v.name ? String(v.name) : "初星模特",
+    temperament: v.temperament ? String(v.temperament) : "刚被看见",
+    requirement: v.requirement ? String(v.requirement) : "完成账号注册",
+    source: v.source === "admin" ? "admin" : "auto"
+  };
+}
+
 const PROVINCE_CITY_MAP = {
   北京市: ["北京市"],
   天津市: ["天津市"],
@@ -55,6 +68,8 @@ const PROVINCE_CITY_MAP = {
 
 const PROVINCES = ["全部省份", ...Object.keys(PROVINCE_CITY_MAP)];
 const ALL_CITY = "全部城市";
+const MODEL_LEVEL_FILTERS = ["全部等级", "LV5 天幕", "LV4 皇冠", "LV3 星芒", "LV2 风暴", "LV1 新锐", "LV0 初星"];
+const MODEL_LEVEL_VALUES = ["", "5", "4", "3", "2", "1", "0"];
 
 function buildRegionColumns(regionIndex) {
   const provinceIndex = Math.max(0, Number((regionIndex || [])[0]) || 0);
@@ -110,7 +125,23 @@ function buildCardMeasureChips(card) {
   return chips;
 }
 
-/** 模特列表展示字段归一（model-list / model-intro 共用） */
+function sortFeaturedModelsByLevel(list) {
+  return [...list]
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const al = Number(a.item?.modelLevel?.level) || 0;
+      const bl = Number(b.item?.modelLevel?.level) || 0;
+      if (bl !== al) return bl - al;
+      return a.index - b.index;
+    })
+    .map(({ item }) => item);
+}
+
+function pickFeaturedModels(list, limit = 10) {
+  return sortFeaturedModelsByLevel(list).slice(0, limit);
+}
+
+/** 模特列表展示字段归一（model-list / home 推荐模块共用） */
 function normalizeModelList(list) {
   const app = getApp();
   const apiBase = app.globalData.apiBaseUrl || "";
@@ -139,10 +170,14 @@ function normalizeModelList(list) {
       id: categoryIds[idx] || 0,
       name: String(name || "").trim()
     })).filter((category) => category.name);
+    const modelLevel = normalizeModelLevel(item?.modelLevel);
     return {
       ...item,
       categoryIds,
       categoryItems,
+      modelLevel,
+      modelLevelText: `${modelLevel.code} ${modelLevel.name}`,
+      isPlatformFeatured: Number(modelLevel.level) === 5,
       genderLabel: normalizeGenderLabel(item?.gender),
       avatarText,
       showAvatarImg,
@@ -178,7 +213,8 @@ function buildModelFilterOptions(list) {
     regionColumns: buildRegionColumns([0, 0]),
     genders: ["全部性别", "女", "男"],
     prices: ["默认价格", "小时价低到高", "小时价高到低"],
-    ratings: ["默认评分", "评分高到低"]
+    ratings: ["默认评分", "评分高到低"],
+    levels: MODEL_LEVEL_FILTERS
   };
 }
 
@@ -189,6 +225,7 @@ function defaultModelFilterState() {
     genderIndex: 0,
     priceIndex: 0,
     ratingIndex: 0,
+    levelIndex: 0,
     categoryIds: []
   };
 }
@@ -244,6 +281,7 @@ function applyModelFilters(list, options, state) {
   const region = getSelectedRegion(s);
   const city = opts.cities[s.cityIndex] || "";
   const gender = opts.genders[s.genderIndex] || "";
+  const levelValue = MODEL_LEVEL_VALUES[s.levelIndex] || "";
   const categoryIds = normalizeCategoryIds(s.categoryIds);
 
   let result = arr.filter((item) => {
@@ -254,6 +292,7 @@ function applyModelFilters(list, options, state) {
       return false;
     } else if (!region.province && s.cityIndex > 0 && String(item.city || "").trim() !== city) return false;
     if (s.genderIndex > 0 && String(item.gender || "").trim() !== gender) return false;
+    if (levelValue && Number(item?.modelLevel?.level) !== Number(levelValue)) return false;
     if (categoryIds.length > 0) {
       const ids = Array.isArray(item.categoryIds) ? item.categoryIds : [];
       if (!categoryIds.some((id) => ids.some((itemId) => Number(itemId) === id))) return false;
@@ -280,7 +319,7 @@ function countActiveModelFilters(state) {
   const categoryActive = normalizeCategoryIds(s.categoryIds).length > 0 ? 1 : 0;
   return (
     regionActive +
-    [s.genderIndex, s.priceIndex, s.ratingIndex].filter((idx) => idx > 0).length +
+    [s.genderIndex, s.priceIndex, s.ratingIndex, s.levelIndex].filter((idx) => idx > 0).length +
     categoryActive
   );
 }
@@ -291,11 +330,13 @@ function buildModelFilterQuery(options, state) {
   const params = [];
   const region = getSelectedRegion(s);
   const gender = opts.genders && opts.genders[s.genderIndex];
+  const levelValue = MODEL_LEVEL_VALUES[s.levelIndex] || "";
   const categoryIds = normalizeCategoryIds(s.categoryIds);
   if (region.province) params.push(["province", region.province]);
   if (region.city) params.push(["city", region.city]);
   if (s.genderIndex > 0 && gender) params.push(["gender", gender]);
   if (categoryIds.length > 0) params.push(["categoryIds", categoryIds.join(",")]);
+  if (levelValue) params.push(["modelLevel", levelValue]);
   if (s.priceIndex === 1) params.push(["priceSort", "asc"]);
   if (s.priceIndex === 2) params.push(["priceSort", "desc"]);
   if (s.ratingIndex === 1) params.push(["ratingSort", "desc"]);
@@ -305,6 +346,8 @@ function buildModelFilterQuery(options, state) {
 
 module.exports = {
   normalizeModelList,
+  pickFeaturedModels,
+  sortFeaturedModelsByLevel,
   buildModelFilterOptions,
   defaultModelFilterState,
   normalizeCategoryIds,

@@ -18,6 +18,8 @@ import {
   fetchAdminModelOrders,
   fetchAdminUsersByRole,
   patchAdminModelAgent,
+  patchAdminModelLevel,
+  patchAdminModelPhotosDisabled,
   patchAdminMerchantBroker,
   postAdminModelProfileAudit,
   type AdminListKind,
@@ -28,6 +30,7 @@ import {
   type AdminMerchantExpenseStatsPayload,
   type AdminModelBasicInfo,
   type AdminModelIncomeStatsPayload,
+  type AdminModelLevelOverrideValue,
   type AdminOrderRow,
   type AdminUserRow
 } from "@/api/admin";
@@ -37,6 +40,19 @@ import { getAdminToken } from "@/composables/useAdminToken";
 const route = useRoute();
 const modelCreateVisible = ref(false);
 const modelEditingInfo = ref<AdminModelBasicInfo | null>(null);
+const modelAuditFilter = ref<"all" | "pending" | "approved" | "rejected">("all");
+const modelLevelFilter = ref<"all" | "5" | "4" | "3" | "2" | "1" | "0">("all");
+let listRequestSeq = 0;
+
+const modelLevelFilterOptions = [
+  { value: "all", label: "全部等级" },
+  { value: "5", label: "天幕模特" },
+  { value: "4", label: "皇冠模特" },
+  { value: "3", label: "星芒模特" },
+  { value: "2", label: "风暴模特" },
+  { value: "1", label: "新锐模特" },
+  { value: "0", label: "初星模特" }
+] as const;
 
 const listKind = computed<AdminListKind>(() => {
   const k = route.meta.listKind;
@@ -106,6 +122,13 @@ const agentOptions = ref<AdminUserRow[]>([]);
 const agentOptionsLoading = ref(false);
 const modelAgentDraft = ref<number | null>(null);
 const modelAgentSaving = ref(false);
+const modelLevelSaving = ref(false);
+const photosDisabledSaving = ref(false);
+const listPhotosDisabledSavingUserId = ref<number | null>(null);
+const listLevelDialogVisible = ref(false);
+const listLevelModelRow = ref<AdminUserRow | null>(null);
+const listLevelDraft = ref<AdminModelLevelOverrideValue>(null);
+const listLevelSaving = ref(false);
 const bindAgentDialogVisible = ref(false);
 const bindAgentModelRow = ref<AdminUserRow | null>(null);
 const bindAgentDraft = ref<number | null>(null);
@@ -220,6 +243,14 @@ function profileAuditTagType(status: number): "success" | "warning" | "danger" |
   if (status === 2) return "success";
   if (status === 1) return "warning";
   if (status === 3) return "danger";
+  return "info";
+}
+
+function modelLevelTagType(level?: number): "success" | "warning" | "danger" | "info" {
+  if (level == null) return "info";
+  if (level >= 5) return "danger";
+  if (level >= 4) return "success";
+  if (level >= 2) return "warning";
   return "info";
 }
 
@@ -439,6 +470,106 @@ async function onSaveModelAgent(): Promise<void> {
     ElMessage.error(e instanceof Error ? e.message : "保存失败");
   } finally {
     modelAgentSaving.value = false;
+  }
+}
+
+async function onChangeModelLevelOverride(value: AdminModelLevelOverrideValue): Promise<void> {
+  const uid = detailBasicInfo.value?.userId;
+  if (!uid) return;
+  modelLevelSaving.value = true;
+  try {
+    await patchAdminModelLevel(uid, value);
+    ElMessage.success(value == null ? "已恢复自动计算等级" : `已设为 LV${value}`);
+    detailBasicInfo.value = await fetchAdminModelDetail(uid);
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "保存失败");
+  } finally {
+    modelLevelSaving.value = false;
+  }
+}
+
+async function onChangeModelPhotosDisabled(value: boolean): Promise<void> {
+  const uid = detailBasicInfo.value?.userId;
+  if (!uid) return;
+  photosDisabledSaving.value = true;
+  try {
+    await patchAdminModelPhotosDisabled(uid, value);
+    ElMessage.success(value ? "已禁用用户端模特照片" : "已恢复用户端模特照片展示");
+    detailBasicInfo.value = await fetchAdminModelDetail(uid);
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "保存失败");
+    detailBasicInfo.value = await fetchAdminModelDetail(uid);
+  } finally {
+    photosDisabledSaving.value = false;
+  }
+}
+
+async function onToggleListPhotosDisabled(row: AdminUserRow): Promise<void> {
+  const next = !row.photosDisabled;
+  const action = next ? "禁用" : "恢复展示";
+  try {
+    await ElMessageBox.confirm(
+      `确定${action}模特「${displayCellName(row.nickname)}」（${row.userNo}）的用户端模卡、作品集与形象定位吗？`,
+      `${action}模特照片`,
+      {
+        type: next ? "warning" : "info",
+        confirmButtonText: "确定",
+        cancelButtonText: "取消"
+      }
+    );
+  } catch {
+    return;
+  }
+  listPhotosDisabledSavingUserId.value = row.userId;
+  try {
+    await patchAdminModelPhotosDisabled(row.userId, next);
+    ElMessage.success(next ? "已禁用用户端模特照片" : "已恢复用户端模特照片展示");
+    if (detailBasicInfo.value?.userId === row.userId) {
+      detailBasicInfo.value = await fetchAdminModelDetail(row.userId);
+    }
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "操作失败");
+  } finally {
+    listPhotosDisabledSavingUserId.value = null;
+  }
+}
+
+function openListLevelDialog(row: AdminUserRow): void {
+  listLevelModelRow.value = row;
+  listLevelDraft.value =
+    row.modelLevelOverride === 2 ||
+    row.modelLevelOverride === 3 ||
+    row.modelLevelOverride === 4 ||
+    row.modelLevelOverride === 5
+      ? row.modelLevelOverride
+      : null;
+  listLevelDialogVisible.value = true;
+}
+
+function closeListLevelDialog(): void {
+  listLevelDialogVisible.value = false;
+  listLevelModelRow.value = null;
+  listLevelDraft.value = null;
+}
+
+async function onConfirmListLevel(): Promise<void> {
+  const row = listLevelModelRow.value;
+  if (!row) return;
+  listLevelSaving.value = true;
+  try {
+    await patchAdminModelLevel(row.userId, listLevelDraft.value);
+    ElMessage.success(
+      listLevelDraft.value == null ? "已恢复自动计算等级" : `已设为 LV${listLevelDraft.value}`
+    );
+    closeListLevelDialog();
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "保存失败");
+  } finally {
+    listLevelSaving.value = false;
   }
 }
 
@@ -849,6 +980,7 @@ async function onRejectModelProfileAudit(): Promise<void> {
 }
 
 async function loadList(): Promise<void> {
+  const requestSeq = ++listRequestSeq;
   if (!getAdminToken()) {
     ElMessage.warning("请先登录后台账号");
     list.value = [];
@@ -857,15 +989,35 @@ async function loadList(): Promise<void> {
   }
   loading.value = true;
   try {
-    const data = await fetchAdminUsersByRole(listKind.value, pager.page, pager.pageSize);
+    const filters: { profileAuditStatus?: number; modelLevel?: number } = {};
+    if (isModelList.value && modelAuditFilter.value === "pending") {
+      filters.profileAuditStatus = 1;
+    } else if (isModelList.value && modelAuditFilter.value === "approved") {
+      filters.profileAuditStatus = 2;
+    } else if (isModelList.value && modelAuditFilter.value === "rejected") {
+      filters.profileAuditStatus = 3;
+    }
+    if (isModelList.value && modelLevelFilter.value !== "all") {
+      filters.modelLevel = Number(modelLevelFilter.value);
+    }
+    const data = await fetchAdminUsersByRole(
+      listKind.value,
+      pager.page,
+      pager.pageSize,
+      filters
+    );
+    if (requestSeq !== listRequestSeq) return;
     list.value = data.list || [];
     total.value = data.total ?? 0;
   } catch (e) {
+    if (requestSeq !== listRequestSeq) return;
     ElMessage.error(e instanceof Error ? e.message : "加载失败");
     list.value = [];
     total.value = 0;
   } finally {
-    loading.value = false;
+    if (requestSeq === listRequestSeq) {
+      loading.value = false;
+    }
   }
 }
 
@@ -880,12 +1032,24 @@ function onSizeChange(s: number): void {
   void loadList();
 }
 
+watch(modelAuditFilter, () => {
+  pager.page = 1;
+  void loadList();
+});
+
+watch(modelLevelFilter, () => {
+  pager.page = 1;
+  void loadList();
+});
+
 function onTokenChanged(): void {
   void loadList();
 }
 
 watch(listKind, () => {
   pager.page = 1;
+  modelAuditFilter.value = "all";
+  modelLevelFilter.value = "all";
   void loadList();
 });
 
@@ -938,6 +1102,28 @@ onUnmounted(() => {
     </header>
 
     <el-card class="alv-card" shadow="never">
+      <div v-if="isModelList" class="alv-filter-bar">
+        <div class="alv-filter-item">
+          <span class="alv-filter-label">资料审核</span>
+          <el-radio-group v-model="modelAuditFilter" size="small">
+            <el-radio-button value="all">全部</el-radio-button>
+            <el-radio-button value="pending">待审核</el-radio-button>
+            <el-radio-button value="approved">审核通过</el-radio-button>
+            <el-radio-button value="rejected">审核失败</el-radio-button>
+          </el-radio-group>
+        </div>
+        <div class="alv-filter-item">
+          <span class="alv-filter-label">模特等级</span>
+          <el-select v-model="modelLevelFilter" size="small" class="alv-level-filter">
+            <el-option
+              v-for="option in modelLevelFilterOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </div>
+      </div>
       <div class="alv-table-wrap">
         <el-table
           v-loading="loading"
@@ -1033,6 +1219,30 @@ onUnmounted(() => {
               round
             >
               {{ profileAuditLabel(row.profileAuditStatus) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="isModelList" label="模特等级" width="128">
+          <template #default="{ row }">
+            <el-tag
+              :type="modelLevelTagType(row.modelLevel?.level)"
+              size="small"
+              effect="light"
+              round
+            >
+              {{ row.modelLevel ? `${row.modelLevel.code} ${row.modelLevel.name}` : "LV0 初星模特" }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="isModelList" label="等级来源" width="96">
+          <template #default="{ row }">
+            <el-tag
+              :type="row.modelLevel?.source === 'admin' ? 'success' : 'info'"
+              size="small"
+              effect="light"
+              round
+            >
+              {{ row.modelLevel?.source === "admin" ? "手动" : "自动" }}
             </el-tag>
           </template>
         </el-table-column>
@@ -1165,7 +1375,7 @@ onUnmounted(() => {
             </el-button>
           </template>
         </el-table-column>
-        <el-table-column v-if="isModelList" label="操作" min-width="212" fixed="right">
+        <el-table-column v-if="isModelList" label="操作" min-width="360" fixed="right">
           <template #default="{ row }">
             <div class="alv-actions-wrap">
               <el-button
@@ -1185,6 +1395,19 @@ onUnmounted(() => {
                     <Right />
                   </el-icon>
                 </span>
+              </el-button>
+              <el-button type="success" plain size="small" round @click="openListLevelDialog(row)">
+                等级设置
+              </el-button>
+              <el-button
+                :type="row.photosDisabled ? 'warning' : 'danger'"
+                plain
+                size="small"
+                round
+                :loading="listPhotosDisabledSavingUserId === row.userId"
+                @click="onToggleListPhotosDisabled(row)"
+              >
+                {{ row.photosDisabled ? "启用照片" : "禁用照片" }}
               </el-button>
               <el-button
                 v-if="row.isAdminCreated === true"
@@ -1213,6 +1436,35 @@ onUnmounted(() => {
       </div>
       </div>
     </el-card>
+
+    <el-dialog
+      v-model="listLevelDialogVisible"
+      title="等级设置"
+      width="420px"
+      destroy-on-close
+      @closed="closeListLevelDialog"
+    >
+      <p v-if="listLevelModelRow" class="bind-agent-model-hint">
+        为模特「{{ displayCellName(listLevelModelRow.nickname) }}」（{{ listLevelModelRow.userNo }}）设置等级
+      </p>
+      <p v-if="listLevelModelRow?.modelLevel" class="bind-agent-current-hint">
+        当前等级：{{ listLevelModelRow.modelLevel.code }} {{ listLevelModelRow.modelLevel.name }}
+        （{{ listLevelModelRow.modelLevel.source === "admin" ? "手动设置" : "自动计算" }}）
+      </p>
+      <el-select v-model="listLevelDraft" placeholder="自动计算 LV0-LV1" class="bind-agent-select">
+        <el-option :value="null" label="自动计算 LV0-LV1" />
+        <el-option :value="2" label="LV2 风暴模特" />
+        <el-option :value="3" label="LV3 星芒模特" />
+        <el-option :value="4" label="LV4 皇冠模特" />
+        <el-option :value="5" label="LV5 天幕模特" />
+      </el-select>
+      <template #footer>
+        <el-button @click="closeListLevelDialog">取消</el-button>
+        <el-button type="primary" :loading="listLevelSaving" @click="onConfirmListLevel">
+          保存等级
+        </el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog
       v-model="bindAgentDialogVisible"
@@ -1354,6 +1606,53 @@ onUnmounted(() => {
                 <el-descriptions-item label="性别">{{ detailBasicInfo.gender || "—" }}</el-descriptions-item>
                 <el-descriptions-item label="出生日期">{{ detailBasicInfo.birthDate || "—" }}</el-descriptions-item>
                 <el-descriptions-item label="所在城市">{{ detailBasicInfo.city || "—" }}</el-descriptions-item>
+                <el-descriptions-item label="模特等级">
+                  <el-tag
+                    :type="modelLevelTagType(detailBasicInfo.modelLevel?.level)"
+                    size="small"
+                    effect="light"
+                    round
+                  >
+                    {{
+                      detailBasicInfo.modelLevel
+                        ? `${detailBasicInfo.modelLevel.code} ${detailBasicInfo.modelLevel.name}`
+                        : "LV0 初星模特"
+                    }}
+                  </el-tag>
+                  <span class="model-level-desc">
+                    {{ detailBasicInfo.modelLevel?.temperament || "刚被看见" }}
+                  </span>
+                </el-descriptions-item>
+                <el-descriptions-item label="模特升级">
+                  <el-select
+                    v-model="detailBasicInfo.modelLevelOverride"
+                    :loading="modelLevelSaving"
+                    placeholder="自动计算 LV0-LV1"
+                    style="width: 220px"
+                    @change="onChangeModelLevelOverride"
+                  >
+                    <el-option :value="null" label="自动计算 LV0-LV1" />
+                    <el-option :value="2" label="LV2 风暴模特" />
+                    <el-option :value="3" label="LV3 星芒模特" />
+                    <el-option :value="4" label="LV4 皇冠模特" />
+                    <el-option :value="5" label="LV5 天幕模特" />
+                  </el-select>
+                </el-descriptions-item>
+                <el-descriptions-item label="用户端照片">
+                  <div class="model-photos-disabled-row">
+                    <el-switch
+                      :model-value="Boolean(detailBasicInfo.photosDisabled)"
+                      :loading="photosDisabledSaving"
+                      inline-prompt
+                      active-text="已禁用"
+                      inactive-text="展示中"
+                      @change="onChangeModelPhotosDisabled"
+                    />
+                    <span class="model-photos-disabled-hint">
+                      禁用后用户端不展示模卡、作品集与形象定位
+                    </span>
+                  </div>
+                </el-descriptions-item>
                 <el-descriptions-item label="账号来源">
                   <el-tag
                     v-if="detailBasicInfo.isAdminCreated"
@@ -1716,7 +2015,6 @@ onUnmounted(() => {
                       preview-teleported
                     />
                     <div v-else class="card-photo-empty">无图</div>
-                    <div class="card-photo-label">{{ item.label || item.key || "未命名角度" }}</div>
                   </div>
                 </div>
                 <el-empty v-else description="暂无模卡照片" :image-size="68" />
@@ -1919,6 +2217,54 @@ onUnmounted(() => {
                     preview-teleported
                   />
                   <div v-else class="signature-photo-empty">未上传签名图</div>
+                </div>
+              </div>
+
+              <el-descriptions :column="2" border size="default" class="detail-group">
+                <template #title>实名信息</template>
+                <el-descriptions-item label="姓名">{{ merchantBasicInfo.realName || "—" }}</el-descriptions-item>
+                <el-descriptions-item label="身份证号">{{ merchantBasicInfo.idCardNo || "—" }}</el-descriptions-item>
+                <el-descriptions-item label="签发机关">{{ merchantBasicInfo.idCardIssueAuthority || "—" }}</el-descriptions-item>
+                <el-descriptions-item label="有效期">{{ merchantBasicInfo.idCardValidDate || "—" }}</el-descriptions-item>
+              </el-descriptions>
+
+              <div class="idcard-photo-wrap">
+                <div class="idcard-photo-title">身份证照片</div>
+                <div class="idcard-photo-grid">
+                  <div class="idcard-photo-item">
+                    <div class="idcard-photo-label">人像面</div>
+                    <el-image
+                      v-if="merchantBasicInfo.idCardFrontUrl"
+                      :src="merchantBasicInfo.idCardFrontUrl"
+                      fit="cover"
+                      class="idcard-photo-img"
+                      :preview-src-list="
+                        [
+                          merchantBasicInfo.idCardFrontUrl,
+                          merchantBasicInfo.idCardBackUrl
+                        ].filter(Boolean) as string[]
+                      "
+                      preview-teleported
+                    />
+                    <div v-else class="idcard-photo-empty">未上传</div>
+                  </div>
+                  <div class="idcard-photo-item">
+                    <div class="idcard-photo-label">国徽面</div>
+                    <el-image
+                      v-if="merchantBasicInfo.idCardBackUrl"
+                      :src="merchantBasicInfo.idCardBackUrl"
+                      fit="cover"
+                      class="idcard-photo-img"
+                      :preview-src-list="
+                        [
+                          merchantBasicInfo.idCardFrontUrl,
+                          merchantBasicInfo.idCardBackUrl
+                        ].filter(Boolean) as string[]
+                      "
+                      preview-teleported
+                    />
+                    <div v-else class="idcard-photo-empty">未上传</div>
+                  </div>
                 </div>
               </div>
 
@@ -2399,6 +2745,30 @@ onUnmounted(() => {
   overflow: visible;
 }
 
+.alv-filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.alv-filter-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alv-filter-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-secondary);
+}
+
+.alv-level-filter {
+  width: 132px;
+}
+
 .alv-actions-wrap {
   display: inline-flex;
   flex-wrap: wrap;
@@ -2617,13 +2987,6 @@ onUnmounted(() => {
   justify-content: center;
   color: var(--el-text-color-placeholder);
   background: var(--el-fill-color-lighter);
-}
-
-.card-photo-label {
-  padding: 6px 8px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .schedule-legend {
@@ -2905,6 +3268,24 @@ onUnmounted(() => {
   margin-top: 8px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+.model-level-desc {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.model-photos-disabled-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.model-photos-disabled-hint {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
 }
 
 .alv-agent-label {

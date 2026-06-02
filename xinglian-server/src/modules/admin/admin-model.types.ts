@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import {
-  basicInfoSchema,
   cardSchema,
   orderSettingsSchema,
   portfolioSchema,
@@ -37,6 +36,16 @@ const adminCardPhotoAnglesSchema = z
 
 const adminCardMeasurementsSchema = cardSchema.shape.measurements.partial();
 
+/** 后管：创建/编辑模特时仅姓名、手机号为必填 */
+const adminModelBasicInfoSchema = z.object({
+  name: z.string().trim().min(1, "请填写艺名/姓名").max(50),
+  phone: z.string().trim().regex(/^1\d{10}$/, "请输入正确的11位手机号"),
+  gender: z.enum(["女", "男"]).optional().default("女"),
+  birthDate: z.string().trim().optional().default(""),
+  city: z.string().trim().optional().default(""),
+  intro: z.string().trim().max(200).optional().default("")
+});
+
 /** 后管创建：模卡可为空，不强制至少 1 张照片 */
 const adminModelCardSchema = z.object({
   photoAngles: adminCardPhotoAnglesSchema,
@@ -49,7 +58,7 @@ export const adminModelCreateBodySchema = z.object({
   avatarUrl: z.string().trim().max(2048).optional().nullable(),
   agentUserId: z.coerce.number().int().positive().optional().nullable(),
   status: statusField.default(1),
-  basicInfo: basicInfoSchema,
+  basicInfo: adminModelBasicInfoSchema,
   categoryIds: z.array(z.coerce.number().int().positive()).default([]),
   card: adminModelCardSchema.optional(),
   portfolio: portfolioSchema.optional(),

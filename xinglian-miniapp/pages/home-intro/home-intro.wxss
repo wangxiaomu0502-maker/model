@@ -1,0 +1,2 @@
+@import "../../styles/model-dash-page.wxss";
+@import "../../styles/home-page.wxss";

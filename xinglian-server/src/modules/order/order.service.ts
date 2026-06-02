@@ -350,6 +350,9 @@ export async function createMerchantOrder(
   if (modelUserId === merchantUserId) {
     throw new AppError("不能向本人下单", 400, ErrorCodes.VALIDATION_ERROR);
   }
+  if (Number(detail.profileAuditStatus ?? 0) !== 2) {
+    throw new AppError("资料审核暂未通过，请稍后下单", 400, ErrorCodes.VALIDATION_ERROR);
+  }
 
   const schedule = detail.schedule as { scheduleMap?: Record<string, string> } | undefined;
   const scheduleMap = schedule?.scheduleMap ?? {};

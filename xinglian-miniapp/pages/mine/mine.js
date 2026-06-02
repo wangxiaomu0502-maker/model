@@ -73,6 +73,19 @@ Page({
     return map[Number(role)] || "个人资料与账户信息";
   },
 
+  normalizeModelLevel(value) {
+    const v = value && typeof value === "object" ? value : {};
+    const level = Math.max(0, Math.min(5, Number(v.level) || 0));
+    return {
+      level,
+      code: v.code ? String(v.code) : `LV${level}`,
+      name: v.name ? String(v.name) : "初星模特",
+      temperament: v.temperament ? String(v.temperament) : "刚被看见",
+      requirement: v.requirement ? String(v.requirement) : "完成账号注册",
+      source: v.source === "admin" ? "admin" : "auto"
+    };
+  },
+
   data: {
     userInfo: {
       nickName: "未登录用户",
@@ -84,12 +97,17 @@ Page({
     profileAuditStatus: 0,
     profileAuditStatusText: "待提交",
     profileAuditRejectReason: "",
+    modelLevel: null,
+    modelLevelText: "LV0 初星模特",
+    modelLevelTemperament: "刚被看见",
+    isPlatformFeatured: false,
     verifiedStatus: 0,
     menus: [],
     pendingModelAcceptOrderCount: 0,
     currentRole: 0,
     showProfileAuditSubmit: false,
     auditSubmitModalVisible: false,
+    auditSubmitModalTitle: "资料完成度",
     auditReadinessLoading: false,
     auditSubmitting: false,
     auditReadiness: null,
@@ -162,6 +180,7 @@ Page({
     }
     this.setData({
       auditSubmitModalVisible: true,
+      auditSubmitModalTitle: "资料完成度",
       auditReadinessLoading: true,
       auditReadiness: null
     });
@@ -176,7 +195,27 @@ Page({
     });
   },
 
-  fetchProfileAuditReadiness() {
+  auditCompletionUrlByKey(key) {
+    const map = {
+      realname: "/pages/realname-verify/realname-verify?mode=bound",
+      basicInfo: "/pages/model-basic-info/model-basic-info",
+      categories: "/pages/model-category/model-category",
+      card: "/pages/model-card/model-card",
+      pricing: "/pages/model-pricing/model-pricing",
+      contract: "/pages/contract-detail/contract-detail"
+    };
+    return map[String(key || "")] || "";
+  },
+
+  withAuditCompletionActions(items) {
+    return (Array.isArray(items) ? items : []).map((item) => ({
+      ...item,
+      actionUrl: item && !item.done ? this.auditCompletionUrlByKey(item.key) : ""
+    }));
+  },
+
+  fetchProfileAuditReadiness(options = {}) {
+    const autoOpenIncompleteOnly = Boolean(options.autoOpenIncompleteOnly);
     const app = getApp();
     const { apiBaseUrl, token } = app.globalData;
     if (!token) {
@@ -201,12 +240,22 @@ Page({
           });
           return;
         }
-        const items = Array.isArray(body.items) ? body.items : [];
+        const items = this.withAuditCompletionActions(body.items);
+        const allDone = Boolean(body.allDone);
+        if (autoOpenIncompleteOnly && allDone) {
+          this.setData({
+            auditReadinessLoading: false,
+            auditReadiness: null
+          });
+          return;
+        }
         this.setData({
+          auditSubmitModalVisible: autoOpenIncompleteOnly ? true : this.data.auditSubmitModalVisible,
+          auditSubmitModalTitle: autoOpenIncompleteOnly ? "资料未完成提醒" : this.data.auditSubmitModalTitle,
           auditReadinessLoading: false,
           auditReadiness: {
             items,
-            allDone: Boolean(body.allDone),
+            allDone,
             completedCount: Number(body.completedCount) || 0,
             totalCount: Number(body.totalCount) || 0,
             percent: Number(body.percent) || 0
@@ -222,6 +271,31 @@ Page({
         });
       }
     });
+  },
+
+  maybeShowProfileAuditCompletionReminder() {
+    const app = getApp();
+    const role = Number(this.data.currentRole || app.globalData.role || 0);
+    const auditStatus = Number(this.data.profileAuditStatus || 0);
+    if (!app.globalData.token || role !== 1 || (auditStatus !== 0 && auditStatus !== 3)) {
+      return;
+    }
+    this.setData({
+      auditReadinessLoading: true,
+      auditReadiness: null
+    });
+    this.fetchProfileAuditReadiness({ autoOpenIncompleteOnly: true });
+  },
+
+  onCompleteAuditItem(e) {
+    const key = e.currentTarget.dataset.key || "";
+    const url = this.auditCompletionUrlByKey(key);
+    if (!url) {
+      wx.showToast({ title: "暂无法跳转", icon: "none" });
+      return;
+    }
+    this.setData({ auditSubmitModalVisible: false });
+    wx.navigateTo({ url });
   },
 
   onConfirmProfileAuditSubmit() {
@@ -352,12 +426,46 @@ Page({
             this.data.pendingModelAcceptOrderCount
           )
         });
+        if (roleNum === 1) {
+          this.fetchMyModelLevel();
+        } else {
+          this.setData({
+            modelLevel: null,
+            modelLevelText: "LV0 初星模特",
+            modelLevelTemperament: "刚被看见",
+            isPlatformFeatured: false
+          });
+        }
         this.fetchModelPendingAcceptOrderBadge();
+        this.maybeShowProfileAuditCompletionReminder();
       },
       fail: () => {
         wx.showToast({
           title: "网络异常，无法加载资料",
           icon: "none"
+        });
+      }
+    });
+  },
+
+  fetchMyModelLevel() {
+    const app = getApp();
+    if (!app.globalData.token) return;
+    wx.request({
+      url: `${app.globalData.apiBaseUrl}/api/models/me`,
+      method: "GET",
+      header: {
+        Authorization: `Bearer ${app.globalData.token}`
+      },
+      success: (res) => {
+        const body = res.data || {};
+        if (res.statusCode !== 200 || !body.ok) return;
+        const modelLevel = this.normalizeModelLevel(body.modelLevel);
+        this.setData({
+          modelLevel,
+          modelLevelText: `${modelLevel.code} ${modelLevel.name}`,
+          modelLevelTemperament: modelLevel.temperament,
+          isPlatformFeatured: Number(modelLevel.level) === 5
         });
       }
     });

@@ -12,6 +12,7 @@ import {
   Setting,
   Shop,
   SwitchButton,
+  UploadFilled,
   UserFilled
 } from "@element-plus/icons-vue";
 
@@ -27,6 +28,7 @@ const activeMenu = computed(() => {
   if (p === "/platform-billing" || p.startsWith("/platform-billing")) return "/platform-billing";
   if (p === "/pending-orders" || p.startsWith("/pending-orders")) return "/pending-orders";
   if (p === "/cs-users" || p.startsWith("/cs-users")) return "/cs-users";
+  if (p === "/image-upload" || p.startsWith("/image-upload")) return "/image-upload";
   if (p === "/system-settings" || p.startsWith("/system-settings")) return "/system-settings";
   return p;
 });
@@ -132,6 +134,10 @@ function logout(): void {
               <el-menu-item index="/contract-templates">
                 <el-icon><Document /></el-icon>
                 <span>合同管理</span>
+              </el-menu-item>
+              <el-menu-item index="/image-upload">
+                <el-icon><UploadFilled /></el-icon>
+                <span>图片上传</span>
               </el-menu-item>
               <el-menu-item index="/cs-users">
                 <el-icon><Headset /></el-icon>

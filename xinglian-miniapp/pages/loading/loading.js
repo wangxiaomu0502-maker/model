@@ -4,6 +4,7 @@ const {
   readPendingBrokerUserNo
 } = require("../../utils/broker-promo.js");
 const { homeTabUrlForRole } = require("../../utils/role-tab.js");
+const { shouldShowLaunchIntro } = require("../../utils/launch-intro.js");
 
 Page({
   getIdentityByRole(role) {
@@ -80,10 +81,16 @@ Page({
             });
 
             const role = Number(responseData.user.role || 0);
-            const targetUrl = homeTabUrlForRole(role) || "/pages/model-intro/model-intro";
+            const targetUrl = homeTabUrlForRole(role) || "/pages/home-intro/home-intro";
 
             setTimeout(() => {
-              if (targetUrl !== "/pages/model-intro/model-intro") {
+              if (shouldShowLaunchIntro()) {
+                wx.reLaunch({
+                  url: `/pages/launch-intro/launch-intro?target=${encodeURIComponent(targetUrl)}`
+                });
+                return;
+              }
+              if (targetUrl !== "/pages/home-intro/home-intro") {
                 wx.switchTab({ url: targetUrl });
                 return;
               }

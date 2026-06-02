@@ -14,6 +14,8 @@ import {
   findValidAgentUserIdForAdmin,
   findValidBrokerUserIdForAdmin,
   updateModelAgentUserIdForAdmin,
+  updateModelLevelOverrideForAdmin,
+  updateModelPhotosDisabledForAdmin,
   updateMerchantReferrerIdForAdmin,
   findMerchantBasicDetailForAdminByUserId,
   findBrokerBasicDetailForAdminByUserId,
@@ -22,7 +24,10 @@ import {
   findUsersPageForAdminByRole
 } from "./admin.repository";
 import { normalizePortfolioFromStorage } from "../model/model.portfolio";
+import { buildModelLevel, ModelLevelInfo, parseAdminModelLevelOverride } from "../model/model-level";
+import { ensureModelProfile } from "../model/model.repository";
 import { enrichCardFromProfile } from "../model/model.service";
+import { hasModelProfilesColumn } from "../../shared/model-profile-columns";
 import { listHonorsForPublicDisplay } from "../model/model-honor.service";
 import { AppError } from "../../core/errors/app-error";
 import { ErrorCodes } from "../../core/constants/error-codes";
@@ -87,7 +92,8 @@ export async function getAdminDashboardStats(): Promise<{
 export async function listUsersForAdminByRole(
   page: number,
   pageSize: number,
-  role: number
+  role: number,
+  options: { profileAuditStatus?: number; modelLevel?: number } = {}
 ): Promise<{
   list: Array<{
     userId: number;
@@ -126,14 +132,32 @@ export async function listUsersForAdminByRole(
     brokerLicenseUrl?: string | null;
     /** 模特列表：是否后管创建 */
     isAdminCreated?: boolean | null;
+    /** 模特列表：平台优选/重点推荐 */
+    isPlatformFeatured?: boolean | null;
+    /** 模特列表：用户端是否禁用模卡/作品集/形象定位 */
+    photosDisabled?: boolean | null;
+    modelLevelOverride?: ReturnType<typeof parseAdminModelLevelOverride>;
+    /** 模特列表：自动计算等级 */
+    modelLevel?: ModelLevelInfo | null;
   }>;
   total: number;
   page: number;
   pageSize: number;
 }> {
-  const total = await countUsersForAdminByRole(role);
+  const total = await countUsersForAdminByRole(role, {
+    profileAuditStatus: options.profileAuditStatus,
+    modelLevel: options.modelLevel
+  });
   const offset = (page - 1) * pageSize;
-  const rows = await findUsersPageForAdminByRole(role, offset, pageSize);
+  const rows = await findUsersPageForAdminByRole(
+    role,
+    offset,
+    pageSize,
+    {
+      profileAuditStatus: options.profileAuditStatus,
+      modelLevel: options.modelLevel
+    }
+  );
 
   return {
     list: rows.map((row) => ({
@@ -199,6 +223,29 @@ export async function listUsersForAdminByRole(
       isAdminCreated:
         Number(row.role) === 1 && row.model_is_admin_created != null
           ? Boolean(Number(row.model_is_admin_created))
+          : null,
+      isPlatformFeatured:
+        Number(row.role) === 1 && row.model_is_platform_featured != null
+          ? Boolean(Number(row.model_is_platform_featured))
+          : null,
+      photosDisabled:
+        Number(row.role) === 1 && row.model_photos_disabled != null
+          ? Boolean(Number(row.model_photos_disabled))
+          : null,
+      modelLevelOverride:
+        Number(row.role) === 1 ? parseAdminModelLevelOverride(row.model_level_override) : null,
+      modelLevel:
+        Number(row.role) === 1
+          ? buildModelLevel({
+              card: parseCardJson(row.model_card_json ?? null),
+              portfolio: normalizePortfolioFromStorage(row.model_portfolio_json ?? null, {
+                stripNonRemoteUrls: false
+              }),
+              stylePosition: parseStylePositionJson(row.model_style_position_json ?? null),
+              modelLevelOverride: row.model_level_override,
+              profileAuditStatus: row.profile_audit_status,
+              isPlatformFeatured: row.model_is_platform_featured
+            })
           : null
     })),
     total,
@@ -437,6 +484,69 @@ export async function setModelAgentUserForAdmin(
   return { agentUserId };
 }
 
+export async function setModelPlatformFeaturedForAdmin(
+  modelUserId: number,
+  featured: boolean
+): Promise<{ isPlatformFeatured: boolean }> {
+  const model = await findModelBasicDetailForAdminByUserId(modelUserId);
+  if (!model) {
+    throw new AppError("model user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  const ok = await updateModelLevelOverrideForAdmin(modelUserId, featured ? 5 : null);
+  if (!ok) {
+    throw new AppError("model user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  return { isPlatformFeatured: featured };
+}
+
+export async function setModelPhotosDisabledForAdmin(
+  modelUserId: number,
+  photosDisabled: boolean
+): Promise<{ photosDisabled: boolean }> {
+  const model = await findModelBasicDetailForAdminByUserId(modelUserId);
+  if (!model) {
+    throw new AppError("model user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  if (!(await hasModelProfilesColumn("photos_disabled"))) {
+    throw new AppError(
+      "模特照片禁用字段未就绪，请在数据库执行 sql/alter-model-profiles-photos-disabled.sql",
+      500,
+      ErrorCodes.INTERNAL_ERROR
+    );
+  }
+  await ensureModelProfile(modelUserId);
+  const ok = await updateModelPhotosDisabledForAdmin(modelUserId, photosDisabled);
+  if (!ok) {
+    throw new AppError("更新模特照片展示状态失败", 500, ErrorCodes.INTERNAL_ERROR);
+  }
+  return { photosDisabled };
+}
+
+export async function setModelLevelOverrideForAdmin(
+  modelUserId: number,
+  levelOverride: ReturnType<typeof parseAdminModelLevelOverride>
+): Promise<{ modelLevelOverride: ReturnType<typeof parseAdminModelLevelOverride> }> {
+  const model = await findModelBasicDetailForAdminByUserId(modelUserId);
+  if (!model) {
+    throw new AppError("模特用户不存在或已删除", 404, ErrorCodes.NOT_FOUND);
+  }
+  const hasLevelOverride = await hasModelProfilesColumn("model_level_override");
+  const hasFeatured = await hasModelProfilesColumn("is_platform_featured");
+  if (!hasLevelOverride && !hasFeatured) {
+    throw new AppError(
+      "模特等级字段未就绪，请在数据库执行 sql/alter-model-profiles-level-override.sql",
+      500,
+      ErrorCodes.INTERNAL_ERROR
+    );
+  }
+  await ensureModelProfile(modelUserId);
+  const ok = await updateModelLevelOverrideForAdmin(modelUserId, levelOverride);
+  if (!ok) {
+    throw new AppError("更新模特等级失败，请检查 model_profiles 数据", 500, ErrorCodes.INTERNAL_ERROR);
+  }
+  return { modelLevelOverride: levelOverride };
+}
+
 export async function setMerchantBrokerForAdmin(
   merchantUserId: number,
   brokerUserId: number | null
@@ -527,6 +637,10 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     updatedAt: string;
   }>;
   isAdminCreated: boolean;
+  isPlatformFeatured: boolean;
+  photosDisabled: boolean;
+  modelLevelOverride: ReturnType<typeof parseAdminModelLevelOverride>;
+  modelLevel: ModelLevelInfo;
 }> {
   const row = await findModelBasicDetailForAdminByUserId(userId);
   if (!row) {
@@ -545,6 +659,9 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
   }) as AdminModelCardPayload;
   const portfolio = normalizePortfolioFromStorage(row.portfolio_json, { stripNonRemoteUrls: false });
   const stylePosition = parseStylePositionJson(row.style_position_json);
+  const isPlatformFeatured = Boolean(Number(row.is_platform_featured ?? 0));
+  const photosDisabled = Boolean(Number(row.photos_disabled ?? 0));
+  const modelLevelOverride = parseAdminModelLevelOverride(row.model_level_override);
   const schedule = parseScheduleJson(row.schedule_json);
   const orderSettings = parseOrderSettingsJson(row.order_settings_json, {
     orderEnabled: Boolean(row.is_available),
@@ -624,7 +741,18 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     honors,
     schedule,
     orderSettings,
-    isAdminCreated: Boolean(Number(row.is_admin_created ?? 0))
+    isAdminCreated: Boolean(Number(row.is_admin_created ?? 0)),
+    isPlatformFeatured,
+    photosDisabled,
+    modelLevelOverride,
+    modelLevel: buildModelLevel({
+      card,
+      portfolio,
+      stylePosition,
+      modelLevelOverride,
+      profileAuditStatus: row.profile_audit_status,
+      isPlatformFeatured
+    })
   };
 }
 
@@ -634,6 +762,12 @@ export async function getMerchantBasicDetailForAdmin(userId: number): Promise<{
   nickname: string;
   avatarUrl: string | null;
   phone: string | null;
+  realName: string | null;
+  idCardNo: string | null;
+  idCardFrontUrl: string | null;
+  idCardBackUrl: string | null;
+  idCardIssueAuthority: string | null;
+  idCardValidDate: string | null;
   status: number;
   verifiedStatus: number;
   profileAuditStatus: number;
@@ -675,6 +809,12 @@ export async function getMerchantBasicDetailForAdmin(userId: number): Promise<{
     nickname: row.nickname || "",
     avatarUrl: row.avatar_url,
     phone: row.phone,
+    realName: row.real_name ? String(row.real_name) : null,
+    idCardNo: row.id_card_no ? String(row.id_card_no) : null,
+    idCardFrontUrl: row.id_card_front_url ? String(row.id_card_front_url) : null,
+    idCardBackUrl: row.id_card_back_url ? String(row.id_card_back_url) : null,
+    idCardIssueAuthority: row.id_card_issue_authority ? String(row.id_card_issue_authority) : null,
+    idCardValidDate: row.id_card_valid_date ? String(row.id_card_valid_date) : null,
     status: Number(row.status ?? 0),
     verifiedStatus: Number(row.verified_status ?? 0),
     profileAuditStatus: Number(row.profile_audit_status ?? 0),

@@ -6,6 +6,7 @@ import { fail, success } from "../../core/http/response";
 import { AuthenticatedRequest } from "../../middlewares/auth";
 import {
   getCategoryTree,
+  getHomeSummary,
   getMerchantModelList,
   getModelPublicDetail,
   getMyCategories,
@@ -121,6 +122,15 @@ export async function getCategoryTreeController(req: Request, res: Response, nex
   try {
     const tree = await getCategoryTree();
     return success(res, { tree });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getHomeSummaryController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const summary = await getHomeSummary();
+    return success(res, summary);
   } catch (error) {
     return next(error);
   }

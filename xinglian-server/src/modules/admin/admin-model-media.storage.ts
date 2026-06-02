@@ -71,3 +71,26 @@ export async function uploadAdminModelImageToCos(input: {
   });
   return publicUrl(objectKey);
 }
+
+export async function uploadAdminAssetImageToCos(input: {
+  adminUserId: number;
+  body: Buffer;
+  mimetype: string;
+}): Promise<string> {
+  const allowed = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowed.includes(input.mimetype)) {
+    throw new AppError("仅支持 JPG、PNG、WEBP", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  if (!input.body?.length) {
+    throw new AppError("图片文件为空", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  const ext = extFromMime(input.mimetype);
+  const suffix = Math.random().toString(36).slice(2, 10);
+  const objectKey = `admin/assets/${input.adminUserId}/${Date.now()}-${suffix}${ext}`;
+  await putObject({
+    key: objectKey,
+    body: input.body,
+    contentType: input.mimetype
+  });
+  return publicUrl(objectKey);
+}

@@ -90,6 +90,12 @@ const router = createRouter({
           meta: { title: "合同管理" }
         },
         {
+          path: "image-upload",
+          name: "image-upload",
+          component: () => import("@/views/ImageUploadView.vue"),
+          meta: { title: "图片上传", adminOnly: true }
+        },
+        {
           path: "cs-users",
           name: "cs-users",
           component: () => import("@/views/CsUserListView.vue"),

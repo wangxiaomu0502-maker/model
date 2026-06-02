@@ -49,6 +49,17 @@
           </button>
         </view>
       </view>
+
+      <view wx:if="{{showAuditStatus}}" class="hero-meta-strip hero-level-strip">
+        <view class="hero-level-left">
+          <text class="hero-meta-k">模特等级</text>
+          <text class="hero-level-temperament">{{modelLevelTemperament}}</text>
+        </view>
+        <view class="hero-level-right">
+          <text class="hero-level-pill">{{modelLevelText}}</text>
+          <text wx:if="{{isPlatformFeatured}}" class="hero-featured-pill">平台优选</text>
+        </view>
+      </view>
     </view>
   </view>
 
@@ -94,7 +105,7 @@
   >
     <view class="audit-modal-sheet" catchtap="preventModalBubble">
       <view class="audit-modal-header">
-        <text class="audit-modal-title">资料完成度</text>
+        <text class="audit-modal-title">{{auditSubmitModalTitle}}</text>
         <text class="audit-modal-close" catchtap="closeAuditSubmitModal">关闭</text>
       </view>
       <view wx:if="{{auditReadinessLoading}}" class="audit-modal-loading">加载中…</view>
@@ -114,6 +125,15 @@
             <view class="audit-modal-dot {{item.done ? 'on' : ''}}"></view>
             <text class="audit-modal-name">{{item.label}}</text>
             <text class="audit-modal-flag {{item.done ? 'done' : 'todo'}}">{{item.done ? '已填' : '待填'}}</text>
+            <button
+              wx:if="{{!item.done}}"
+              class="audit-modal-complete-btn"
+              hover-class="audit-modal-complete-btn-hover"
+              data-key="{{item.key}}"
+              catchtap="onCompleteAuditItem"
+            >
+              完成
+            </button>
           </view>
         </view>
         <view class="audit-modal-hint" wx:if="{{!auditReadiness.allDone}}">请先完成全部必填项，再提交平台审核</view>

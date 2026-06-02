@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # 仅部署 xinglian-server（跳过管理端构建与上传）。
 # Usage:
+#   ./deploy-server-only.sh
 #   ./deploy-server-only.sh --host 118.195.130.77 --user root --pass 'your_password'
 
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=deploy-lib.sh
+source "$ROOT_DIR/deploy-lib.sh"
 SERVER_DIR="$ROOT_DIR/xinglian-server"
 
 HOST=""
@@ -33,9 +36,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+load_deploy_credentials_from_file "$ROOT_DIR/服务器.txt"
+
 if [[ -z "$HOST" || -z "$PASSWORD" ]]; then
-  echo "Missing required args."
-  echo "Usage: ./deploy-server-only.sh --host 118.195.130.77 --user root --pass 'your_password'"
+  echo "Missing deploy credentials."
+  echo "Usage: ./deploy-server-only.sh"
+  echo "   or: ./deploy-server-only.sh --host 118.195.130.77 --user root --pass 'your_password'"
   exit 1
 fi
 

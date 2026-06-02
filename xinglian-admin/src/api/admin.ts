@@ -343,6 +343,14 @@ export type AdminUserRow = {
   brokerLicenseUrl?: string | null;
   /** 模特列表：是否后管创建 */
   isAdminCreated?: boolean | null;
+  /** 模特列表：平台优选/重点推荐 */
+  isPlatformFeatured?: boolean | null;
+  /** 模特列表：用户端是否禁用模卡/作品集/形象定位 */
+  photosDisabled?: boolean | null;
+  /** 模特列表：管理员手动指定等级；null 表示自动计算 LV0-LV1 */
+  modelLevelOverride?: AdminModelLevelOverrideValue;
+  /** 模特列表：自动计算等级 */
+  modelLevel?: ModelLevelInfo | null;
   createdAt: string;
   updatedAt: string;
   /** 商家：绑定经纪人展示文案 */
@@ -370,6 +378,12 @@ export type AdminMerchantBasicInfo = {
   nickname: string;
   avatarUrl: string | null;
   phone: string | null;
+  realName: string | null;
+  idCardNo: string | null;
+  idCardFrontUrl: string | null;
+  idCardBackUrl: string | null;
+  idCardIssueAuthority: string | null;
+  idCardValidDate: string | null;
   status: number;
   verifiedStatus: number;
   profileAuditStatus: number;
@@ -449,6 +463,15 @@ export type AdminModelAgentUser = {
   realName: string | null;
 };
 
+export type ModelLevelInfo = {
+  level: 0 | 1 | 2 | 3 | 4 | 5;
+  code: "LV0" | "LV1" | "LV2" | "LV3" | "LV4" | "LV5";
+  name: string;
+  requirement: string;
+  temperament: string;
+  source?: "auto" | "admin";
+};
+
 export type AdminModelBasicInfo = {
   userId: number;
   userNo: string;
@@ -523,7 +546,21 @@ export type AdminModelBasicInfo = {
     onlyFemale: boolean;
   };
   isAdminCreated?: boolean;
+  isPlatformFeatured?: boolean;
+  photosDisabled?: boolean;
+  modelLevelOverride?: AdminModelLevelOverrideValue;
+  modelLevel?: ModelLevelInfo;
 };
+
+export type AdminModelLevelOverride = 2 | 3 | 4 | 5;
+
+export type AdminModelLevelOverrideValue = AdminModelLevelOverride | null;
+
+function parseAdminModelLevelOverride(value: unknown): AdminModelLevelOverrideValue {
+  const n = Number(value);
+  if (n === 2 || n === 3 || n === 4 || n === 5) return n;
+  return null;
+}
 
 export type AdminModelCategoryTreeNode = {
   id: number;
@@ -543,11 +580,11 @@ export type AdminModelCreateBody = {
   status: number;
   basicInfo: {
     name: string;
-    gender: "女" | "男";
-    birthDate: string;
-    city: string;
-    intro: string;
     phone: string;
+    gender?: "女" | "男";
+    birthDate?: string;
+    city?: string;
+    intro?: string;
   };
   categoryIds?: number[];
   card?: {
@@ -793,6 +830,9 @@ export async function updateAdminSplitRules(body: AdminSplitRulesUpdateBody): Pr
 export type AdminSystemSettings = {
   ok?: boolean;
   merchantOrderEnabled: boolean;
+  homeStatModelOffset: number;
+  homeStatMerchantOffset: number;
+  homeStatBrokerOffset: number;
   updatedAt: string;
   message?: string;
   code?: string;
@@ -812,6 +852,9 @@ export async function fetchAdminSystemSettings(): Promise<AdminSystemSettings> {
 
 export async function updateAdminSystemSettings(body: {
   merchantOrderEnabled: boolean;
+  homeStatModelOffset: number;
+  homeStatMerchantOffset: number;
+  homeStatBrokerOffset: number;
 }): Promise<AdminSystemSettings> {
   const token = getAdminToken();
   const res = await fetch(adminApiUrl("/api/admin/system-settings"), {
@@ -1257,7 +1300,8 @@ async function fetchBrokerUserListPage(
 export async function fetchAdminUsersByRole(
   kind: AdminListKind,
   page: number,
-  pageSize: number
+  pageSize: number,
+  filters: { profileAuditStatus?: number; modelLevel?: number } = {}
 ): Promise<AdminUserListResponse> {
   const token = getAdminToken();
 
@@ -1269,6 +1313,12 @@ export async function fetchAdminUsersByRole(
     page: String(page),
     pageSize: String(pageSize)
   });
+  if (typeof filters.profileAuditStatus === "number") {
+    params.set("profileAuditStatus", String(filters.profileAuditStatus));
+  }
+  if (typeof filters.modelLevel === "number") {
+    params.set("modelLevel", String(filters.modelLevel));
+  }
   const url = adminApiUrl(`${ADMIN_LIST_PATH[kind]}?${params}`);
   if (import.meta.env.DEV) {
     console.debug("[xinglian-admin] GET", url);
@@ -1562,6 +1612,23 @@ export async function uploadAdminModelImage(
   return data.url;
 }
 
+export async function uploadAdminAssetImage(file: File): Promise<string> {
+  const token = getAdminToken();
+  const uploadFile = await prepareAdminUploadFile(file);
+  const fd = new FormData();
+  fd.append("file", uploadFile);
+  const res = await fetch(adminApiUrl("/api/admin/assets/upload"), {
+    method: "POST",
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: fd
+  });
+  const data = (await res.json()) as { ok?: boolean; url?: string; message?: string; code?: string };
+  if (!res.ok || data.ok === false || !data.url) {
+    throw new Error(data.message || data.code || `上传失败 (${res.status})`);
+  }
+  return data.url;
+}
+
 export async function createAdminModel(body: AdminModelCreateBody): Promise<AdminModelBasicInfo> {
   const token = getAdminToken();
   const res = await fetch(adminApiUrl("/api/admin/models"), {
@@ -1700,6 +1767,87 @@ export async function patchAdminModelAgent(
   }
   return {
     agentUserId: data.agentUserId ?? null
+  };
+}
+
+export async function patchAdminModelFeatured(
+  modelUserId: number,
+  isPlatformFeatured: boolean
+): Promise<{ isPlatformFeatured: boolean }> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/models/${modelUserId}/featured`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ isPlatformFeatured })
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    isPlatformFeatured?: boolean;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `保存失败 (${res.status})`);
+  }
+  return {
+    isPlatformFeatured: Boolean(data.isPlatformFeatured)
+  };
+}
+
+export async function patchAdminModelPhotosDisabled(
+  modelUserId: number,
+  photosDisabled: boolean
+): Promise<{ photosDisabled: boolean }> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/models/${modelUserId}/photos-disabled`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ photosDisabled })
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    photosDisabled?: boolean;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `保存失败 (${res.status})`);
+  }
+  return {
+    photosDisabled: Boolean(data.photosDisabled)
+  };
+}
+
+export async function patchAdminModelLevel(
+  modelUserId: number,
+  modelLevelOverride: AdminModelLevelOverrideValue
+): Promise<{ modelLevelOverride: AdminModelLevelOverrideValue }> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/models/${modelUserId}/level`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ modelLevelOverride })
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    modelLevelOverride?: AdminModelLevelOverrideValue;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `保存失败 (${res.status})`);
+  }
+  return {
+    modelLevelOverride: parseAdminModelLevelOverride(data.modelLevelOverride)
   };
 }
 

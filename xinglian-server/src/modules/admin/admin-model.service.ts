@@ -16,18 +16,41 @@ import { getModelBasicDetailForAdmin } from "./admin.service";
 import type { AdminModelCreateBody, AdminModelUpdateBody } from "./admin-model.types";
 import { allocateUniqueUserNo } from "./admin-agent.repository";
 import {
+  clearIdleGuestPhoneForAdmin,
   findAdminCreatedModelUserIdForAdmin,
   findAgentUserIdForModelBind,
-  findUserIdByPhoneForAdmin,
+  findUserBriefByPhoneForAdmin,
   insertModelUserForAdmin,
   updateModelUserForAdmin
 } from "./admin-model.repository";
 
-async function assertPhoneAvailable(phone: string): Promise<void> {
-  const existing = await findUserIdByPhoneForAdmin(phone);
-  if (existing != null) {
-    throw new AppError("该手机号已被其他账号使用", 409, ErrorCodes.CONFLICT);
+const ROLE_LABELS: Record<number, string> = {
+  0: "游客",
+  1: "模特",
+  2: "客户",
+  3: "经纪人",
+  4: "代理人",
+  5: "管理员"
+};
+
+async function assertPhoneAvailable(phone: string, excludeUserId?: number): Promise<void> {
+  const existing = await findUserBriefByPhoneForAdmin(phone, excludeUserId);
+  if (existing == null) return;
+
+  const isIdleGuest =
+    existing.role === 0 && existing.verifiedStatus === 0 && existing.profileAuditStatus === 0;
+  if (isIdleGuest) {
+    const released = await clearIdleGuestPhoneForAdmin(existing.id);
+    if (released) return;
   }
+
+  const roleLabel = ROLE_LABELS[existing.role] ?? "用户";
+  const userNo = existing.userNo || String(existing.id);
+  throw new AppError(
+    `该手机号已被${roleLabel}账号 ${userNo} 使用`,
+    409,
+    ErrorCodes.CONFLICT
+  );
 }
 
 async function resolveAgentUserIdForAdmin(agentUserId: number | null | undefined): Promise<number | null> {
@@ -98,10 +121,7 @@ export async function updateModelForAdmin(userId: number, body: AdminModelUpdate
   }
 
   const phone = body.basicInfo.phone.trim();
-  const existing = await findUserIdByPhoneForAdmin(phone, modelId);
-  if (existing != null) {
-    throw new AppError("该手机号已被其他账号使用", 409, ErrorCodes.CONFLICT);
-  }
+  await assertPhoneAvailable(phone, modelId);
 
   const agentUserId = await resolveAgentUserIdForAdmin(body.agentUserId);
   const stageName = body.basicInfo.name.trim();

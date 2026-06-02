@@ -1,0 +1,140 @@
+<view class="home-page-root">
+<view class="container home-page">
+  <view class="home-bg home-bg--pink"></view>
+  <view class="home-bg home-bg--blue"></view>
+  <view class="model-dash home-dash">
+    <view class="home-hero">
+      <view class="home-hero-glow"></view>
+      <view class="home-hero-main">
+        <text class="home-kicker">星链模库</text>
+        <text class="home-title">星链相连，模库机遇无限</text>
+        <text class="home-sub">模特展示、商单撮合、档期预约一站式完成。</text>
+      </view>
+      <view class="home-stat-row">
+        <view class="home-stat-card">
+          <text class="home-stat-num">{{modelCount}}</text>
+          <text class="home-stat-label">注册模特</text>
+        </view>
+        <view class="home-stat-card">
+          <text class="home-stat-num">{{brokerCount}}</text>
+          <text class="home-stat-label">注册经纪人</text>
+        </view>
+        <view class="home-stat-card">
+          <text class="home-stat-num">{{merchantCount}}</text>
+          <text class="home-stat-label">注册客户</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="home-level-row">
+      <view
+        wx:for="{{modelLevelEntries}}"
+        wx:key="code"
+        class="home-level-card {{item.className}}"
+        data-level="{{item.level}}"
+        bindtap="openLevelIntro"
+      >
+        <text class="home-level-name">{{item.name}}</text>
+        <text class="home-level-temperament">{{item.temperament}}</text>
+      </view>
+    </view>
+
+    <view class="home-section-head">
+      <view>
+        <text class="home-section-title">商单展示</text>
+        <text class="home-section-sub">实时展示客户下单与模特匹配动态</text>
+      </view>
+    </view>
+    <swiper class="home-business-swiper" vertical autoplay circular interval="2600" duration="520">
+      <swiper-item wx:for="{{businessSlides}}" wx:key="id">
+        <view class="home-business-slide">
+          <view wx:for="{{item.list}}" wx:for-item="order" wx:key="id" class="home-business-card">
+            <view class="home-business-top">
+              <text class="home-business-status">{{order.status}}</text>
+              <text class="home-business-budget">{{order.budget}}</text>
+            </view>
+            <view class="home-business-parties">
+              <view class="home-business-party">
+                <text class="home-business-label">下单客户</text>
+                <text class="home-business-name">{{order.customer}}</text>
+              </view>
+              <view class="home-business-arrow">→</view>
+              <view class="home-business-party">
+                <text class="home-business-label">服务模特</text>
+                <text class="home-business-name">{{order.model}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </swiper-item>
+    </swiper>
+
+    <view class="home-section-head">
+      <view>
+        <text class="home-section-title">推荐模特</text>
+        <text class="home-section-sub">精选资料完整、可预约的模特</text>
+      </view>
+      <text class="home-section-more" bindtap="goModelList">全部</text>
+    </view>
+    <view wx:if="{{loading}}" class="stats-card merchant-empty-card">
+      <text class="stats-hint merchant-empty-hint">首页内容加载中...</text>
+    </view>
+    <view wx:elif="{{loadError}}" class="stats-card merchant-empty-card">
+      <text class="stats-hint merchant-empty-hint">{{loadError}}</text>
+    </view>
+    <view wx:else class="home-model-list">
+      <view
+        wx:for="{{featuredModels}}"
+        wx:key="userNo"
+        class="home-model-card {{item.modelLevel.level === 5 ? 'home-model-card--sky' : ''}} {{item.modelLevel.level === 4 ? 'home-model-card--crown' : ''}}"
+        data-user-no="{{item.userNo}}"
+        bindtap="goModelDetail"
+      >
+        <view class="home-model-cover">
+          <image wx:if="{{item.showCoverImage}}" class="home-model-img" src="{{item.coverImageUrl}}" mode="aspectFill" />
+          <view wx:else class="home-model-fallback">{{item.avatarText}}</view>
+          <view wx:if="{{item.modelLevel.level >= 4}}" class="home-model-premium-aura"></view>
+          <view class="home-model-gradient"></view>
+          <text class="home-model-price">{{item.hourlyText}}/小时</text>
+          <view wx:if="{{item.modelLevel.level >= 4}}" class="home-model-premium-badge {{item.modelLevel.level === 5 ? 'home-model-premium-badge--sky' : 'home-model-premium-badge--crown'}}">{{item.modelLevel.level === 5 ? "天幕优选" : "皇冠认证"}}</view>
+        </view>
+        <view class="home-model-body">
+          <view class="home-model-name-row">
+            <text class="home-model-name">{{item.nickname}}</text>
+            <text class="model-level-pill {{item.modelLevel.level === 5 ? 'model-level-pill--sky' : ''}} {{item.modelLevel.level === 4 ? 'model-level-pill--crown' : ''}}">{{item.modelLevelText}}</text>
+          </view>
+          <text class="home-model-sub">{{item.city || "城市待完善"}}</text>
+          <view class="home-model-tags" wx:if="{{item.categories && item.categories.length > 0}}">
+            <text wx:for="{{item.categories}}" wx:for-item="tag" wx:key="*this" class="home-model-tag">{{tag}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+
+  <view wx:if="{{levelIntroVisible && selectedModelLevel}}" class="home-level-mask" bindtap="closeLevelIntro">
+    <view class="home-level-sheet" catchtap="preventLevelIntroBubble">
+      <view class="home-level-sheet-head">
+        <view>
+          <text class="home-level-sheet-title">{{selectedModelLevel.name}}</text>
+        </view>
+        <text class="home-level-close" catchtap="closeLevelIntro">关闭</text>
+      </view>
+      <scroll-view scroll-y class="home-level-sheet-body" enhanced show-scrollbar="{{false}}">
+        <text class="home-level-sheet-sub">{{selectedModelLevel.temperament}}</text>
+        <view class="home-level-info-card">
+          <text class="home-level-info-label">升级要求</text>
+          <text class="home-level-info-text">{{selectedModelLevel.requirement}}</text>
+        </view>
+        <view class="home-level-info-card">
+          <text class="home-level-info-label">权限 / 权益</text>
+          <view class="home-level-permission-row" wx:for="{{selectedModelLevel.permissions}}" wx:key="*this">
+            <text class="home-level-permission-dot"></text>
+            <text class="home-level-permission-text">{{item}}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

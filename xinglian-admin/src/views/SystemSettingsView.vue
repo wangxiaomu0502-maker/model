@@ -8,6 +8,9 @@ import { fetchAdminSystemSettings, updateAdminSystemSettings } from "@/api/admin
 const loading = ref(true);
 const saving = ref(false);
 const merchantOrderEnabled = ref(true);
+const homeStatModelOffset = ref(0);
+const homeStatMerchantOffset = ref(0);
+const homeStatBrokerOffset = ref(0);
 const updatedAt = ref("");
 
 const updatedAtDisplay = computed(() => {
@@ -30,6 +33,9 @@ async function load(): Promise<void> {
   try {
     const data = await fetchAdminSystemSettings();
     merchantOrderEnabled.value = data.merchantOrderEnabled !== false;
+    homeStatModelOffset.value = Number(data.homeStatModelOffset || 0);
+    homeStatMerchantOffset.value = Number(data.homeStatMerchantOffset || 0);
+    homeStatBrokerOffset.value = Number(data.homeStatBrokerOffset || 0);
     updatedAt.value = data.updatedAt || "";
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : "加载失败");
@@ -42,9 +48,15 @@ async function save(): Promise<void> {
   saving.value = true;
   try {
     const data = await updateAdminSystemSettings({
-      merchantOrderEnabled: merchantOrderEnabled.value
+      merchantOrderEnabled: merchantOrderEnabled.value,
+      homeStatModelOffset: Math.trunc(Number(homeStatModelOffset.value || 0)),
+      homeStatMerchantOffset: Math.trunc(Number(homeStatMerchantOffset.value || 0)),
+      homeStatBrokerOffset: Math.trunc(Number(homeStatBrokerOffset.value || 0))
     });
     merchantOrderEnabled.value = data.merchantOrderEnabled !== false;
+    homeStatModelOffset.value = Number(data.homeStatModelOffset || 0);
+    homeStatMerchantOffset.value = Number(data.homeStatMerchantOffset || 0);
+    homeStatBrokerOffset.value = Number(data.homeStatBrokerOffset || 0);
     updatedAt.value = data.updatedAt || "";
     ElMessage.success("已保存");
   } catch (e) {
@@ -67,7 +79,7 @@ onMounted(() => {
       </div>
       <div>
         <h1 class="hero-title">系统管理</h1>
-        <p class="hero-sub">控制平台级功能开关。</p>
+        <p class="hero-sub">控制平台级功能开关与首页展示数据。</p>
       </div>
     </header>
 
@@ -87,6 +99,50 @@ onMounted(() => {
           inactive-text="关闭"
           :disabled="loading || saving"
         />
+      </div>
+
+      <div class="setting-divider"></div>
+
+      <div class="setting-block">
+        <div class="setting-copy">
+          <h2 class="setting-title">首页统计数据修正</h2>
+          <p class="setting-desc">
+            小程序首页展示数 = 真实注册数 + 修正数；支持负数，最终展示不会低于 0。
+          </p>
+        </div>
+
+        <div class="offset-grid">
+          <label class="offset-item">
+            <span class="offset-label">模特修正数</span>
+            <el-input-number
+              v-model="homeStatModelOffset"
+              :step="1"
+              step-strictly
+              :disabled="loading || saving"
+              controls-position="right"
+            />
+          </label>
+          <label class="offset-item">
+            <span class="offset-label">客户修正数</span>
+            <el-input-number
+              v-model="homeStatMerchantOffset"
+              :step="1"
+              step-strictly
+              :disabled="loading || saving"
+              controls-position="right"
+            />
+          </label>
+          <label class="offset-item">
+            <span class="offset-label">经纪人修正数</span>
+            <el-input-number
+              v-model="homeStatBrokerOffset"
+              :step="1"
+              step-strictly
+              :disabled="loading || saving"
+              controls-position="right"
+            />
+          </label>
+        </div>
       </div>
 
       <div class="actions">
@@ -158,6 +214,18 @@ onMounted(() => {
   min-width: 0;
 }
 
+.setting-block {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.setting-divider {
+  height: 1px;
+  margin: 24px 0;
+  background: #e2e8f0;
+}
+
 .setting-title {
   margin: 0;
   font-size: 18px;
@@ -176,6 +244,27 @@ onMounted(() => {
   color: #94a3b8;
 }
 
+.offset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.offset-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.offset-label {
+  font-size: 14px;
+  color: #334155;
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;
@@ -191,6 +280,10 @@ onMounted(() => {
 
   .actions {
     justify-content: flex-start;
+  }
+
+  .offset-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

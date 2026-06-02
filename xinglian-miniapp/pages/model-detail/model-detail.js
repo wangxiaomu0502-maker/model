@@ -26,6 +26,7 @@ function formatDateKey(d) {
 
 const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
 const MERCHANT_ONLY_ORDER_HINT = "仅客户可预约下单";
+const PROFILE_AUDIT_ORDER_HINT = "资料审核暂未通过，请稍后下单";
 
 Page({
   data: {
@@ -739,6 +740,19 @@ Page({
     });
   },
 
+  isModelProfileAuditApproved() {
+    return Number(this.data.model?.profileAuditStatus || 0) === 2;
+  },
+
+  promptModelProfileAuditPending() {
+    wx.showModal({
+      title: "暂不可下单",
+      content: PROFILE_AUDIT_ORDER_HINT,
+      showCancel: false,
+      confirmText: "知道了"
+    });
+  },
+
   async onPlaceOrder() {
     if (!this.data.model) return;
     if (this.isVisitorUser()) {
@@ -746,6 +760,10 @@ Page({
       return;
     }
     if (this.isBookingRestrictedForCurrentUser()) {
+      return;
+    }
+    if (!this.isModelProfileAuditApproved()) {
+      this.promptModelProfileAuditPending();
       return;
     }
     if (this.isMerchantRole()) {
@@ -859,6 +877,10 @@ Page({
       wx.showToast({ title: "请完善预约信息", icon: "none" });
       return;
     }
+    if (!this.isModelProfileAuditApproved()) {
+      this.promptModelProfileAuditPending();
+      return;
+    }
     if (this.isMerchantRole()) {
       wx.showLoading({ title: "校验中", mask: true });
       const signed = await this.fetchMerchantContractSigned();
@@ -901,6 +923,10 @@ Page({
     }
     const { selectedDateKey: date, serviceType, durationKind, hourCount, model, merchantRemark } = this.data;
     if (!model?.userNo || !date || !durationKind) {
+      return;
+    }
+    if (!this.isModelProfileAuditApproved()) {
+      this.promptModelProfileAuditPending();
       return;
     }
     const body = {

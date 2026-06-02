@@ -1,0 +1,123 @@
+<view class="launch-page {{themeClass}}">
+  <view class="launch-aurora launch-aurora--1"></view>
+  <view class="launch-aurora launch-aurora--2"></view>
+  <view class="launch-aurora launch-aurora--3"></view>
+  <view class="launch-grid"></view>
+
+  <view class="launch-header" style="padding-top: {{safeTop}}px;">
+    <view class="launch-brand-pill">
+      <view class="launch-brand-dot"></view>
+      <text class="launch-brand-name">星链模库</text>
+    </view>
+    <view class="launch-skip" bindtap="skip" hover-class="launch-skip--active">
+      <text class="launch-skip-text">跳过</text>
+    </view>
+  </view>
+
+  <view class="launch-step-bar">
+    <text class="launch-step-text">{{stepText}}</text>
+    <view class="launch-step-track">
+      <view class="launch-step-fill" style="width: {{progressWidth}};"></view>
+    </view>
+  </view>
+
+  <swiper
+    class="launch-swiper"
+    style="height: {{swiperHeight}}px;"
+    current="{{current}}"
+    bindchange="onSwiperChange"
+    duration="360"
+    easing-function="easeOutCubic"
+  >
+    <swiper-item wx:for="{{slides}}" wx:key="id" class="launch-slide">
+      <scroll-view scroll-y class="launch-slide-scroll" style="height: {{swiperHeight}}px;" enhanced show-scrollbar="{{false}}">
+      <view class="launch-slide-inner">
+        <view class="launch-visual">
+          <view wx:if="{{item.visual === 'stats'}}" class="launch-mock launch-mock--stats">
+            <view class="launch-stat-card launch-stat-card--1">
+              <text class="launch-stat-num">128+</text>
+              <text class="launch-stat-label">注册模特</text>
+            </view>
+            <view class="launch-stat-card launch-stat-card--2">
+              <text class="launch-stat-num">56+</text>
+              <text class="launch-stat-label">活跃商单</text>
+            </view>
+            <view class="launch-stat-card launch-stat-card--3">
+              <text class="launch-stat-num">24h</text>
+              <text class="launch-stat-label">快速匹配</text>
+            </view>
+            <view class="launch-mock-chip">商单撮合中</view>
+          </view>
+
+          <view wx:elif="{{item.visual === 'roles'}}" class="launch-mock launch-mock--roles">
+            <view class="launch-role-card launch-role-card--model">
+              <text class="launch-role-tag">模特</text>
+              <text class="launch-role-desc">接单 · 档期</text>
+            </view>
+            <view class="launch-role-card launch-role-card--merchant">
+              <text class="launch-role-tag">客户</text>
+              <text class="launch-role-desc">筛选 · 下单</text>
+            </view>
+            <view class="launch-role-card launch-role-card--broker">
+              <text class="launch-role-tag">经纪人</text>
+              <text class="launch-role-desc">推广 · 团队</text>
+            </view>
+            <view class="launch-role-card launch-role-card--agent">
+              <text class="launch-role-tag">代理人</text>
+              <text class="launch-role-desc">拓展 · 运营</text>
+            </view>
+          </view>
+
+          <view wx:else class="launch-mock launch-mock--trust">
+            <view class="launch-trust-badge">
+              <text class="launch-trust-icon">盾</text>
+            </view>
+            <view class="launch-trust-lines">
+              <view class="launch-trust-line launch-trust-line--long"></view>
+              <view class="launch-trust-line launch-trust-line--mid"></view>
+              <view class="launch-trust-line launch-trust-line--short"></view>
+            </view>
+            <view class="launch-trust-tags">
+              <text class="launch-trust-tag">可追溯</text>
+              <text class="launch-trust-tag">可核对</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="launch-card">
+          <text class="launch-kicker">{{item.kicker}}</text>
+          <text class="launch-title">{{item.title}}</text>
+          <text class="launch-desc">{{item.desc}}</text>
+          <view class="launch-highlights">
+            <view
+              wx:for="{{item.highlights}}"
+              wx:for-item="point"
+              wx:key="text"
+              class="launch-highlight-row"
+            >
+              <view class="launch-highlight-icon">
+                <text class="launch-highlight-icon-text">{{point.icon}}</text>
+              </view>
+              <text class="launch-highlight-text">{{point.text}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      </scroll-view>
+    </swiper-item>
+  </swiper>
+
+  <view class="launch-footer" style="padding-bottom: calc({{safeBottom}}px + env(safe-area-inset-bottom));">
+    <view class="launch-dots">
+      <view
+        wx:for="{{slides}}"
+        wx:key="id"
+        class="launch-dot-item {{index === current ? 'launch-dot-item--active' : ''}}"
+      ></view>
+    </view>
+    <view class="launch-btn launch-btn--primary" bindtap="goNext" hover-class="launch-btn--active">
+      <text class="launch-btn-text">{{isLast ? '开始使用' : '下一步'}}</text>
+      <text wx:if="{{!isLast}}" class="launch-btn-arrow">→</text>
+    </view>
+  </view>
+</view>

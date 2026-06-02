@@ -2,7 +2,9 @@ import { z } from "zod";
 
 export const adminUserListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20)
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  profileAuditStatus: z.coerce.number().int().min(0).max(3).optional(),
+  modelLevel: z.coerce.number().int().min(0).max(5).optional()
 });
 
 export type AdminUserListQuery = z.infer<typeof adminUserListQuerySchema>;
@@ -11,6 +13,8 @@ export type AdminUserListQuery = z.infer<typeof adminUserListQuerySchema>;
 export const adminUsersByRoleQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  profileAuditStatus: z.coerce.number().int().min(0).max(3).optional(),
+  modelLevel: z.coerce.number().int().min(0).max(5).optional(),
   role: z.coerce
     .number()
     .refine((r): r is 1 | 2 | 3 => r === 1 || r === 2 || r === 3, {
@@ -46,6 +50,33 @@ export const adminModelAgentBodySchema = z.object({
 });
 
 export type AdminModelAgentBody = z.infer<typeof adminModelAgentBodySchema>;
+
+/** 后台设置模特是否平台优选/重点推荐 */
+export const adminModelFeaturedBodySchema = z.object({
+  isPlatformFeatured: z.boolean()
+});
+
+export type AdminModelFeaturedBody = z.infer<typeof adminModelFeaturedBodySchema>;
+
+/** 后台禁用/启用模特照片（用户端不展示模卡/作品集/形象定位） */
+export const adminModelPhotosDisabledBodySchema = z.object({
+  photosDisabled: z.boolean()
+});
+
+export type AdminModelPhotosDisabledBody = z.infer<typeof adminModelPhotosDisabledBodySchema>;
+
+/** 后台手动指定模特等级；null 表示回到 LV0-LV1 自动计算 */
+export const adminModelLevelBodySchema = z.object({
+  modelLevelOverride: z.union([
+    z.literal(2),
+    z.literal(3),
+    z.literal(4),
+    z.literal(5),
+    z.null()
+  ])
+});
+
+export type AdminModelLevelBody = z.infer<typeof adminModelLevelBodySchema>;
 
 /** 后台为商家设置绑定经纪人；传 null 表示清除 */
 export const adminMerchantBrokerBodySchema = z.object({
