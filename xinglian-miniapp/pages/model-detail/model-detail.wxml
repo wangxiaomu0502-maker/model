@@ -16,9 +16,7 @@
     wx:elif="{{model}}"
     scroll-y="{{!showBookingPopup && !showPortfolioPopup}}"
     class="detail-scroll {{showBookingPopup || showPortfolioPopup ? 'detail-scroll--locked' : ''}}"
-    enhanced
     show-scrollbar="{{false}}"
-    enable-flex
   >
     <view class="detail-stack">
       <!-- 顶部人物 -->
@@ -102,7 +100,6 @@
               >
                 <image class="detail-card-slide-img" src="{{item.url}}" mode="aspectFill" />
                 <view class="detail-card-slide-mask">
-                  <text class="detail-card-slide-label">{{item.label}}</text>
                   <text class="detail-card-slide-hint">点击查看大图</text>
                 </view>
               </view>
@@ -156,9 +153,7 @@
         <scroll-view
           scroll-x
           class="detail-style-strip"
-          enhanced
           show-scrollbar="{{false}}"
-          enable-flex
         >
           <image
             wx:for="{{stylePositionPhotos}}"
@@ -227,9 +222,7 @@
           <scroll-view
             scroll-x
             class="detail-media-strip"
-            enhanced
             show-scrollbar="{{false}}"
-            enable-flex
           >
             <image
               wx:for="{{folder.urls}}"
@@ -320,7 +313,7 @@
         <text class="popup-close" bindtap="onCloseBookingPopup">关闭</text>
       </view>
 
-      <scroll-view scroll-y class="booking-popup-scroll" enhanced show-scrollbar="{{false}}">
+      <scroll-view scroll-y class="booking-popup-scroll" show-scrollbar="{{false}}">
       <view class="popup-section">
         <text class="popup-section-title">1. 选择预约日期</text>
         <view wx:if="{{bookableDateOptions.length === 0}}" class="empty-hint">暂无可预约日期，请稍后再试。</view>
@@ -413,7 +406,7 @@
         </view>
         <text class="popup-close" bindtap="onClosePortfolioPopup">关闭</text>
       </view>
-      <scroll-view scroll-y class="portfolio-popup-scroll" enhanced show-scrollbar="{{false}}">
+      <scroll-view scroll-y class="portfolio-popup-scroll" show-scrollbar="{{false}}">
         <view class="portfolio-popup-body">
           <view class="portfolio-folder" wx:for="{{portfolioSections}}" wx:for-item="folder" wx:key="id">
             <text class="portfolio-folder-name">{{folder.name}}</text>

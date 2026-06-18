@@ -1,22 +1,84 @@
 <view class="page page-themed-root page-themed-root--bottombar">
+  <view wx:if="{{reviewBannerText}}" class="content-review-banner content-review-banner--{{reviewBannerType}}">
+    {{reviewBannerText}}
+  </view>
+
   <view class="section">
     <view class="section-head">
-      <view class="section-title">模卡照片（建议上传 6–8 张）</view>
-      <view class="batch-upload-btn" bindtap="chooseBatchPhotos">批量上传</view>
+      <view class="section-title-wrap">
+        <view class="section-title">身材比例卡图集</view>
+        <text class="section-tag section-tag--required">需上传 1 张</text>
+      </view>
     </view>
-    <text class="hint">建议上传 6–8 张；纯色背景、光线均匀，不戴墨镜，无过度修图。点击格子可上传/更新，并从该格子开始批量填充，一次最多 9 张，单张照片不能超过5M。</text>
+    <text class="hint">请上传包含正面、侧面、背面三视图及身材比例卡整张的合成图或标准图。纯色背景、光线均匀，单张不能超过 5M。</text>
+    <view class="photo-grid photo-grid--single">
+      <view
+        class="photo-item photo-item--featured"
+        wx:for="{{photoAngles}}"
+        wx:key="key"
+        wx:if="{{item.slotType === 'threeView'}}"
+      >
+        <text class="photo-slot-label">身材比例卡图集</text>
+        <view class="photo-item-inner" data-key="{{item.key}}" bindtap="onPhotoTileTap">
+          <image wx:if="{{item.url}}" class="photo photo--tall" src="{{item.url}}" mode="aspectFill"></image>
+          <view wx:else class="photo-placeholder photo--tall">+</view>
+          <view
+            wx:if="{{item.url}}"
+            class="photo-more-hit"
+            catchtap="onCardPhotoMore"
+            data-key="{{item.key}}"
+          >
+            <text class="photo-more-dots">···</text>
+          </view>
+          <view
+            wx:if="{{item.url && item.reviewBadgeText}}"
+            class="photo-review-badge photo-review-badge--{{item.reviewBadgeType}}"
+          >
+            {{item.reviewBadgeText}}
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view class="section-title-wrap">
+        <view class="section-title">身材比例卡单片展示</view>
+        <text class="section-tag">最多 {{galleryMax}} 张</text>
+      </view>
+      <view class="batch-upload-btn" bindtap="chooseGalleryBatchPhotos">批量上传</view>
+    </view>
+    <text class="hint">上传身材比例卡单片展示图。点击空位上传；已上传照片点击预览，「···」可调整顺序或删除。一次最多选 {{galleryMax}} 张，单张不能超过 5M。</text>
     <view class="photo-grid">
       <view
         class="photo-item"
         wx:for="{{photoAngles}}"
         wx:key="key"
-        data-key="{{item.key}}"
-        bindtap="choosePhoto"
+        wx:if="{{item.slotType === 'gallery'}}"
       >
-        <image wx:if="{{item.url}}" class="photo" src="{{item.url}}" mode="aspectFill"></image>
-        <view wx:else class="photo-placeholder">+</view>
+        <text class="photo-slot-label">{{item.label}}</text>
+        <view class="photo-item-inner" data-key="{{item.key}}" bindtap="onPhotoTileTap">
+          <image wx:if="{{item.url}}" class="photo" src="{{item.url}}" mode="aspectFill"></image>
+          <view wx:else class="photo-placeholder">+</view>
+          <view
+            wx:if="{{item.url}}"
+            class="photo-more-hit"
+            catchtap="onCardPhotoMore"
+            data-key="{{item.key}}"
+          >
+            <text class="photo-more-dots">···</text>
+          </view>
+          <view
+            wx:if="{{item.url && item.reviewBadgeText}}"
+            class="photo-review-badge photo-review-badge--{{item.reviewBadgeType}}"
+          >
+            {{item.reviewBadgeText}}
+          </view>
+        </view>
       </view>
     </view>
+    <text class="upload-count-hint">已上传 {{galleryUploadCount}} / {{galleryMax}} 张</text>
   </view>
 
   <view class="section">

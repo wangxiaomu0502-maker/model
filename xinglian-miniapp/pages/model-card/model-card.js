@@ -1,18 +1,21 @@
 const { prepareImageForUpload } = require("../../utils/image-upload.js");
-
-const PHOTO_ANGLES = [
-  { key: "frontFull", label: "正面全身" },
-  { key: "backFull", label: "背面全身" },
-  { key: "leftFull", label: "左侧面全身" },
-  { key: "rightFull", label: "右侧面全身" },
-  { key: "halfFront", label: "半身正面" },
-  { key: "faceCloseup", label: "面部特写" },
-  { key: "dynamicFull", label: "全身动态" },
-  { key: "bodyCurve", label: "三围展示" },
-  { key: "bikiniLingerie", label: "比基尼/内衣" }
-];
-
-const MAX_PICK_COUNT = 9;
+const {
+  GALLERY_MAX,
+  GALLERY_MAX_PICK,
+  THREE_VIEW_KEY,
+  buildDefaultPhotoAngles,
+  mergePhotoAnglesFromServer,
+  isGallerySlot,
+  isThreeViewSlot
+} = require("../../utils/model-card-photos.js");
+const {
+  getReviewItem,
+  contentReviewBannerText,
+  contentReviewBannerType,
+  photoReviewBannerText,
+  photoReviewBannerType
+} = require("../../utils/content-review.js");
+const { toastIfNotMoved } = require("../../utils/photo-list-actions.js");
 
 const MEASUREMENT_FIELDS = [
   "height",
@@ -117,7 +120,9 @@ const INITIAL_MEASUREMENTS = applyMeasurementDefaults({});
 
 Page({
   data: {
-    photoAngles: PHOTO_ANGLES.map((item) => ({ ...item, url: "", width: 0, height: 0 })),
+    photoAngles: buildDefaultPhotoAngles(),
+    galleryMax: GALLERY_MAX,
+    galleryUploadCount: 0,
     measurements: INITIAL_MEASUREMENTS,
     measureOptions: MEASURE_OPTIONS,
     measureIndexes: buildMeasureIndexes(MEASURE_OPTIONS, INITIAL_MEASUREMENTS),
@@ -126,7 +131,34 @@ Page({
     hairColorOptions: HAIR_COLOR_OPTIONS,
     skinColorOptions: SKIN_COLOR_OPTIONS,
     hairColorIndex: optionToIndex(HAIR_COLOR_OPTIONS, DEFAULT_HAIR_COLOR),
-    skinColorIndex: optionToIndex(SKIN_COLOR_OPTIONS, DEFAULT_SKIN_COLOR)
+    skinColorIndex: optionToIndex(SKIN_COLOR_OPTIONS, DEFAULT_SKIN_COLOR),
+    reviewBannerText: "",
+    reviewBannerType: ""
+  },
+
+  decorateCardPhoto(item) {
+    const next = { ...item };
+    next.reviewBadgeText = photoReviewBannerText(next);
+    next.reviewBadgeType = photoReviewBannerType(next);
+    return next;
+  },
+
+  applyPhotoAngles(photoAngles, contentReview) {
+    const list = (photoAngles || []).map((item) => this.decorateCardPhoto(item));
+    this.setData({
+      photoAngles: list,
+      galleryUploadCount: list.filter((item) => isGallerySlot(item) && item.url).length,
+      contentReview: contentReview || this.data.contentReview || null
+    });
+    this.syncCardReviewBanner(list, contentReview || this.data.contentReview);
+  },
+
+  syncCardReviewBanner(photoAngles, contentReview) {
+    const cardReview = getReviewItem(contentReview, "card");
+    this.setData({
+      reviewBannerText: contentReviewBannerText(cardReview, photoAngles),
+      reviewBannerType: contentReviewBannerType(cardReview, photoAngles)
+    });
   },
 
   requestWithAuth(url, method, data) {
@@ -152,9 +184,10 @@ Page({
       if (!data?.ok || !data.card) return;
       const card = data.card;
       const photos = card.photoAngles || [];
-      const photoMap = {};
-      photos.forEach((item) => {
-        photoMap[item.key] = item;
+      const cardReview = getReviewItem(data.contentReview, "card");
+      this.setData({
+        reviewBannerText: contentReviewBannerText(cardReview, photos),
+        reviewBannerType: contentReviewBannerType(cardReview, photos)
       });
       const incomingMeasurements = card.measurements || this.data.measurements;
       const normalizedMeasurements = { ...this.data.measurements };
@@ -167,13 +200,8 @@ Page({
       const withDefaults = applyMeasurementDefaults(normalizedMeasurements);
       const hairColor = String(card.hairColor || "").trim() || DEFAULT_HAIR_COLOR;
       const skinColor = String(card.skinColor || "").trim() || DEFAULT_SKIN_COLOR;
+      this.applyPhotoAngles(mergePhotoAnglesFromServer(photos), data.contentReview);
       this.setData({
-        photoAngles: PHOTO_ANGLES.map((item) => ({
-          ...item,
-          url: (photoMap[item.key] && photoMap[item.key].url) || "",
-          width: (photoMap[item.key] && photoMap[item.key].width) || 0,
-          height: (photoMap[item.key] && photoMap[item.key].height) || 0
-        })),
         measurements: withDefaults,
         measureIndexes: buildMeasureIndexes(MEASURE_OPTIONS, withDefaults),
         hairColor,
@@ -181,7 +209,9 @@ Page({
         hairColorIndex: optionToIndex(HAIR_COLOR_OPTIONS, hairColor),
         skinColorIndex: optionToIndex(SKIN_COLOR_OPTIONS, skinColor)
       });
-    } catch (_error) {}
+    } catch (_error) {
+      wx.showToast({ title: "加载失败，请稍后重试", icon: "none" });
+    }
   },
 
   onMeasurePick(e) {
@@ -250,14 +280,25 @@ Page({
 
   fillBatchPhotos(startKey, uploadedList) {
     const current = this.data.photoAngles || [];
-    const startIndex = Math.max(0, current.findIndex((item) => item.key === startKey));
-    const targetIndexes = [startIndex];
-    current.forEach((item, index) => {
-      if (index !== startIndex && !item.url && index > startIndex) targetIndexes.push(index);
-    });
-    current.forEach((item, index) => {
-      if (index !== startIndex && !item.url && index < startIndex) targetIndexes.push(index);
-    });
+    const startItem = current.find((item) => item.key === startKey);
+    const startIndex = current.findIndex((item) => item.key === startKey);
+    const targetIndexes = [];
+
+    if (isThreeViewSlot(startItem)) {
+      targetIndexes.push(startIndex);
+    } else {
+      targetIndexes.push(startIndex);
+      current.forEach((item, index) => {
+        if (index !== startIndex && isGallerySlot(item) && !item.url && index > startIndex) {
+          targetIndexes.push(index);
+        }
+      });
+      current.forEach((item, index) => {
+        if (index !== startIndex && isGallerySlot(item) && !item.url && index < startIndex) {
+          targetIndexes.push(index);
+        }
+      });
+    }
 
     const next = current.map((item) => ({ ...item }));
     uploadedList.forEach((uploaded, idx) => {
@@ -267,33 +308,124 @@ Page({
         ...next[targetIndex],
         url: uploaded.url,
         width: uploaded.width,
-        height: uploaded.height
+        height: uploaded.height,
+        reviewStatus: 1
       };
     });
-    this.setData({ photoAngles: next });
+    this.applyPhotoAngles(next);
   },
 
-  chooseBatchPhotos() {
-    const firstEmpty = (this.data.photoAngles || []).find((item) => !item.url);
+  chooseGalleryBatchPhotos() {
+    const firstEmpty = (this.data.photoAngles || []).find((item) => isGallerySlot(item) && !item.url);
     if (!firstEmpty) {
-      wx.showToast({ title: "模卡照片已满", icon: "none" });
+      wx.showToast({ title: "身材比例卡单片展示已满", icon: "none" });
       return;
     }
     this.choosePhotoByKey(firstEmpty.key);
   },
 
-  choosePhoto(e) {
-    const key = e.currentTarget.dataset.key;
+  onPhotoTileTap(e) {
+    const key = e.currentTarget.dataset.key || "";
+    const item = (this.data.photoAngles || []).find((p) => p.key === key);
+    if (!item) return;
+    if (item.url) {
+      const urls = (this.data.photoAngles || []).map((p) => p.url).filter(Boolean);
+      wx.previewImage({ current: item.url, urls });
+      return;
+    }
     this.choosePhotoByKey(key);
+  },
+
+  onCardPhotoMore(e) {
+    const key = e.currentTarget.dataset.key || "";
+    if (!key) return;
+    const item = (this.data.photoAngles || []).find((p) => p.key === key);
+    const itemList = isThreeViewSlot(item)
+      ? ["更换照片", "删除照片"]
+      : ["前移", "后移", "更换照片", "删除照片"];
+    wx.showActionSheet({
+      itemList,
+      success: (res) => {
+        if (isThreeViewSlot(item)) {
+          if (res.tapIndex === 0) this.choosePhotoByKey(key);
+          else if (res.tapIndex === 1) this.removeCardPhoto(key);
+          return;
+        }
+        if (res.tapIndex === 0) this.moveCardPhoto(key, "up");
+        else if (res.tapIndex === 1) this.moveCardPhoto(key, "down");
+        else if (res.tapIndex === 2) this.choosePhotoByKey(key);
+        else if (res.tapIndex === 3) this.removeCardPhoto(key);
+      }
+    });
+  },
+
+  moveCardPhoto(key, direction) {
+    const list = this.data.photoAngles || [];
+    const index = list.findIndex((item) => item.key === key);
+    const item = list[index];
+    if (!isGallerySlot(item)) return;
+
+    const galleryIndexes = list
+      .map((slot, idx) => (isGallerySlot(slot) ? idx : -1))
+      .filter((idx) => idx >= 0);
+    const posInGallery = galleryIndexes.indexOf(index);
+    if (posInGallery < 0) return;
+
+    const swapWith =
+      direction === "up" ? galleryIndexes[posInGallery - 1] : galleryIndexes[posInGallery + 1];
+    if (swapWith == null) {
+      toastIfNotMoved(false, direction);
+      return;
+    }
+
+    const next = list.slice();
+    const tmp = next[index];
+    next[index] = next[swapWith];
+    next[swapWith] = tmp;
+    this.applyPhotoAngles(next);
+  },
+
+  removeCardPhoto(key) {
+    wx.showModal({
+      title: "删除照片",
+      content: "确定删除该模卡照片？删除后需保存模卡才会生效。",
+      confirmColor: "#dc2626",
+      success: (res) => {
+        if (!res.confirm) return;
+        const next = (this.data.photoAngles || []).map((item) =>
+          item.key === key
+            ? this.decorateCardPhoto({
+                ...item,
+                url: "",
+                width: 0,
+                height: 0,
+                reviewStatus: 0,
+                cleared: true
+              })
+            : item
+        );
+        this.applyPhotoAngles(next, this.data.contentReview);
+      }
+    });
   },
 
   choosePhotoByKey(key) {
     if (!key) return;
     const current = this.data.photoAngles || [];
+    const startItem = current.find((item) => item.key === key);
     const startIndex = current.findIndex((item) => item.key === key);
-    const emptyCount = current.filter((item) => !item.url).length;
-    const replaceExisting = startIndex >= 0 && current[startIndex] && current[startIndex].url ? 1 : 0;
-    const pickCount = Math.min(MAX_PICK_COUNT, Math.max(1, emptyCount + replaceExisting));
+    if (startIndex < 0 || !startItem) return;
+
+    let emptyCount = 0;
+    let pickCount = 1;
+    if (isThreeViewSlot(startItem)) {
+      emptyCount = startItem.url ? 0 : 1;
+      pickCount = 1;
+    } else {
+      emptyCount = current.filter((item) => isGallerySlot(item) && !item.url).length;
+      const replaceExisting = startItem.url ? 1 : 0;
+      pickCount = Math.min(GALLERY_MAX_PICK, Math.max(1, emptyCount + replaceExisting));
+    }
 
     wx.chooseMedia({
       count: pickCount,
@@ -329,6 +461,11 @@ Page({
   },
 
   validateBeforeSave() {
+    const threeView = (this.data.photoAngles || []).find((item) => item.key === THREE_VIEW_KEY);
+    if (!threeView || !threeView.url) {
+      return "请上传身材比例卡图集";
+    }
+
     const uploadedCount = this.getUploadedCount();
     if (uploadedCount < 1) {
       return "请至少上传 1 张模卡照";
@@ -373,7 +510,21 @@ Page({
         measurements[field] = Number(this.data.measurements[field]);
       });
       const data = await this.requestWithAuth("/api/models/card", "PUT", {
-        photoAngles: this.data.photoAngles,
+        photoAngles: (this.data.photoAngles || []).map((item) => {
+          const row = {
+            key: item.key,
+            label: item.label,
+            url: item.url || "",
+            width: item.width || 0,
+            height: item.height || 0
+          };
+          if (item.cleared) row.cleared = true;
+          if (item.reviewStatus != null && item.reviewStatus !== "") {
+            row.reviewStatus = item.reviewStatus;
+          }
+          if (item.rejectReason) row.rejectReason = item.rejectReason;
+          return row;
+        }),
         measurements,
         hairColor: String(this.data.hairColor || "").trim(),
         skinColor: String(this.data.skinColor || "").trim()
@@ -382,7 +533,9 @@ Page({
         wx.showToast({ title: data?.message || "保存失败", icon: "none" });
         return;
       }
-      wx.showToast({ title: "模卡已保存", icon: "success" });
+      const me = await this.requestWithAuth("/api/models/me", "GET");
+      this.applyPhotoAngles(mergePhotoAnglesFromServer(me?.card?.photoAngles || []), me?.contentReview);
+      wx.showToast({ title: "已提交审核", icon: "success" });
       setTimeout(() => {
         wx.navigateBack({
           delta: 1

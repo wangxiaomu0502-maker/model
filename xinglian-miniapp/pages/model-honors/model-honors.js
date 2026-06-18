@@ -1,4 +1,5 @@
 const { prepareImageForUpload } = require("../../utils/image-upload.js");
+const { swapAdjacent, toastIfNotMoved } = require("../../utils/photo-list-actions.js");
 
 Page({
   data: {
@@ -176,6 +177,37 @@ Page({
       this.setData({ saving: false });
       wx.showToast({ title: err.message || "保存失败", icon: "none" });
     }
+  },
+
+  async persistHonorOrder(list) {
+    if (this.data.saving) return;
+    this.setData({ saving: true });
+    try {
+      await Promise.all(
+        list.map((item, index) =>
+          this.requestWithAuth(`/api/models/honors/${item.id}`, "PATCH", { sortOrder: index })
+        )
+      );
+      this.setData({
+        honors: list.map((item, index) => ({ ...item, sortOrder: index })),
+        saving: false
+      });
+    } catch (err) {
+      this.setData({ saving: false });
+      wx.showToast({ title: err.message || "排序保存失败", icon: "none" });
+      await this.loadHonors();
+    }
+  },
+
+  moveHonor(e) {
+    const id = Number(e.currentTarget.dataset.id || 0);
+    const direction = e.currentTarget.dataset.direction || "";
+    if (!id || !direction) return;
+    const list = this.data.honors || [];
+    const index = list.findIndex((item) => Number(item.id) === id);
+    const { list: next, moved } = swapAdjacent(list, index, direction);
+    toastIfNotMoved(moved, direction);
+    if (moved) this.persistHonorOrder(next);
   },
 
   deleteHonor(e) {

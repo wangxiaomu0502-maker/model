@@ -1,0 +1,45 @@
+<view class="profile-detail-page profile-detail-page--broker">
+  <view wx:if="{{loading}}" class="profile-state">加载中…</view>
+  <view wx:elif="{{loadError}}" class="profile-state">{{loadError}}</view>
+  <view wx:elif="{{broker}}" class="profile-detail-body">
+    <view class="profile-hero">
+      <view class="profile-hero-avatar-wrap">
+        <image
+          wx:if="{{broker.showAvatarImg}}"
+          class="profile-hero-avatar"
+          src="{{broker.avatarUrl}}"
+          mode="aspectFill"
+        />
+        <view wx:else class="profile-hero-fallback">{{broker.avatarText}}</view>
+      </view>
+      <text class="profile-hero-kicker">BROKER</text>
+      <text class="profile-hero-name">{{broker.nickname}}</text>
+      <text class="profile-hero-sub">平台认证经纪人</text>
+    </view>
+
+    <view class="profile-card">
+      <text class="profile-card-title">基本信息</text>
+      <view class="profile-row">
+        <text class="profile-row-label">姓名</text>
+        <text class="profile-row-value">{{broker.realName || "未填写"}}</text>
+      </view>
+      <view class="profile-row">
+        <text class="profile-row-label">类型</text>
+        <text class="profile-row-value">{{broker.professionalText}}</text>
+      </view>
+      <view class="profile-row">
+        <text class="profile-row-label">服务商家</text>
+        <text class="profile-row-value">{{broker.boundMerchantCount}} 位</text>
+      </view>
+      <view class="profile-row">
+        <text class="profile-row-label">入驻时间</text>
+        <text class="profile-row-value">{{broker.joinedAtText}}</text>
+      </view>
+    </view>
+
+    <view class="profile-card">
+      <text class="profile-card-title">简介</text>
+      <text class="profile-desc">星链模库认证经纪人，负责商家对接、推广获客与商单协同服务。</text>
+    </view>
+  </view>
+</view>

@@ -7,7 +7,7 @@
   <view class="selected-panel">
     <view class="selected-panel-head">
       <text class="selected-title">已选分类</text>
-      <text class="selected-tip">{{selectedCount ? '点击可移除' : '请选择适合你的分类'}}</text>
+      <text class="selected-tip">{{selectedCount ? '点击可移除' : '勾选大类将选中其下全部小类'}}</text>
     </view>
     <scroll-view
       wx:if="{{selectedOptions.length > 0}}"
@@ -55,13 +55,19 @@
   >
     <view class="major-row">
       <view
-        class="major-tab {{activeMajorGroup.id === item.id ? 'major-tab--on' : ''}}"
+        class="major-tab {{activeMajorGroup.id === item.id ? 'major-tab--on' : ''}} {{majorGroupSelectMap[item.id] === 'all' ? 'major-tab--picked' : ''}} {{majorGroupSelectMap[item.id] === 'partial' ? 'major-tab--partial' : ''}}"
         wx:for="{{majorGroups}}"
         wx:key="id"
-        data-id="{{item.id}}"
-        bindtap="switchMajorGroup"
       >
-        {{item.name}}
+        <view
+          class="major-check major-check--{{majorGroupSelectMap[item.id] || 'none'}}"
+          catchtap="toggleMajorGroup"
+          data-id="{{item.id}}"
+        >
+          <text wx:if="{{majorGroupSelectMap[item.id] === 'all'}}">✓</text>
+          <text wx:elif="{{majorGroupSelectMap[item.id] === 'partial'}}">−</text>
+        </view>
+        <text class="major-name" data-id="{{item.id}}" bindtap="switchMajorGroup">{{item.name}}</text>
       </view>
     </view>
   </scroll-view>
@@ -70,8 +76,26 @@
     <view wx:if="{{!activeMajorGroup}}" class="empty-hint">暂无分类数据</view>
 
     <view wx:elif="{{currentTab === 'main'}}" class="body-panel">
+      <view
+        wx:if="{{activeMajorGroup}}"
+        class="parent-row"
+        bindtap="toggleMajorGroup"
+        data-id="{{activeMajorGroup.id}}"
+      >
+        <view class="parent-check parent-check--{{activeMajorSelectState}}">
+          <text wx:if="{{activeMajorSelectState === 'all'}}">✓</text>
+          <text wx:elif="{{activeMajorSelectState === 'partial'}}">−</text>
+        </view>
+        <text class="parent-label">全选「{{activeMajorGroup.name}}」</text>
+      </view>
       <view class="sub-block" wx:for="{{activeMajorGroup.children}}" wx:key="id">
-        <text class="sub-block-title">{{item.name}}</text>
+        <view class="sub-head" bindtap="toggleSubGroup" data-id="{{item.id}}">
+          <view class="parent-check parent-check--{{subGroupSelectMap[item.id] || 'none'}}">
+            <text wx:if="{{subGroupSelectMap[item.id] === 'all'}}">✓</text>
+            <text wx:elif="{{subGroupSelectMap[item.id] === 'partial'}}">−</text>
+          </view>
+          <text class="sub-block-title">{{item.name}}</text>
+        </view>
         <view class="chip-grid">
           <view
             class="chip {{selectedMap[optionNode.id] ? 'chip--on' : ''}}"
@@ -88,6 +112,18 @@
     </view>
 
     <view wx:else class="body-panel">
+      <view
+        wx:if="{{activeMajorGroup}}"
+        class="parent-row"
+        bindtap="toggleMajorGroup"
+        data-id="{{activeMajorGroup.id}}"
+      >
+        <view class="parent-check parent-check--{{activeMajorSelectState}}">
+          <text wx:if="{{activeMajorSelectState === 'all'}}">✓</text>
+          <text wx:elif="{{activeMajorSelectState === 'partial'}}">−</text>
+        </view>
+        <text class="parent-label">全选「{{activeMajorGroup.name}}」</text>
+      </view>
       <view class="chip-grid">
         <view
           class="chip {{selectedMap[optionNode.id] ? 'chip--on' : ''}}"

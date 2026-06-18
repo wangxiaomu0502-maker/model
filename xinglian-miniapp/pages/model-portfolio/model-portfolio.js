@@ -1,4 +1,12 @@
 const { prepareImageForUpload } = require("../../utils/image-upload.js");
+const {
+  getReviewItem,
+  contentReviewBannerText,
+  contentReviewBannerType,
+  photoReviewBannerText,
+  photoReviewBannerType
+} = require("../../utils/content-review.js");
+const { swapPhotosInFolder, toastIfNotMoved } = require("../../utils/photo-list-actions.js");
 
 const MAX_FOLDERS = 10;
 const MAX_PHOTOS = 100;
@@ -9,7 +17,24 @@ Page({
     folders: [],
     photos: [],
     folderBlocks: [],
-    totalPhotos: 0
+    totalPhotos: 0,
+    reviewBannerText: "",
+    reviewBannerType: ""
+  },
+
+  syncReviewBanner(contentReview, photos) {
+    const item = getReviewItem(contentReview, "portfolio");
+    this.setData({
+      reviewBannerText: contentReviewBannerText(item, photos || this.data.photos),
+      reviewBannerType: contentReviewBannerType(item, photos || this.data.photos)
+    });
+  },
+
+  decoratePhoto(photo) {
+    const next = { ...photo };
+    next.reviewBadgeText = photoReviewBannerText(next);
+    next.reviewBadgeType = photoReviewBannerType(next);
+    return next;
   },
 
   genId() {
@@ -54,10 +79,12 @@ Page({
         cov && fps.some((p) => p.id === cov) ? cov : fps[0]?.id;
       const coverPhotoObj = resolvedCoverId ? fps.find((p) => p.id === resolvedCoverId) : null;
       const coverThumbUrl = coverPhotoObj ? coverPhotoObj.url : "";
-      const photosWithFlag = fps.map((p) => ({
-        ...p,
-        isFolderCover: resolvedCoverId === p.id
-      }));
+      const photosWithFlag = fps.map((p) =>
+        this.decoratePhoto({
+          ...p,
+          isFolderCover: resolvedCoverId === p.id
+        })
+      );
       return {
         id: f.id,
         name: f.name,
@@ -90,6 +117,7 @@ Page({
   async onLoad() {
     try {
       const data = await this.requestWithAuth("/api/models/me", "GET");
+      this.syncReviewBanner(data?.contentReview);
       if (!data?.ok || !data.portfolio) return;
       const pf = data.portfolio;
       let folders = Array.isArray(pf.folders) ? pf.folders : [];
@@ -117,12 +145,16 @@ Page({
         name: f.name,
         ...(f.coverPhotoId ? { coverPhotoId: f.coverPhotoId } : {})
       }));
-      let photos = (pf.photos || []).map((p) => ({
-        id: p.id || this.genId(),
-        folderId: p.folderId || "",
-        url: p.url,
-        categories: p.categories || []
-      }));
+      let photos = (pf.photos || []).map((p) =>
+        this.decoratePhoto({
+          id: p.id || this.genId(),
+          folderId: p.folderId || "",
+          url: p.url,
+          categories: p.categories || [],
+          reviewStatus: p.reviewStatus,
+          rejectReason: p.rejectReason
+        })
+      );
       const nameToId = {};
       folders.forEach((f) => {
         nameToId[f.name] = f.id;
@@ -144,7 +176,12 @@ Page({
       folderId: p.folderId,
       url: p.url
     }));
-    return this.requestWithAuth("/api/models/portfolio", "PUT", { folders, photos }).catch(() => {});
+    return this.requestWithAuth("/api/models/portfolio", "PUT", { folders, photos })
+      .then((data) => {
+        if (data?.contentReview) this.syncReviewBanner(data.contentReview);
+        else this.syncReviewBanner({ portfolio: { pendingCount: 1 } }, this.data.photos);
+      })
+      .catch(() => {});
   },
 
   addFolder() {
@@ -319,14 +356,22 @@ Page({
     const folderId = e.currentTarget.dataset.folderId;
     if (!photoId) return;
     wx.showActionSheet({
-      itemList: ["设为该文件夹封面", "移动到其他文件夹…", "删除这张照片"],
+      itemList: ["前移", "后移", "设为该文件夹封面", "移动到其他文件夹…", "删除这张照片"],
       success: (res) => {
         const idx = res.tapIndex;
-        if (idx === 0) this.setFolderCover(photoId, folderId);
-        else if (idx === 1) this.movePhotoPickFolder(photoId, folderId);
-        else if (idx === 2) this.removePhotoById(photoId);
+        if (idx === 0) this.movePhotoInFolder(photoId, folderId, "up");
+        else if (idx === 1) this.movePhotoInFolder(photoId, folderId, "down");
+        else if (idx === 2) this.setFolderCover(photoId, folderId);
+        else if (idx === 3) this.movePhotoPickFolder(photoId, folderId);
+        else if (idx === 4) this.removePhotoById(photoId);
       }
     });
+  },
+
+  movePhotoInFolder(photoId, folderId, direction) {
+    const { photos, moved } = swapPhotosInFolder(this.data.photos, photoId, folderId, direction);
+    toastIfNotMoved(moved, direction);
+    if (moved) this.patchPortfolio(this.data.folders, photos);
   },
 
   setFolderCover(photoId, folderId) {

@@ -1,5 +1,6 @@
 const PLATFORM_BIND_FAIL_TEXT = "平台暂未帮您绑定账号，请联系管理员";
 const { homeTabUrlForRole } = require("../../utils/role-tab.js");
+const { MODEL_REGISTRATION_CODE_KEY } = require("../../utils/registration-contract.js");
 
 Page({
   data: {
@@ -43,7 +44,10 @@ Page({
     showModelModal: false,
     modelModalStep: "choose",
     platformBindError: "",
-    platformBindLoading: false
+    platformBindLoading: false,
+    authCodeInput: "",
+    authCodeError: "",
+    authCodeLoading: false
   },
 
   onLoad() {
@@ -87,24 +91,114 @@ Page({
       showModelModal: false,
       modelModalStep: "choose",
       platformBindError: "",
-      platformBindLoading: false
+      platformBindLoading: false,
+      authCodeInput: "",
+      authCodeError: "",
+      authCodeLoading: false
     });
   },
 
   preventModalBubble() {},
 
   onModelSelfRegister() {
-    const app = getApp();
-    app.globalData.role = 1;
-    app.globalData.identity = "模特";
-    wx.setStorageSync("selectedRole", 1);
+    this.setData({
+      modelModalStep: "authCode",
+      authCodeInput: "",
+      authCodeError: ""
+    });
+  },
+
+  onAuthCodeInput(e) {
+    this.setData({
+      authCodeInput: String((e.detail && e.detail.value) || "").trim(),
+      authCodeError: ""
+    });
+  },
+
+  onModelModalBackFromAuthCode() {
+    this.setData({
+      modelModalStep: "choose",
+      authCodeInput: "",
+      authCodeError: ""
+    });
+  },
+
+  onAuthCodeSuccessContinue() {
     this.setData({
       showModelModal: false,
       modelModalStep: "choose",
-      platformBindError: ""
+      authCodeInput: "",
+      authCodeError: ""
     });
     wx.navigateTo({
       url: "/pages/realname-verify/realname-verify"
+    });
+  },
+
+  onSubmitAuthCode() {
+    const code = String(this.data.authCodeInput || "").trim();
+    if (!/^[0-9A-Za-z]{8}$/.test(code)) {
+      this.setData({ authCodeError: "请输入 8 位数字或字母授权码" });
+      return;
+    }
+
+    const app = getApp();
+    if (!app.globalData.token) {
+      wx.showToast({
+        title: "登录状态失效，请重新打开小程序",
+        icon: "none"
+      });
+      return;
+    }
+
+    this.setData({
+      authCodeLoading: true,
+      authCodeError: ""
+    });
+
+    wx.request({
+      url: `${app.globalData.apiBaseUrl}/api/auth/model/verify-registration-code`,
+      method: "POST",
+      header: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${app.globalData.token}`
+      },
+      data: { code },
+      success: (res) => {
+        const data = res.data || {};
+        if (!data.ok) {
+          const msg = data.message || "授权码无效或已被使用";
+          this.setData({ authCodeError: msg });
+          wx.showToast({ title: msg, icon: "none", duration: 2800 });
+          return;
+        }
+
+        try {
+          wx.setStorageSync(MODEL_REGISTRATION_CODE_KEY, code.toUpperCase());
+        } catch {
+          wx.showToast({ title: "无法保存授权码", icon: "none" });
+          return;
+        }
+
+        app.globalData.role = 1;
+        app.globalData.identity = "模特";
+        wx.setStorageSync("selectedRole", 1);
+        this.setData({
+          showModelModal: true,
+          modelModalStep: "authCodeSuccess",
+          platformBindError: "",
+          authCodeInput: "",
+          authCodeError: ""
+        });
+      },
+      fail: () => {
+        const msg = "网络异常，请稍后重试";
+        this.setData({ authCodeError: msg });
+        wx.showToast({ title: msg, icon: "none" });
+      },
+      complete: () => {
+        this.setData({ authCodeLoading: false });
+      }
     });
   },
 

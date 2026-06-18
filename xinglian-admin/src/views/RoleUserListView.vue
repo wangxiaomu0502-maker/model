@@ -18,10 +18,14 @@ import {
   fetchAdminModelOrders,
   fetchAdminUsersByRole,
   patchAdminModelAgent,
+  patchAdminModelAccountStatus,
+  patchAdminBrokerAccountStatus,
   patchAdminModelLevel,
   patchAdminModelPhotosDisabled,
   patchAdminMerchantBroker,
+  postAdminModelContentReview,
   postAdminModelProfileAudit,
+  type ModelContentReviewSection,
   type AdminListKind,
   type AdminBrokerBasicInfo,
   type AdminBrokerBoundMerchantRow,
@@ -108,6 +112,12 @@ const detailVisible = ref(false);
 const detailLoading = ref(false);
 const detailBasicInfo = ref<AdminModelBasicInfo | null>(null);
 const auditDecisionBusy = ref(false);
+const contentReviewBusy = ref(false);
+const contentReviewSelected = reactive<Record<ModelContentReviewSection, string[]>>({
+  card: [],
+  portfolio: [],
+  stylePosition: []
+});
 const modelOrdersUserId = ref<number | null>(null);
 const modelOrdersLoading = ref(false);
 const modelOrdersList = ref<AdminOrderRow[]>([]);
@@ -124,6 +134,9 @@ const modelAgentDraft = ref<number | null>(null);
 const modelAgentSaving = ref(false);
 const modelLevelSaving = ref(false);
 const photosDisabledSaving = ref(false);
+const modelAccountStatusSaving = ref(false);
+const brokerAccountStatusSaving = ref(false);
+const listAccountStatusSavingUserId = ref<number | null>(null);
 const listPhotosDisabledSavingUserId = ref<number | null>(null);
 const listLevelDialogVisible = ref(false);
 const listLevelModelRow = ref<AdminUserRow | null>(null);
@@ -233,6 +246,145 @@ function verifiedTagType(status: number): "success" | "warning" | "danger" | "in
   if (status === 1) return "warning";
   if (status === 3) return "danger";
   return "info";
+}
+
+function contentReviewLabel(status: number, pendingCount = 0): string {
+  if (status === 1) return pendingCount > 0 ? `待审核 ${pendingCount} 张` : "待审核";
+  if (status === 2) return "已通过";
+  if (status === 3) return "有驳回";
+  return "未提交";
+}
+
+function contentReviewTagType(status: number): "success" | "warning" | "danger" | "info" {
+  if (status === 1) return "warning";
+  if (status === 2) return "success";
+  if (status === 3) return "danger";
+  return "info";
+}
+
+function resetContentReviewSelection(): void {
+  contentReviewSelected.card = [];
+  contentReviewSelected.portfolio = [];
+  contentReviewSelected.stylePosition = [];
+}
+
+function photoReviewStatus(photo: { reviewStatus?: number } | undefined): number {
+  const n = Number(photo?.reviewStatus ?? 2);
+  return Number.isFinite(n) ? n : 2;
+}
+
+function photoReviewLabel(status: number): string {
+  if (status === 1) return "待审核";
+  if (status === 2) return "已通过";
+  if (status === 3) return "已驳回";
+  return "—";
+}
+
+function photoReviewTagType(status: number): "success" | "warning" | "danger" | "info" {
+  if (status === 1) return "warning";
+  if (status === 2) return "success";
+  if (status === 3) return "danger";
+  return "info";
+}
+
+function isPhotoReviewPending(photo: { url?: string; reviewStatus?: number } | undefined): boolean {
+  if (!photo?.url) return false;
+  return photoReviewStatus(photo) === 1;
+}
+
+function isPhotoReviewSelected(section: ModelContentReviewSection, photoId: string): boolean {
+  return contentReviewSelected[section].includes(photoId);
+}
+
+function togglePhotoReviewSelection(section: ModelContentReviewSection, photoId: string, checked: boolean): void {
+  const list = contentReviewSelected[section];
+  const idx = list.indexOf(photoId);
+  if (checked && idx < 0) list.push(photoId);
+  if (!checked && idx >= 0) list.splice(idx, 1);
+}
+
+function resolveContentReviewPhotoIds(
+  section: ModelContentReviewSection,
+  photoIds?: string[]
+): string[] | undefined {
+  if (photoIds && photoIds.length > 0) return photoIds;
+  if (contentReviewSelected[section].length > 0) return [...contentReviewSelected[section]];
+  return undefined;
+}
+
+function contentReviewPendingTotal(row: AdminUserRow): number {
+  const p = row.contentReviewPending;
+  if (!p) return 0;
+  return Number(p.card || 0) + Number(p.portfolio || 0) + Number(p.stylePosition || 0);
+}
+
+function contentReviewPendingText(row: AdminUserRow): string {
+  const p = row.contentReviewPending;
+  if (!p) return "—";
+  return `${p.card}/${p.stylePosition}/${p.portfolio}`;
+}
+
+async function onApproveContentReview(
+  section: ModelContentReviewSection,
+  photoIds?: string[]
+): Promise<void> {
+  const uid = detailBasicInfo.value?.userId;
+  if (!uid) return;
+  contentReviewBusy.value = true;
+  try {
+    const result = await postAdminModelContentReview(uid, {
+      section,
+      decision: "approve",
+      photoIds: resolveContentReviewPhotoIds(section, photoIds)
+    });
+    ElMessage.success(`已通过 ${result.updatedCount ?? 1} 张图片`);
+    detailBasicInfo.value = await fetchAdminModelDetail(uid);
+    resetContentReviewSelection();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "操作失败");
+  } finally {
+    contentReviewBusy.value = false;
+  }
+}
+
+async function onRejectContentReview(
+  section: ModelContentReviewSection,
+  photoIds?: string[]
+): Promise<void> {
+  const uid = detailBasicInfo.value?.userId;
+  if (!uid) return;
+  const sectionLabel = section === "card" ? "模卡" : section === "portfolio" ? "作品集" : "风格定位";
+  let reason: string;
+  try {
+    const { value } = await ElMessageBox.prompt(`请输入${sectionLabel}图片驳回原因（将展示给模特）`, `驳回${sectionLabel}图片`, {
+      confirmButtonText: "确定驳回",
+      cancelButtonText: "取消",
+      inputType: "textarea",
+      inputValidator: (v) => {
+        if (!v || !String(v).trim()) return "请填写原因";
+        return true;
+      }
+    });
+    reason = String(value || "").trim();
+  } catch {
+    return;
+  }
+  contentReviewBusy.value = true;
+  try {
+    const result = await postAdminModelContentReview(uid, {
+      section,
+      decision: "reject",
+      rejectReason: reason,
+      photoIds: resolveContentReviewPhotoIds(section, photoIds)
+    });
+    ElMessage.success(`已驳回 ${result.updatedCount ?? 1} 张图片`);
+    detailBasicInfo.value = await fetchAdminModelDetail(uid);
+    resetContentReviewSelection();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "操作失败");
+  } finally {
+    contentReviewBusy.value = false;
+  }
 }
 
 function profileAuditLabel(status: number): string {
@@ -405,7 +557,13 @@ function yesNoLabel(v: boolean | undefined): string {
 }
 
 type PortfolioFolderRow = { id: string; name: string; coverPhotoId?: string };
-type PortfolioPhotoRow = { id: string; folderId: string; url: string };
+type PortfolioPhotoRow = {
+  id: string;
+  folderId: string;
+  url: string;
+  reviewStatus?: number;
+  rejectReason?: string;
+};
 
 function portfolioPhotosForFolderSorted(
   folder: PortfolioFolderRow,
@@ -486,6 +644,120 @@ async function onChangeModelLevelOverride(value: AdminModelLevelOverrideValue): 
     ElMessage.error(e instanceof Error ? e.message : "保存失败");
   } finally {
     modelLevelSaving.value = false;
+  }
+}
+
+function canToggleAccountStatus(status: number): boolean {
+  return status === 1 || status === 2;
+}
+
+function canToggleModelAccountStatus(status: number): boolean {
+  return canToggleAccountStatus(status);
+}
+
+async function onChangeModelAccountStatus(enabled: boolean): Promise<void> {
+  const uid = detailBasicInfo.value?.userId;
+  if (!uid) return;
+  const nextStatus = enabled ? 1 : 2;
+  modelAccountStatusSaving.value = true;
+  try {
+    await patchAdminModelAccountStatus(uid, nextStatus);
+    ElMessage.success(enabled ? "已启用模特，小程序将展示" : "已禁用模特，小程序不再展示");
+    detailBasicInfo.value = await fetchAdminModelDetail(uid);
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "保存失败");
+    detailBasicInfo.value = await fetchAdminModelDetail(uid);
+  } finally {
+    modelAccountStatusSaving.value = false;
+  }
+}
+
+async function onToggleListModelAccountStatus(row: AdminUserRow): Promise<void> {
+  if (!canToggleModelAccountStatus(row.status)) return;
+  const nextStatus = row.status === 2 ? 1 : 2;
+  const action = nextStatus === 2 ? "禁用" : "启用";
+  try {
+    await ElMessageBox.confirm(
+      nextStatus === 2
+        ? `确定禁用模特「${displayCellName(row.nickname)}」（${row.userNo}）？禁用后该模特不在小程序展示。`
+        : `确定启用模特「${displayCellName(row.nickname)}」（${row.userNo}）？启用后该模特将恢复在小程序展示。`,
+      `${action}模特`,
+      {
+        type: nextStatus === 2 ? "warning" : "info",
+        confirmButtonText: "确定",
+        cancelButtonText: "取消"
+      }
+    );
+  } catch {
+    return;
+  }
+  listAccountStatusSavingUserId.value = row.userId;
+  try {
+    await patchAdminModelAccountStatus(row.userId, nextStatus);
+    ElMessage.success(nextStatus === 2 ? "已禁用模特" : "已启用模特");
+    if (detailBasicInfo.value?.userId === row.userId) {
+      detailBasicInfo.value = await fetchAdminModelDetail(row.userId);
+    }
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "操作失败");
+  } finally {
+    listAccountStatusSavingUserId.value = null;
+  }
+}
+
+async function onChangeBrokerAccountStatus(enabled: boolean): Promise<void> {
+  const uid = brokerDetailUserId.value;
+  if (!uid) return;
+  const nextStatus = enabled ? 1 : 2;
+  brokerAccountStatusSaving.value = true;
+  try {
+    await patchAdminBrokerAccountStatus(uid, nextStatus);
+    ElMessage.success(enabled ? "已启用经纪人" : "已禁用经纪人");
+    brokerBasicInfo.value = await fetchAdminBrokerDetail(uid);
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "保存失败");
+    if (uid) {
+      brokerBasicInfo.value = await fetchAdminBrokerDetail(uid);
+    }
+  } finally {
+    brokerAccountStatusSaving.value = false;
+  }
+}
+
+async function onToggleListBrokerAccountStatus(row: AdminUserRow): Promise<void> {
+  if (!canToggleAccountStatus(row.status)) return;
+  const nextStatus = row.status === 2 ? 1 : 2;
+  const action = nextStatus === 2 ? "禁用" : "启用";
+  try {
+    await ElMessageBox.confirm(
+      nextStatus === 2
+        ? `确定禁用经纪人「${displayCellName(row.nickname)}」（${row.userNo}）？禁用后不可绑定商家且不再作为有效经纪人。`
+        : `确定启用经纪人「${displayCellName(row.nickname)}」（${row.userNo}）？`,
+      `${action}经纪人`,
+      {
+        type: nextStatus === 2 ? "warning" : "info",
+        confirmButtonText: "确定",
+        cancelButtonText: "取消"
+      }
+    );
+  } catch {
+    return;
+  }
+  listAccountStatusSavingUserId.value = row.userId;
+  try {
+    await patchAdminBrokerAccountStatus(row.userId, nextStatus);
+    ElMessage.success(nextStatus === 2 ? "已禁用经纪人" : "已启用经纪人");
+    if (brokerDetailUserId.value === row.userId) {
+      brokerBasicInfo.value = await fetchAdminBrokerDetail(row.userId);
+    }
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "操作失败");
+  } finally {
+    listAccountStatusSavingUserId.value = null;
   }
 }
 
@@ -1196,6 +1468,16 @@ onUnmounted(() => {
             </div>
           </template>
         </el-table-column>
+        <el-table-column v-if="isModelList" label="待审(模卡/风格/作品)" width="148" align="center">
+          <template #default="{ row }">
+            <span
+              class="alv-content-review-pending"
+              :class="{ 'alv-content-review-pending--active': contentReviewPendingTotal(row) > 0 }"
+            >
+              {{ contentReviewPendingText(row) }}
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column label="账号状态" width="88">
           <template #default="{ row }">
             <el-tag :type="accountStatusTagType(row.status)" size="small" effect="light" round>
@@ -1351,16 +1633,29 @@ onUnmounted(() => {
             <span class="alv-time">{{ formatTime(row.updatedAt) }}</span>
           </template>
         </el-table-column>
-        <el-table-column v-if="isBrokerList" label="操作" min-width="120" fixed="right">
+        <el-table-column v-if="isBrokerList" label="操作" min-width="220" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" plain size="small" round @click="onViewBrokerDetail(row)">
-              <span class="alv-detail-btn-label">
-                <span class="alv-detail-btn-text">详情</span>
-                <el-icon class="alv-detail-ico el-icon--right" :size="14">
-                  <Right />
-                </el-icon>
-              </span>
-            </el-button>
+            <div class="alv-actions-wrap">
+              <el-button type="primary" plain size="small" round @click="onViewBrokerDetail(row)">
+                <span class="alv-detail-btn-label">
+                  <span class="alv-detail-btn-text">详情</span>
+                  <el-icon class="alv-detail-ico el-icon--right" :size="14">
+                    <Right />
+                  </el-icon>
+                </span>
+              </el-button>
+              <el-button
+                v-if="canToggleAccountStatus(row.status)"
+                :type="row.status === 2 ? 'success' : 'danger'"
+                plain
+                size="small"
+                round
+                :loading="listAccountStatusSavingUserId === row.userId"
+                @click="onToggleListBrokerAccountStatus(row)"
+              >
+                {{ row.status === 2 ? "启用经纪人" : "禁用经纪人" }}
+              </el-button>
+            </div>
           </template>
         </el-table-column>
         <el-table-column v-if="isMerchantList" label="操作" min-width="120" fixed="right">
@@ -1375,7 +1670,7 @@ onUnmounted(() => {
             </el-button>
           </template>
         </el-table-column>
-        <el-table-column v-if="isModelList" label="操作" min-width="360" fixed="right">
+        <el-table-column v-if="isModelList" label="操作" min-width="440" fixed="right">
           <template #default="{ row }">
             <div class="alv-actions-wrap">
               <el-button
@@ -1398,6 +1693,17 @@ onUnmounted(() => {
               </el-button>
               <el-button type="success" plain size="small" round @click="openListLevelDialog(row)">
                 等级设置
+              </el-button>
+              <el-button
+                v-if="canToggleModelAccountStatus(row.status)"
+                :type="row.status === 2 ? 'success' : 'danger'"
+                plain
+                size="small"
+                round
+                :loading="listAccountStatusSavingUserId === row.userId"
+                @click="onToggleListModelAccountStatus(row)"
+              >
+                {{ row.status === 2 ? "启用模特" : "禁用模特" }}
               </el-button>
               <el-button
                 :type="row.photosDisabled ? 'warning' : 'danger'"
@@ -1638,6 +1944,24 @@ onUnmounted(() => {
                     <el-option :value="5" label="LV5 天幕模特" />
                   </el-select>
                 </el-descriptions-item>
+                <el-descriptions-item label="账号状态">
+                  <div v-if="canToggleModelAccountStatus(detailBasicInfo.status)" class="model-photos-disabled-row">
+                    <el-switch
+                      :model-value="detailBasicInfo.status === 1"
+                      :loading="modelAccountStatusSaving"
+                      inline-prompt
+                      active-text="正常"
+                      inactive-text="已禁用"
+                      @change="onChangeModelAccountStatus"
+                    />
+                    <span class="model-photos-disabled-hint">
+                      禁用后该模特不在小程序列表与详情展示
+                    </span>
+                  </div>
+                  <el-tag v-else :type="accountStatusTagType(detailBasicInfo.status)" size="small" effect="light" round>
+                    {{ statusLabel(detailBasicInfo.status) }}
+                  </el-tag>
+                </el-descriptions-item>
                 <el-descriptions-item label="用户端照片">
                   <div class="model-photos-disabled-row">
                     <el-switch
@@ -1788,8 +2112,361 @@ onUnmounted(() => {
             </section>
           </el-tab-pane>
 
+          <el-tab-pane label="模卡">
+            <section class="module-card">
+              <div class="detail-content-review-bar">
+                <div class="detail-content-review-meta">
+                  <span class="detail-content-review-title">模卡图片审核</span>
+                  <el-tag
+                    :type="contentReviewTagType(detailBasicInfo.contentReview?.card?.status ?? 2)"
+                    size="small"
+                  >
+                    {{
+                      contentReviewLabel(
+                        detailBasicInfo.contentReview?.card?.status ?? 2,
+                        detailBasicInfo.contentReview?.card?.pendingCount ?? 0
+                      )
+                    }}
+                  </el-tag>
+                  <span
+                    v-if="(detailBasicInfo.contentReview?.card?.rejectedCount ?? 0) > 0"
+                    class="detail-content-review-sub"
+                  >
+                    已驳回 {{ detailBasicInfo.contentReview?.card?.rejectedCount }} 张
+                  </span>
+                </div>
+                <div
+                  v-if="(detailBasicInfo.contentReview?.card?.pendingCount ?? 0) > 0 || contentReviewSelected.card.length > 0"
+                  class="detail-audit-actions-btns"
+                >
+                  <el-button
+                    v-if="contentReviewSelected.card.length > 0"
+                    type="success"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onApproveContentReview('card')"
+                  >
+                    通过选中
+                  </el-button>
+                  <el-button
+                    v-if="contentReviewSelected.card.length > 0"
+                    type="danger"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onRejectContentReview('card')"
+                  >
+                    驳回选中
+                  </el-button>
+                  <el-button
+                    v-if="(detailBasicInfo.contentReview?.card?.pendingCount ?? 0) > 0"
+                    type="success"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onApproveContentReview('card')"
+                  >
+                    通过全部待审
+                  </el-button>
+                  <el-button
+                    v-if="(detailBasicInfo.contentReview?.card?.pendingCount ?? 0) > 0"
+                    type="danger"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onRejectContentReview('card')"
+                  >
+                    驳回全部待审
+                  </el-button>
+                </div>
+              </div>
+              <el-descriptions :column="4" border size="default" class="detail-group">
+                <template #title>身材数据</template>
+                <el-descriptions-item label="身高">{{ detailBasicInfo.card.measurements.height ?? "—" }}</el-descriptions-item>
+                <el-descriptions-item label="体重">{{ detailBasicInfo.card.measurements.weight ?? "—" }}</el-descriptions-item>
+                <el-descriptions-item label="胸围">{{ detailBasicInfo.card.measurements.bust ?? "—" }}</el-descriptions-item>
+                <el-descriptions-item label="腰围">{{ detailBasicInfo.card.measurements.waist ?? "—" }}</el-descriptions-item>
+                <el-descriptions-item label="臀围">{{ detailBasicInfo.card.measurements.hip ?? "—" }}</el-descriptions-item>
+                <el-descriptions-item label="肩宽">{{ detailBasicInfo.card.measurements.shoulder ?? "—" }}</el-descriptions-item>
+                <el-descriptions-item label="臂展">{{ detailBasicInfo.card.measurements.armSpan ?? "—" }}</el-descriptions-item>
+                <el-descriptions-item label="腿长">{{ detailBasicInfo.card.measurements.legLength ?? "—" }}</el-descriptions-item>
+                <el-descriptions-item label="鞋码">{{ detailBasicInfo.card.measurements.shoeSize ?? "—" }}</el-descriptions-item>
+                <el-descriptions-item label="发色">{{ detailBasicInfo.card.hairColor || "—" }}</el-descriptions-item>
+                <el-descriptions-item label="肤色">{{ detailBasicInfo.card.skinColor || "—" }}</el-descriptions-item>
+              </el-descriptions>
+
+              <div class="card-photo-wrap">
+                <div class="card-photo-title">模卡照片（{{ detailBasicInfo.card.photoAngles.length }}）</div>
+                <div v-if="detailBasicInfo.card.photoAngles.length > 0" class="card-photo-grid">
+                  <div
+                    v-for="(item, idx) in detailBasicInfo.card.photoAngles"
+                    :key="`${item.key || 'photo'}-${idx}`"
+                    class="card-photo-item"
+                    :class="{ 'photo-review-item--pending': isPhotoReviewPending(item) }"
+                  >
+                    <el-checkbox
+                      v-if="item.url && isPhotoReviewPending(item)"
+                      class="photo-review-checkbox"
+                      :model-value="isPhotoReviewSelected('card', item.key)"
+                      @change="(v: boolean) => togglePhotoReviewSelection('card', item.key, v)"
+                    />
+                    <el-image
+                      v-if="item.url"
+                      :src="item.url"
+                      fit="cover"
+                      class="card-photo-img"
+                      :preview-src-list="detailBasicInfo.card.photoAngles.map((p) => p.url).filter(Boolean) as string[]"
+                      preview-teleported
+                    />
+                    <div v-else class="card-photo-empty">无图</div>
+                    <div v-if="item.url" class="photo-review-overlay">
+                      <el-tag :type="photoReviewTagType(photoReviewStatus(item))" size="small">
+                        {{ photoReviewLabel(photoReviewStatus(item)) }}
+                      </el-tag>
+                      <div v-if="isPhotoReviewPending(item)" class="photo-review-actions">
+                        <el-button
+                          type="success"
+                          link
+                          size="small"
+                          :loading="contentReviewBusy"
+                          @click.stop="onApproveContentReview('card', [item.key])"
+                        >
+                          通过
+                        </el-button>
+                        <el-button
+                          type="danger"
+                          link
+                          size="small"
+                          :loading="contentReviewBusy"
+                          @click.stop="onRejectContentReview('card', [item.key])"
+                        >
+                          驳回
+                        </el-button>
+                      </div>
+                      <div
+                        v-if="photoReviewStatus(item) === 3 && item.rejectReason"
+                        class="photo-review-reason"
+                      >
+                        {{ item.rejectReason }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <el-empty v-else description="暂无模卡照片" :image-size="68" />
+              </div>
+            </section>
+          </el-tab-pane>
+
+          <el-tab-pane label="风格定位">
+            <section class="module-card">
+              <div class="detail-content-review-bar">
+                <div class="detail-content-review-meta">
+                  <span class="detail-content-review-title">风格定位图片审核</span>
+                  <el-tag
+                    :type="contentReviewTagType(detailBasicInfo.contentReview?.stylePosition?.status ?? 2)"
+                    size="small"
+                  >
+                    {{
+                      contentReviewLabel(
+                        detailBasicInfo.contentReview?.stylePosition?.status ?? 2,
+                        detailBasicInfo.contentReview?.stylePosition?.pendingCount ?? 0
+                      )
+                    }}
+                  </el-tag>
+                  <span
+                    v-if="(detailBasicInfo.contentReview?.stylePosition?.rejectedCount ?? 0) > 0"
+                    class="detail-content-review-sub"
+                  >
+                    已驳回 {{ detailBasicInfo.contentReview?.stylePosition?.rejectedCount }} 张
+                  </span>
+                </div>
+                <div
+                  v-if="(detailBasicInfo.contentReview?.stylePosition?.pendingCount ?? 0) > 0 || contentReviewSelected.stylePosition.length > 0"
+                  class="detail-audit-actions-btns"
+                >
+                  <el-button
+                    v-if="contentReviewSelected.stylePosition.length > 0"
+                    type="success"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onApproveContentReview('stylePosition')"
+                  >
+                    通过选中
+                  </el-button>
+                  <el-button
+                    v-if="contentReviewSelected.stylePosition.length > 0"
+                    type="danger"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onRejectContentReview('stylePosition')"
+                  >
+                    驳回选中
+                  </el-button>
+                  <el-button
+                    v-if="(detailBasicInfo.contentReview?.stylePosition?.pendingCount ?? 0) > 0"
+                    type="success"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onApproveContentReview('stylePosition')"
+                  >
+                    通过全部待审
+                  </el-button>
+                  <el-button
+                    v-if="(detailBasicInfo.contentReview?.stylePosition?.pendingCount ?? 0) > 0"
+                    type="danger"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onRejectContentReview('stylePosition')"
+                  >
+                    驳回全部待审
+                  </el-button>
+                </div>
+              </div>
+              <template v-if="(detailBasicInfo.stylePosition?.photos?.length ?? 0) > 0">
+                <div class="style-position-head">
+                  <span class="style-position-title">风格定位图片</span>
+                  <span class="style-position-count">
+                    {{ detailBasicInfo.stylePosition?.photos?.length ?? 0 }} 张
+                  </span>
+                </div>
+                <div class="style-position-grid">
+                  <div
+                    v-for="photo in detailBasicInfo.stylePosition?.photos ?? []"
+                    :key="photo.id"
+                    class="style-position-cell"
+                    :class="{ 'photo-review-item--pending': isPhotoReviewPending(photo) }"
+                  >
+                    <el-checkbox
+                      v-if="isPhotoReviewPending(photo)"
+                      class="photo-review-checkbox"
+                      :model-value="isPhotoReviewSelected('stylePosition', photo.id)"
+                      @change="(v: boolean) => togglePhotoReviewSelection('stylePosition', photo.id, v)"
+                    />
+                    <el-image
+                      :src="photo.url"
+                      fit="cover"
+                      class="style-position-img"
+                      :preview-src-list="(detailBasicInfo.stylePosition?.photos ?? []).map((p) => p.url)"
+                      preview-teleported
+                    />
+                    <div class="photo-review-overlay">
+                      <el-tag :type="photoReviewTagType(photoReviewStatus(photo))" size="small">
+                        {{ photoReviewLabel(photoReviewStatus(photo)) }}
+                      </el-tag>
+                      <div v-if="isPhotoReviewPending(photo)" class="photo-review-actions">
+                        <el-button
+                          type="success"
+                          link
+                          size="small"
+                          :loading="contentReviewBusy"
+                          @click.stop="onApproveContentReview('stylePosition', [photo.id])"
+                        >
+                          通过
+                        </el-button>
+                        <el-button
+                          type="danger"
+                          link
+                          size="small"
+                          :loading="contentReviewBusy"
+                          @click.stop="onRejectContentReview('stylePosition', [photo.id])"
+                        >
+                          驳回
+                        </el-button>
+                      </div>
+                      <div
+                        v-if="photoReviewStatus(photo) === 3 && photo.rejectReason"
+                        class="photo-review-reason"
+                      >
+                        {{ photo.rejectReason }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <el-empty v-else description="暂无风格定位图片" :image-size="72">
+                <template #description>
+                  <p class="portfolio-empty-desc">
+                    模特在小程序「我的 → 风格定位」中维护；保存后此处展示图片。
+                  </p>
+                </template>
+              </el-empty>
+            </section>
+          </el-tab-pane>
+
           <el-tab-pane label="作品集">
             <section class="module-card">
+              <div class="detail-content-review-bar">
+                <div class="detail-content-review-meta">
+                  <span class="detail-content-review-title">作品集图片审核</span>
+                  <el-tag
+                    :type="contentReviewTagType(detailBasicInfo.contentReview?.portfolio?.status ?? 2)"
+                    size="small"
+                  >
+                    {{
+                      contentReviewLabel(
+                        detailBasicInfo.contentReview?.portfolio?.status ?? 2,
+                        detailBasicInfo.contentReview?.portfolio?.pendingCount ?? 0
+                      )
+                    }}
+                  </el-tag>
+                  <span
+                    v-if="(detailBasicInfo.contentReview?.portfolio?.rejectedCount ?? 0) > 0"
+                    class="detail-content-review-sub"
+                  >
+                    已驳回 {{ detailBasicInfo.contentReview?.portfolio?.rejectedCount }} 张
+                  </span>
+                </div>
+                <div
+                  v-if="(detailBasicInfo.contentReview?.portfolio?.pendingCount ?? 0) > 0 || contentReviewSelected.portfolio.length > 0"
+                  class="detail-audit-actions-btns"
+                >
+                  <el-button
+                    v-if="contentReviewSelected.portfolio.length > 0"
+                    type="success"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onApproveContentReview('portfolio')"
+                  >
+                    通过选中
+                  </el-button>
+                  <el-button
+                    v-if="contentReviewSelected.portfolio.length > 0"
+                    type="danger"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onRejectContentReview('portfolio')"
+                  >
+                    驳回选中
+                  </el-button>
+                  <el-button
+                    v-if="(detailBasicInfo.contentReview?.portfolio?.pendingCount ?? 0) > 0"
+                    type="success"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onApproveContentReview('portfolio')"
+                  >
+                    通过全部待审
+                  </el-button>
+                  <el-button
+                    v-if="(detailBasicInfo.contentReview?.portfolio?.pendingCount ?? 0) > 0"
+                    type="danger"
+                    plain
+                    size="small"
+                    :loading="contentReviewBusy"
+                    @click="onRejectContentReview('portfolio')"
+                  >
+                    驳回全部待审
+                  </el-button>
+                </div>
+              </div>
               <template
                 v-if="
                   (detailBasicInfo.portfolio?.folders?.length ?? 0) > 0 ||
@@ -1829,7 +2506,14 @@ onUnmounted(() => {
                         v-for="photo in portfolioPhotosForFolderSorted(folder, detailBasicInfo.portfolio?.photos ?? [])"
                         :key="photo.id"
                         class="portfolio-photo-cell"
+                        :class="{ 'photo-review-item--pending': isPhotoReviewPending(photo) }"
                       >
+                        <el-checkbox
+                          v-if="isPhotoReviewPending(photo)"
+                          class="photo-review-checkbox"
+                          :model-value="isPhotoReviewSelected('portfolio', photo.id)"
+                          @change="(v: boolean) => togglePhotoReviewSelection('portfolio', photo.id, v)"
+                        />
                         <el-image
                           :src="photo.url"
                           fit="cover"
@@ -1844,6 +2528,37 @@ onUnmounted(() => {
                         <div v-if="isPortfolioFolderCoverPhoto(folder, photo.id)" class="portfolio-cover-badge">
                           文件夹封面
                         </div>
+                        <div class="photo-review-overlay">
+                          <el-tag :type="photoReviewTagType(photoReviewStatus(photo))" size="small">
+                            {{ photoReviewLabel(photoReviewStatus(photo)) }}
+                          </el-tag>
+                          <div v-if="isPhotoReviewPending(photo)" class="photo-review-actions">
+                            <el-button
+                              type="success"
+                              link
+                              size="small"
+                              :loading="contentReviewBusy"
+                              @click.stop="onApproveContentReview('portfolio', [photo.id])"
+                            >
+                              通过
+                            </el-button>
+                            <el-button
+                              type="danger"
+                              link
+                              size="small"
+                              :loading="contentReviewBusy"
+                              @click.stop="onRejectContentReview('portfolio', [photo.id])"
+                            >
+                              驳回
+                            </el-button>
+                          </div>
+                          <div
+                            v-if="photoReviewStatus(photo) === 3 && photo.rejectReason"
+                            class="photo-review-reason"
+                          >
+                            {{ photo.rejectReason }}
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div v-else class="portfolio-folder-empty">该文件夹暂无照片</div>
@@ -1854,41 +2569,6 @@ onUnmounted(() => {
                 <template #description>
                   <p class="portfolio-empty-desc">
                     模特在小程序「我的 → 作品集」中维护；保存后此处展示文件夹与图片。
-                  </p>
-                </template>
-              </el-empty>
-            </section>
-          </el-tab-pane>
-
-          <el-tab-pane label="风格定位">
-            <section class="module-card">
-              <template v-if="(detailBasicInfo.stylePosition?.photos?.length ?? 0) > 0">
-                <div class="style-position-head">
-                  <span class="style-position-title">风格定位图片</span>
-                  <span class="style-position-count">
-                    {{ detailBasicInfo.stylePosition?.photos?.length ?? 0 }} 张
-                  </span>
-                </div>
-                <div class="style-position-grid">
-                  <div
-                    v-for="photo in detailBasicInfo.stylePosition?.photos ?? []"
-                    :key="photo.id"
-                    class="style-position-cell"
-                  >
-                    <el-image
-                      :src="photo.url"
-                      fit="cover"
-                      class="style-position-img"
-                      :preview-src-list="(detailBasicInfo.stylePosition?.photos ?? []).map((p) => p.url)"
-                      preview-teleported
-                    />
-                  </div>
-                </div>
-              </template>
-              <el-empty v-else description="暂无风格定位图片" :image-size="72">
-                <template #description>
-                  <p class="portfolio-empty-desc">
-                    模特在小程序「我的 → 风格定位」中维护；保存后此处展示图片。
                   </p>
                 </template>
               </el-empty>
@@ -1978,47 +2658,6 @@ onUnmounted(() => {
                 </el-tag>
               </div>
               <el-empty v-else description="暂无分类数据" :image-size="68" />
-            </section>
-          </el-tab-pane>
-
-          <el-tab-pane label="模卡">
-            <section class="module-card">
-              <el-descriptions :column="4" border size="default" class="detail-group">
-                <template #title>身材数据</template>
-                <el-descriptions-item label="身高">{{ detailBasicInfo.card.measurements.height ?? "—" }}</el-descriptions-item>
-                <el-descriptions-item label="体重">{{ detailBasicInfo.card.measurements.weight ?? "—" }}</el-descriptions-item>
-                <el-descriptions-item label="胸围">{{ detailBasicInfo.card.measurements.bust ?? "—" }}</el-descriptions-item>
-                <el-descriptions-item label="腰围">{{ detailBasicInfo.card.measurements.waist ?? "—" }}</el-descriptions-item>
-                <el-descriptions-item label="臀围">{{ detailBasicInfo.card.measurements.hip ?? "—" }}</el-descriptions-item>
-                <el-descriptions-item label="肩宽">{{ detailBasicInfo.card.measurements.shoulder ?? "—" }}</el-descriptions-item>
-                <el-descriptions-item label="臂展">{{ detailBasicInfo.card.measurements.armSpan ?? "—" }}</el-descriptions-item>
-                <el-descriptions-item label="腿长">{{ detailBasicInfo.card.measurements.legLength ?? "—" }}</el-descriptions-item>
-                <el-descriptions-item label="鞋码">{{ detailBasicInfo.card.measurements.shoeSize ?? "—" }}</el-descriptions-item>
-                <el-descriptions-item label="发色">{{ detailBasicInfo.card.hairColor || "—" }}</el-descriptions-item>
-                <el-descriptions-item label="肤色">{{ detailBasicInfo.card.skinColor || "—" }}</el-descriptions-item>
-              </el-descriptions>
-
-              <div class="card-photo-wrap">
-                <div class="card-photo-title">模卡照片（{{ detailBasicInfo.card.photoAngles.length }}）</div>
-                <div v-if="detailBasicInfo.card.photoAngles.length > 0" class="card-photo-grid">
-                  <div
-                    v-for="(item, idx) in detailBasicInfo.card.photoAngles"
-                    :key="`${item.key || 'photo'}-${idx}`"
-                    class="card-photo-item"
-                  >
-                    <el-image
-                      v-if="item.url"
-                      :src="item.url"
-                      fit="cover"
-                      class="card-photo-img"
-                      :preview-src-list="detailBasicInfo.card.photoAngles.map((p) => p.url).filter(Boolean) as string[]"
-                      preview-teleported
-                    />
-                    <div v-else class="card-photo-empty">无图</div>
-                  </div>
-                </div>
-                <el-empty v-else description="暂无模卡照片" :image-size="68" />
-              </div>
             </section>
           </el-tab-pane>
 
@@ -2534,7 +3173,19 @@ onUnmounted(() => {
                 </el-descriptions-item>
                 <el-descriptions-item label="手机号">{{ brokerBasicInfo.phone || "—" }}</el-descriptions-item>
                 <el-descriptions-item label="账号状态">
-                  <el-tag :type="accountStatusTagType(brokerBasicInfo.status)" size="small" effect="light" round>
+                  <div v-if="canToggleAccountStatus(brokerBasicInfo.status)" class="model-photos-disabled-row">
+                    <el-switch
+                      :model-value="brokerBasicInfo.status === 1"
+                      :loading="brokerAccountStatusSaving"
+                      active-text="正常"
+                      inactive-text="已禁用"
+                      @change="onChangeBrokerAccountStatus"
+                    />
+                    <span class="model-photos-disabled-hint">
+                      禁用后不可绑定商家且不再作为有效经纪人
+                    </span>
+                  </div>
+                  <el-tag v-else :type="accountStatusTagType(brokerBasicInfo.status)" size="small" effect="light" round>
                     {{ statusLabel(brokerBasicInfo.status) }}
                   </el-tag>
                 </el-descriptions-item>
@@ -3227,6 +3878,81 @@ onUnmounted(() => {
   color: var(--el-text-color-secondary);
 }
 
+.detail-content-review-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.detail-content-review-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-content-review-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.detail-content-review-sub {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.card-photo-item,
+.style-position-cell,
+.portfolio-photo-cell {
+  position: relative;
+}
+
+.photo-review-checkbox {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 3;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.photo-review-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: linear-gradient(180deg, transparent 0%, rgba(15, 23, 42, 0.78) 100%);
+}
+
+.photo-review-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.photo-review-reason {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #fecaca;
+  word-break: break-all;
+}
+
+.photo-review-item--pending {
+  outline: 2px solid #f59e0b;
+  outline-offset: -2px;
+}
+
 .detail-audit-actions-bar {
   display: flex;
   align-items: center;
@@ -3306,6 +4032,17 @@ onUnmounted(() => {
 
 .alv-muted {
   color: var(--el-text-color-placeholder);
+}
+
+.alv-content-review-pending {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--el-text-color-secondary);
+}
+
+.alv-content-review-pending--active {
+  color: #b45309;
+  font-weight: 600;
 }
 
 .bind-agent-model-hint {

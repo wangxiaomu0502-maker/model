@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>星联模特分类树</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px;
+      font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+      background: #eef2f7;
+      color: #0f172a;
+    }
+    .page {
+      max-width: 1600px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+    .hero {
+      padding: 36px 40px 28px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+      color: #fff;
+    }
+    .hero h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: 1px; }
+    .hero p { margin: 0; opacity: 0.88; font-size: 16px; }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      margin-top: 18px;
+      font-size: 14px;
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+    }
+    .dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+    .dot--l1 { background: #1d4ed8; }
+    .dot--group { background: #60a5fa; }
+    .dot--leaf { background: #fef3c7; border: 1px solid #f59e0b; }
+    .content { padding: 28px 32px 40px; }
+    .section + .section { margin-top: 36px; }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 3px solid var(--primary);
+    }
+    .section-head h2 { margin: 0; font-size: 26px; color: var(--primary); }
+    .section-head p { margin: 6px 0 0; color: #64748b; font-size: 14px; }
+    .badge {
+      background: var(--light);
+      color: var(--primary);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .grid { display: grid; gap: 16px; }
+    .grid--main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid--compact { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .card--compact { border-width: 1px; border-style: solid; }
+    .card-head {
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .card-head--sm { font-size: 16px; padding: 10px 14px; }
+    .card-body { padding: 12px 14px 14px; display: grid; gap: 10px; }
+    .group {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .group-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e40af;
+      margin-bottom: 8px;
+    }
+    .leaf-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .leaf {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+      font-size: 12px;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+    .footer {
+      padding: 16px 40px 24px;
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+      border-top: 1px solid #e2e8f0;
+    }
+    @media (max-width: 1200px) {
+      .grid--main, .grid--compact { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page" id="capture">
+    <div class="hero">
+      <h1>星联 · 模特分类树</h1>
+      <p>三维分类体系 · 黄色标签为可勾选的最末级分类</p>
+      <div class="legend">
+        <span><i class="dot dot--l1"></i>一级大类</span>
+        <span><i class="dot dot--group"></i>二级分组</span>
+        <span><i class="dot dot--leaf"></i>可勾选叶子项</span>
+      </div>
+    </div>
+    <div class="content"><section class="section" style="--primary:#1d4ed8;--light:#dbeafe;--border:#93c5fd;--bg:#f8fbff">
+        <div class="section-head">
+          <div>
+            <h2>一、模特类型</h2>
+            <p>主分类 · 至少选 1 项</p>
+          </div>
+          <span class="badge">137 个可选项</span>
+        </div>
+        <div class="grid grid--main"><article class="card card--l1">
+      <header class="card-head" style="background:#1d4ed8">平面模特</header>
+      <div class="card-body"><div class="group">
+          <div class="group-title">杂志/画册</div>
+          <div class="leaf-row"><span class="leaf">封面模特</span><span class="leaf">内页大片</span><span class="leaf">服装画册</span><span class="leaf">产品画册</span></div>
+        </div><div class="group">
+          <div class="group-title">广告平面</div>
+          <div class="leaf-row"><span class="leaf">品牌形象广告</span><span class="leaf">促销广告</span><span class="leaf">公益广告</span><span class="leaf">户外广告</span></div>
+        </div><div class="group">
+          <div class="group-title">电商平面</div>
+          <div class="leaf-row"><span class="leaf">主图模特</span><span class="leaf">详情页模特</span><span class="leaf">直播展示截图</span><span class="leaf">买家秀拍摄</span></div>
+        </div><div class="group">
+          <div class="group-title">证件照/形象照</div>
+          <div class="leaf-row"></div>
+        </div></div>
+    </article><article class="card card--l1">
+      <header class="card-head" style="background:#1d4ed8">T台模特</header>
+      <div class="card-body"><div class="group">
+          <div class="group-title">时装周</div>
+          <div class="leaf-row"><span class="leaf">高定系列</span><span class="leaf">成衣系列</span><span class="leaf">设计师品牌</span><span class="leaf">新锐设计师</span></div>
+        </div><div class="group">
+          <div class="group-title">商业走秀</div>
+          <div class="leaf-row"><span class="leaf">品牌发布会</span><span class="leaf">订货会</span><span class="leaf">商场秀</span></div>
+        </div><div class="group">
+          <div class="group-title">试衣模特</div>
+          <div class="leaf-row"></div>
+        </div></div>
+    </article><article class="card card--l1">
+      <header class="card-head" style="background:#1d4ed8">电商模特</header>
+      <div class="card-body"><div class="group">
+          <div class="group-title">服装类</div>
+          <div class="leaf-row"><span class="leaf">女装（连衣裙、上衣、裤装等）</span><span class="leaf">男装</span><span class="leaf">童装</span><span class="leaf">大码装</span><span class="leaf">孕妇装</span></div>
+        </div><div class="group">
+          <div class="group-title">配饰类</div>
+          <div class="leaf-row"><span class="leaf">鞋类</span><span class="leaf">箱包</span><span class="leaf">帽子</span><span class="leaf">眼镜</span><span class="leaf">首饰</span><span class="leaf">手表</span><span class="leaf">腰带</span><span class="leaf">围巾</span></div>
+        </div><div class="group">
+          <div class="group-title">美妆类</div>
+          <div class="leaf-row"><span class="leaf">护肤</span><span class="leaf">彩妆</span><span class="leaf">香水</span><span class="leaf">美妆工具</span></div>
+        </div><div class="group">
+          <div class="group-title">家居类</div>
+          <div class="leaf-row"><span class="leaf">床上用品</span><span class="leaf">家具</span><span class="leaf">厨具</span><span class="leaf">卫浴</span></div>
+        </div><div class="group">
+          <div class="group-title">数码/家电类</div>
+          <div class="leaf-row"></div>
+        </div></div>
+    </article><article class="card card--l1">
+      <header class="card-head" style="background:#1d4ed8">广告模特</header>
+      <div class="card-body"><div class="group">
+          <div class="group-title">影视广告</div>
+          <div class="leaf-row"><span class="leaf">TVC</span><span class="leaf">网络视频广告</span><span class="leaf">电影贴片广告</span></div>
+        </div><div class="group">
+          <div class="group-title">平面广告</div>
+          <div class="leaf-row"><span class="leaf">报纸</span><span class="leaf">杂志</span><span class="leaf">户外广告</span></div>
+        </div><div class="group">
+          <div class="group-title">新媒体广告</div>
+          <div class="leaf-row"></div>
+        </div></div>
+    </article><article class="card card--l1">
+      <header class="card-head" style="background:#1d4ed8">局部模特</header>
+      <div class="card-body"><div class="group">
+          <div class="group-title">手模</div>
+          <div class="leaf-row"><span class="leaf">珠宝手模</span><span class="leaf">手表手模</span><span class="leaf">美甲手模</span><span class="leaf">手套手模</span><span class="leaf">手机/平板手模</span><span class="leaf">护肤品手模</span><span class="leaf">食品手模</span></div>
+        </div><div class="group">
+          <div class="group-title">脚模</div>
+          <div class="leaf-row"><span class="leaf">鞋类脚模</span><span class="leaf">丝袜脚模</span><span class="leaf">足部护理</span><span class="leaf">美甲脚模</span><span class="leaf">裸足展示</span></div>
+        </div><div class="group">
+          <div class="group-title">腿模</div>
+          <div class="leaf-row"><span class="leaf">丝袜腿模</span><span class="leaf">短裤/短裙腿模</span><span class="leaf">腿部护理</span><span class="leaf">运动护具</span></div>
+        </div><div class="group">
+          <div class="group-title">唇模</div>
+          <div class="leaf-row"><span class="leaf">口红唇模</span><span class="leaf">唇膏唇模</span><span class="leaf">唇釉唇模</span><span class="leaf">唇部护理</span><span class="leaf">牙齿美白</span></div>
+        </div><div class="group">
+          <div class="group-title">眼模</div>
+          <div class="leaf-row"><span class="leaf">眼镜眼模</span><span class="leaf">眼影眼模</span><span class="leaf">睫毛膏眼模</span><span class="leaf">眼线眼模</span><span class="leaf">眼部护理</span></div>
+        </div><div class="group">
+          <div class="group-title">耳模</div>
+          <div class="leaf-row"><span class="leaf">耳环/耳钉耳模</span><span class="leaf">耳机耳模</span><span class="leaf">助听器耳模</span></div>
+        </div><div class="group">
+          <div class="group-title">发模</div>
+          <div class="leaf-row"><span class="leaf">洗发水发模</span><span class="leaf">护发素发模</span><span class="leaf">染发剂发模</span><span class="leaf">假发发模</span><span class="leaf">发型展示</span></div>
+        </div><div class="group">
+          <div class="group-title">臀模</div>
+          <div class="leaf-row"><span class="leaf">牛仔裤臀模</span><span class="leaf">内裤臀模</span><span class="leaf">塑身衣臀模</span><span class="leaf">泳装臀模</span></div>
+        </div><div class="group">
+          <div class="group-title">胸模</div>
+          <div class="leaf-row"><span class="leaf">内衣胸模</span><span class="leaf">泳装胸模</span><span class="leaf">塑身衣胸模</span></div>
+        </div><div class="group">
+          <div class="group-title">背模</div>
+          <div class="leaf-row"><span class="leaf">露背装背模</span><span class="leaf">纹身背模</span><span class="leaf">背部护理</span></div>
+        </div><div class="group">
+          <div class="group-title">颈模</div>
+          <div class="leaf-row"><span class="leaf">项链颈模</span><span class="leaf">围巾颈模</span><span class="leaf">高领毛衣颈模</span></div>
+        </div><div class="group">
+          <div class="group-title">腰模</div>
+          <div class="leaf-row"><span class="leaf">腰带腰模</span><span class="leaf">腰封腰模</span><span class="leaf">露腰装腰模</span></div>
+        </div><div class="group">
+          <div class="group-title">臂模</div>
+          <div class="leaf-row"></div>
+        </div></div>
+    </article><article class="card card--l1">
+      <header class="card-head" style="background:#1d4ed8">特殊技能模特</header>
+      <div class="card-body"><div class="group">
+          <div class="group-title">动作模特</div>
+          <div class="leaf-row"><span class="leaf">瑜伽模特</span><span class="leaf">舞蹈模特（芭蕾、现代舞、街舞）</span><span class="leaf">武术模特</span><span class="leaf">健身模特</span></div>
+        </div><div class="group">
+          <div class="group-title">年龄特型</div>
+          <div class="leaf-row"><span class="leaf">童模（0-3岁）</span><span class="leaf">童模（4-7岁）</span><span class="leaf">童模（8-12岁）</span><span class="leaf">童模（13-16岁）</span><span class="leaf">老年模（50-60岁）</span><span class="leaf">老年模（60-70岁）</span><span class="leaf">老年模（70岁以上）</span><span class="leaf">孕妇模</span></div>
+        </div><div class="group">
+          <div class="group-title">体型特型</div>
+          <div class="leaf-row"><span class="leaf">大码模</span><span class="leaf">瘦长模</span><span class="leaf">肌肉模</span><span class="leaf">情侣模</span><span class="leaf">亲子模</span><span class="leaf">家庭模</span></div>
+        </div><div class="group">
+          <div class="group-title">角色扮演</div>
+          <div class="leaf-row"><span class="leaf">Cosplay</span><span class="leaf">汉服</span><span class="leaf">Lolita</span><span class="leaf">JK制服</span><span class="leaf">古装</span><span class="leaf">民族服饰</span><span class="leaf">超级英雄</span><span class="leaf">游戏角色</span></div>
+        </div><div class="group">
+          <div class="group-title">仿生模特</div>
+          <div class="leaf-row"></div>
+        </div></div>
+    </article><article class="card card--l1">
+      <header class="card-head" style="background:#1d4ed8">视频/直播模特</header>
+      <div class="card-body"><div class="group">
+          <div class="group-title">短视频模特</div>
+          <div class="leaf-row"><span class="leaf">抖音/快手剧情</span><span class="leaf">B站UP主</span><span class="leaf">小红书视频</span><span class="leaf">开箱视频</span></div>
+        </div><div class="group">
+          <div class="group-title">直播带货模特</div>
+          <div class="leaf-row"><span class="leaf">常驻主播</span><span class="leaf">单场嘉宾</span><span class="leaf">试穿/试用展示</span></div>
+        </div><div class="group">
+          <div class="group-title">影视配角</div>
+          <div class="leaf-row"></div>
+        </div></div>
+    </article><span class="leaf">线下活动模特</span></div>
+      </section>
+<section class="section" style="--primary:#7c3aed;--light:#ede9fe;--border:#c4b5fd;--bg:#faf8ff">
+        <div class="section-head">
+          <div>
+            <h2>二、风格</h2>
+            <p>辅助标签 · 可多选</p>
+          </div>
+          <span class="badge">35 个可选项</span>
+        </div>
+        <div class="grid grid--compact"><article class="card card--compact" style="border-color:#c4b5fd;background:#faf8ff">
+    <header class="card-head card-head--sm" style="background:#7c3aed">时尚</header>
+    <div class="leaf-row"><span class="leaf">高冷</span><span class="leaf">前卫</span><span class="leaf">极简</span><span class="leaf">街头</span><span class="leaf">复古</span><span class="leaf">暗黑</span><span class="leaf">波西米亚</span></div>
+  </article><article class="card card--compact" style="border-color:#c4b5fd;background:#faf8ff">
+    <header class="card-head card-head--sm" style="background:#7c3aed">甜美</header>
+    <div class="leaf-row"><span class="leaf">可爱</span><span class="leaf">清新</span><span class="leaf">邻家</span><span class="leaf">软萌</span><span class="leaf">日系</span><span class="leaf">森系</span></div>
+  </article><article class="card card--compact" style="border-color:#c4b5fd;background:#faf8ff">
+    <header class="card-head card-head--sm" style="background:#7c3aed">性感</header>
+    <div class="leaf-row"><span class="leaf">妩媚</span><span class="leaf">热辣</span><span class="leaf">优雅性感</span><span class="leaf">纯欲</span></div>
+  </article><article class="card card--compact" style="border-color:#c4b5fd;background:#faf8ff">
+    <header class="card-head card-head--sm" style="background:#7c3aed">运动</header>
+    <div class="leaf-row"><span class="leaf">阳光</span><span class="leaf">力量</span><span class="leaf">活力</span><span class="leaf">户外</span><span class="leaf">健身</span></div>
+  </article><article class="card card--compact" style="border-color:#c4b5fd;background:#faf8ff">
+    <header class="card-head card-head--sm" style="background:#7c3aed">文艺</header>
+    <div class="leaf-row"><span class="leaf">胶片感</span><span class="leaf">书卷气</span><span class="leaf">艺术</span><span class="leaf">颓废</span></div>
+  </article><article class="card card--compact" style="border-color:#c4b5fd;background:#faf8ff">
+    <header class="card-head card-head--sm" style="background:#7c3aed">商务</header>
+    <div class="leaf-row"><span class="leaf">干练</span><span class="leaf">专业</span><span class="leaf">稳重</span><span class="leaf">精英</span></div>
+  </article><article class="card card--compact" style="border-color:#c4b5fd;background:#faf8ff">
+    <header class="card-head card-head--sm" style="background:#7c3aed">生活</header>
+    <div class="leaf-row"><span class="leaf">自然</span><span class="leaf">居家</span><span class="leaf">旅行</span><span class="leaf">街拍</span></div>
+  </article><article class="card card--compact" style="border-color:#c4b5fd;background:#faf8ff">
+    <header class="card-head card-head--sm" style="background:#7c3aed">另类</header>
+    <div class="leaf-row"><span class="leaf">另类</span></div>
+  </article></div>
+      </section>
+<section class="section" style="--primary:#059669;--light:#d1fae5;--border:#6ee7b7;--bg:#f6fffb">
+        <div class="section-head">
+          <div>
+            <h2>三、服务场景</h2>
+            <p>服务场景 · 可多选</p>
+          </div>
+          <span class="badge">19 个可选项</span>
+        </div>
+        <div class="grid grid--compact"><article class="card card--compact" style="border-color:#6ee7b7;background:#f6fffb">
+    <header class="card-head card-head--sm" style="background:#059669">室内拍摄</header>
+    <div class="leaf-row"><span class="leaf">影棚</span><span class="leaf">家居</span><span class="leaf">办公</span><span class="leaf">工厂</span></div>
+  </article><article class="card card--compact" style="border-color:#6ee7b7;background:#f6fffb">
+    <header class="card-head card-head--sm" style="background:#059669">室外拍摄</header>
+    <div class="leaf-row"><span class="leaf">街拍</span><span class="leaf">自然风光</span><span class="leaf">建筑</span><span class="leaf">海滩</span><span class="leaf">雪山</span></div>
+  </article><article class="card card--compact" style="border-color:#6ee7b7;background:#f6fffb">
+    <header class="card-head card-head--sm" style="background:#059669">短视频拍摄</header>
+    <div class="leaf-row"><span class="leaf">抖音</span><span class="leaf">快手</span><span class="leaf">B站</span></div>
+  </article><article class="card card--compact" style="border-color:#6ee7b7;background:#f6fffb">
+    <header class="card-head card-head--sm" style="background:#059669">直播带货</header>
+    <div class="leaf-row"><span class="leaf">常驻</span><span class="leaf">单场</span></div>
+  </article><article class="card card--compact" style="border-color:#6ee7b7;background:#f6fffb">
+    <header class="card-head card-head--sm" style="background:#059669">线下活动</header>
+    <div class="leaf-row"><span class="leaf">发布会</span><span class="leaf">展会</span><span class="leaf">派对</span><span class="leaf">路演</span></div>
+  </article><article class="card card--compact" style="border-color:#6ee7b7;background:#f6fffb">
+    <header class="card-head card-head--sm" style="background:#059669">试衣/私拍</header>
+    <div class="leaf-row"><span class="leaf">试衣/私拍</span></div>
+  </article></div>
+      </section></div>
+    <div class="footer">共 220 个可勾选分类 · 数据来源 model_category_nodes</div>
+  </div>
+</body>
+</html>

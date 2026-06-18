@@ -19,6 +19,10 @@
     "purge:non-mock-role-users": "tsx scripts/purge-non-mock-role-users.ts",
     "reset:model-levels-lv1-lv3": "tsx scripts/reset-model-levels-lv1-lv3.ts",
     "migrate:split-v2": "tsx scripts/migrate-split-v2.ts",
+    "migrate:model-content-review": "tsx scripts/migrate-model-content-review.ts",
+    "migrate:legacy-content-review-photos": "tsx scripts/migrate-legacy-content-review-photos.ts",
+    "migrate:model-registration-codes": "tsx scripts/migrate-model-registration-codes.ts",
+    "export:model-category-tree-doc": "tsx scripts/export-model-category-tree-doc.ts",
     "smoke:split-v2": "tsx scripts/smoke-split-v2.ts"
   },
   "engines": {

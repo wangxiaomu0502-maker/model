@@ -136,8 +136,9 @@
 
 .honor-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 24rpx;
+  gap: 16rpx 24rpx;
   margin-top: 18rpx;
 }
 

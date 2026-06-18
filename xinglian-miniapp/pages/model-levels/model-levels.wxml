@@ -1,0 +1,37 @@
+<view class="model-level-page">
+  <view class="model-level-bg model-level-bg--pink"></view>
+  <view class="model-level-bg model-level-bg--blue"></view>
+
+  <view class="model-level-hero">
+    <text class="model-level-kicker">MODEL LEVEL</text>
+    <text class="model-level-title">模特等级分类</text>
+    <text class="model-level-desc">平台按资料完整度、作品表现、认证状态和推荐权重划分 6 种等级。</text>
+  </view>
+
+  <view class="model-level-list">
+    <view wx:for="{{modelLevels}}" wx:key="code" class="model-level-card {{item.className}}">
+      <view class="model-level-card-head">
+        <view>
+          <text class="model-level-code">{{item.code}}</text>
+          <text class="model-level-name">{{item.name}}</text>
+        </view>
+        <text class="model-level-temperament">{{item.temperament}}</text>
+      </view>
+
+      <text class="model-level-intro">{{item.intro}}</text>
+
+      <view class="model-level-info">
+        <text class="model-level-label">升级要求</text>
+        <text class="model-level-text">{{item.requirement}}</text>
+      </view>
+
+      <view class="model-level-info">
+        <text class="model-level-label">权限 / 权益</text>
+        <view class="model-level-permission" wx:for="{{item.permissions}}" wx:for-item="permission" wx:key="*this">
+          <text class="model-level-dot"></text>
+          <text class="model-level-permission-text">{{permission}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

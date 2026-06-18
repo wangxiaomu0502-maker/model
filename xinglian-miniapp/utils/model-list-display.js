@@ -161,7 +161,7 @@ function normalizeModelList(list) {
     const cardThumbUrls = angles.map((a) => resolveMediaUrl(a && a.url, apiBase)).filter(Boolean);
     const cardMeasureChips = buildCardMeasureChips(card);
     const hasCardSection = cardThumbUrls.length > 0 || cardMeasureChips.length > 0;
-    const coverImageUrl = cardThumbUrls[0] || (showAvatarImg ? avatarDisplayUrl : "");
+    const coverImageUrl = showAvatarImg ? avatarDisplayUrl : "";
     const categoryNames = Array.isArray(item?.categories) ? item.categories : [];
     const categoryIds = Array.isArray(item?.categoryIds)
       ? item.categoryIds.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)
@@ -226,7 +226,9 @@ function defaultModelFilterState() {
     priceIndex: 0,
     ratingIndex: 0,
     levelIndex: 0,
-    categoryIds: []
+    categoryIds: [],
+    categoryKeyword: "",
+    categoryLabel: ""
   };
 }
 
@@ -283,6 +285,7 @@ function applyModelFilters(list, options, state) {
   const gender = opts.genders[s.genderIndex] || "";
   const levelValue = MODEL_LEVEL_VALUES[s.levelIndex] || "";
   const categoryIds = normalizeCategoryIds(s.categoryIds);
+  const categoryKeyword = String(s.categoryKeyword || "").trim();
 
   let result = arr.filter((item) => {
     if (region.city) {
@@ -296,6 +299,10 @@ function applyModelFilters(list, options, state) {
     if (categoryIds.length > 0) {
       const ids = Array.isArray(item.categoryIds) ? item.categoryIds : [];
       if (!categoryIds.some((id) => ids.some((itemId) => Number(itemId) === id))) return false;
+    }
+    if (categoryKeyword) {
+      const categories = Array.isArray(item.categories) ? item.categories : [];
+      if (!categories.some((name) => String(name || "").includes(categoryKeyword))) return false;
     }
     return true;
   });
@@ -316,7 +323,10 @@ function applyModelFilters(list, options, state) {
 function countActiveModelFilters(state) {
   const s = { ...defaultModelFilterState(), ...(state || {}) };
   const regionActive = Array.isArray(s.regionIndex) && Number(s.regionIndex[0]) > 0 ? 1 : 0;
-  const categoryActive = normalizeCategoryIds(s.categoryIds).length > 0 ? 1 : 0;
+  const categoryActive =
+    normalizeCategoryIds(s.categoryIds).length > 0 || String(s.categoryKeyword || "").trim()
+      ? 1
+      : 0;
   return (
     regionActive +
     [s.genderIndex, s.priceIndex, s.ratingIndex, s.levelIndex].filter((idx) => idx > 0).length +

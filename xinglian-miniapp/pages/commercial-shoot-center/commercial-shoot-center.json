@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "商拍中心",
+  "navigationBarBackgroundColor": "#eef2ff",
+  "navigationBarTextStyle": "black",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#eef2ff",
+  "backgroundTextStyle": "dark"
+}

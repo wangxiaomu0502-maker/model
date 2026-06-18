@@ -44,6 +44,16 @@ export const adminModelProfileAuditBodySchema = z.object({
 
 export type AdminModelProfileAuditBody = z.infer<typeof adminModelProfileAuditBodySchema>;
 
+/** 后台审核模特图片：单张（photoIds）或批量（省略 photoIds = 该模块全部待审图片） */
+export const adminModelContentReviewBodySchema = z.object({
+  section: z.enum(["card", "portfolio", "stylePosition"]),
+  decision: z.enum(["approve", "reject"]),
+  photoIds: z.array(z.string().trim().min(1)).max(100).optional(),
+  rejectReason: z.string().trim().max(500).optional()
+});
+
+export type AdminModelContentReviewBody = z.infer<typeof adminModelContentReviewBodySchema>;
+
 /** 后台为模特设置所属代理人；传 null 表示清除 */
 export const adminModelAgentBodySchema = z.object({
   agentUserId: z.union([z.coerce.number().int().positive(), z.null()])
@@ -64,6 +74,21 @@ export const adminModelPhotosDisabledBodySchema = z.object({
 });
 
 export type AdminModelPhotosDisabledBody = z.infer<typeof adminModelPhotosDisabledBodySchema>;
+
+/** 后台禁用/启用模特账号（禁用后不在小程序展示） */
+export const adminModelAccountStatusBodySchema = z.object({
+  status: z.coerce
+    .number()
+    .int()
+    .refine((n) => n === 1 || n === 2, { message: "status 须为 1（正常）或 2（禁用）" })
+});
+
+export type AdminModelAccountStatusBody = z.infer<typeof adminModelAccountStatusBodySchema>;
+
+/** 后台禁用/启用经纪人账号（禁用后不可绑定商家、不可作为有效经纪人） */
+export const adminBrokerAccountStatusBodySchema = adminModelAccountStatusBodySchema;
+
+export type AdminBrokerAccountStatusBody = z.infer<typeof adminBrokerAccountStatusBodySchema>;
 
 /** 后台手动指定模特等级；null 表示回到 LV0-LV1 自动计算 */
 export const adminModelLevelBodySchema = z.object({

@@ -34,7 +34,9 @@ export const cardSchema = z.object({
         required: z.boolean().optional(),
         url: z.string().optional(),
         width: z.coerce.number().optional(),
-        height: z.coerce.number().optional()
+        height: z.coerce.number().optional(),
+        /** 小程序用户主动删除该槽位时为 true */
+        cleared: z.boolean().optional()
       })
     )
     .default([])

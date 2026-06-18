@@ -1,9 +1,9 @@
-<page-meta wx:if="{{formVisible}}" page-style="overflow: hidden;"></page-meta>
+<page-meta page-style="{{formVisible ? 'overflow: hidden;' : ''}}"></page-meta>
 <view class="page page-themed-root {{formVisible ? 'page--modal-open' : ''}}">
   <view class="top-bar">
     <view class="top-bar-text">
       <text class="top-title">荣誉展示</text>
-      <text class="top-sub">添加个人荣誉、奖项或比赛经历。荣誉名称必填，可上传奖杯照片或证明材料。</text>
+      <text class="top-sub">添加个人荣誉、奖项或比赛经历；支持调整展示顺序与删除，可上传奖杯照片或证明材料。</text>
     </view>
     <view class="top-add-btn" bindtap="openCreateForm">+ 添加</view>
   </view>
@@ -38,6 +38,8 @@
         </view>
       </view>
       <view class="honor-actions">
+        <text class="honor-action" data-id="{{item.id}}" data-direction="up" bindtap="moveHonor">上移</text>
+        <text class="honor-action" data-id="{{item.id}}" data-direction="down" bindtap="moveHonor">下移</text>
         <text class="honor-action" data-id="{{item.id}}" bindtap="openEditForm">编辑</text>
         <text class="honor-action honor-action--danger" data-id="{{item.id}}" bindtap="deleteHonor">删除</text>
       </view>

@@ -1,11 +1,17 @@
-<page-meta wx:if="{{signatureModalVisible}}" page-style="overflow: hidden;"></page-meta>
+<page-meta page-style="{{signatureModalVisible ? 'overflow: hidden;' : ''}}"></page-meta>
 <view class="page page-themed-root page-themed-root--no-pad contract-page {{signatureModalVisible ? 'contract-page--sig-lock' : ''}}">
   <view wx:if="{{loading}}" class="contract-state">
     <text class="contract-state-text">加载中…</text>
   </view>
 
+  <view wx:elif="{{loadError}}" class="contract-state contract-state--error">
+    <text class="contract-state-title">合同加载失败</text>
+    <text class="contract-state-text">{{loadError}}</text>
+    <button class="contract-retry-btn" bindtap="loadAll">重新加载</button>
+  </view>
+
   <block wx:else>
-    <scroll-view scroll-y class="contract-scroll" enhanced show-scrollbar="{{false}}">
+    <scroll-view scroll-y class="contract-scroll" show-scrollbar="{{false}}">
       <!-- 合同概览 -->
       <view class="contract-hero">
         <view class="contract-hero-top">
@@ -38,7 +44,8 @@
           <text class="contract-doc-head-tip">请仔细阅读全部条款</text>
         </view>
         <view class="contract-doc-body">
-          <rich-text class="contract-rich" nodes="{{contentHtml}}" />
+          <rich-text wx:if="{{contentHtml}}" class="contract-rich" nodes="{{contentHtml}}" />
+          <text wx:else class="contract-empty-text">暂无合同正文，请稍后重试</text>
         </view>
       </view>
 

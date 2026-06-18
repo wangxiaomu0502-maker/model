@@ -12,6 +12,7 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$ROOT_DIR/deploy-lib.sh"
 ADMIN_DIR="$ROOT_DIR/xinglian-admin"
 SERVER_DIR="$ROOT_DIR/xinglian-server"
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 HOST=""
 USER_NAME="root"
@@ -48,13 +49,42 @@ if [[ -z "$HOST" || -z "$PASSWORD" ]]; then
   exit 1
 fi
 
-if ! command -v sshpass >/dev/null 2>&1; then
-  echo "sshpass is required. Install first."
+if command -v sshpass >/dev/null 2>&1; then
+  # 密码含 |、% 等特殊字符时，用 SSHPASS 比 sshpass -p 更稳妥
+  export SSHPASS="$PASSWORD"
+  run_remote_cmd() {
+    sshpass -e "$@"
+  }
+elif command -v expect >/dev/null 2>&1; then
+  export DEPLOY_PASSWORD="$PASSWORD"
+  run_remote_cmd() {
+    expect -f - "$@" <<'EXPECT'
+set timeout -1
+spawn {*}$argv
+expect {
+  -re "(?i)are you sure you want to continue connecting" {
+    send -- "yes\r"
+    exp_continue
+  }
+  -re "(?i)password:" {
+    send -- "$env(DEPLOY_PASSWORD)\r"
+    exp_continue
+  }
+  eof {
+    catch wait result
+    set code [lindex $result 3]
+    if {$code eq ""} {
+      set code 0
+    }
+    exit $code
+  }
+}
+EXPECT
+  }
+else
+  echo "sshpass or expect is required. Install one of them first."
   exit 1
 fi
-
-# 密码含 |、% 等特殊字符时，用 SSHPASS 比 sshpass -p 更稳妥
-export SSHPASS="$PASSWORD"
 
 echo "==> Build admin frontend"
 cd "$ADMIN_DIR"
@@ -65,15 +95,15 @@ cd "$SERVER_DIR"
 npm run build
 
 echo "==> Upload admin dist"
-sshpass -e scp -o StrictHostKeyChecking=no -r "$ADMIN_DIR/dist/." "${USER_NAME}@${HOST}:/var/www/admin.xinglianmoku.cn/"
+run_remote_cmd scp -o StrictHostKeyChecking=no -r "$ADMIN_DIR/dist/." "${USER_NAME}@${HOST}:/var/www/admin.xinglianmoku.cn/"
 
 echo "==> Package and upload backend"
 tar --exclude="node_modules" --exclude="dist" -czf /tmp/xinglian-server.tar.gz .
-sshpass -e scp -o StrictHostKeyChecking=no /tmp/xinglian-server.tar.gz "${USER_NAME}@${HOST}:/srv/xinglian-server/"
-sshpass -e scp -o StrictHostKeyChecking=no "$SERVER_DIR/.env" "${USER_NAME}@${HOST}:/srv/xinglian-server/.env"
+run_remote_cmd scp -o StrictHostKeyChecking=no /tmp/xinglian-server.tar.gz "${USER_NAME}@${HOST}:/srv/xinglian-server/"
+run_remote_cmd scp -o StrictHostKeyChecking=no "$SERVER_DIR/.env" "${USER_NAME}@${HOST}:/srv/xinglian-server/.env"
 
 echo "==> Deploy and restart backend on server"
-sshpass -e ssh -o StrictHostKeyChecking=no "${USER_NAME}@${HOST}" "\
+run_remote_cmd ssh -o StrictHostKeyChecking=no "${USER_NAME}@${HOST}" "\
   set -e && cd /srv/xinglian-server && \
   tar -xzf xinglian-server.tar.gz && rm -f xinglian-server.tar.gz && \
   npm ci && npm run build && \

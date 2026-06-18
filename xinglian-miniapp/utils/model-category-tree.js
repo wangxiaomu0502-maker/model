@@ -17,6 +17,64 @@ function flattenCategoryTree(groups) {
   return result;
 }
 
+/** 收集节点下全部叶子分类 ID（用于大类勾选 = 小类全选） */
+function collectLeafCategoryIds(node) {
+  if (!node || !node.id) return [];
+  const children = Array.isArray(node.children) ? node.children : [];
+  if (!children.length) return [Number(node.id)];
+  const ids = [];
+  children.forEach((child) => {
+    collectLeafCategoryIds(child).forEach((id) => ids.push(id));
+  });
+  return Array.from(new Set(ids.filter((id) => id > 0)));
+}
+
+function normalizeSelectedCategoryIds(ids) {
+  return Array.from(
+    new Set((ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))
+  );
+}
+
+function getCategoryGroupSelectState(node, selectedIds) {
+  const leafIds = collectLeafCategoryIds(node);
+  if (!leafIds.length) return "none";
+  const set = new Set(normalizeSelectedCategoryIds(selectedIds));
+  let count = 0;
+  leafIds.forEach((id) => {
+    if (set.has(id)) count += 1;
+  });
+  if (count === 0) return "none";
+  if (count === leafIds.length) return "all";
+  return "partial";
+}
+
+function toggleCategoryGroupLeaves(node, selectedIds) {
+  const leafIds = collectLeafCategoryIds(node);
+  const state = getCategoryGroupSelectState(node, selectedIds);
+  const set = new Set(normalizeSelectedCategoryIds(selectedIds));
+  if (state === "all") {
+    leafIds.forEach((id) => set.delete(id));
+  } else {
+    leafIds.forEach((id) => set.add(id));
+  }
+  return Array.from(set);
+}
+
+function buildMajorGroupSelectMap(groups, selectedIds) {
+  const map = {};
+  (groups || []).forEach((group) => {
+    if (!group || !group.id) return;
+    map[group.id] = getCategoryGroupSelectState(group, selectedIds);
+  });
+  return map;
+}
+
+function findCategoryGroupById(groups, id) {
+  const targetId = Number(id);
+  if (!targetId) return null;
+  return (groups || []).find((group) => Number(group.id) === targetId) || null;
+}
+
 function buildCategoryNameMap(tree) {
   const map = {};
   if (!tree) return map;
@@ -107,13 +165,22 @@ function defaultCategoryFilterPopupState() {
     draftCategoryIds: [],
     draftSelectedMap: {},
     draftSelectedCount: 0,
-    draftSelectedOptions: []
+    draftSelectedOptions: [],
+    majorGroupSelectMap: {},
+    activeMajorSelectState: "none",
+    subGroupSelectMap: {}
   };
 }
 
 module.exports = {
   CATEGORY_TABS,
   flattenCategoryTree,
+  collectLeafCategoryIds,
+  normalizeSelectedCategoryIds,
+  getCategoryGroupSelectState,
+  toggleCategoryGroupLeaves,
+  buildMajorGroupSelectMap,
+  findCategoryGroupById,
   buildCategoryNameMap,
   getGroupsByTab,
   syncMajorPanel,

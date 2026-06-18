@@ -25,8 +25,11 @@ import {
   getBrokerBasicDetailForAdmin,
   listBoundMerchantsForBrokerAdmin,
   listUsersForAdminByRole,
+  reviewModelContentForAdmin,
   reviewModelProfileAuditForAdmin,
   setModelAgentUserForAdmin,
+  setModelAccountStatusForAdmin,
+  setBrokerAccountStatusForAdmin,
   setModelLevelOverrideForAdmin,
   setModelPlatformFeaturedForAdmin,
   setModelPhotosDisabledForAdmin,
@@ -34,10 +37,13 @@ import {
 } from "./admin.service";
 import {
   AdminModelAgentBody,
+  AdminModelAccountStatusBody,
+  AdminBrokerAccountStatusBody,
   AdminModelFeaturedBody,
   AdminModelLevelBody,
   AdminModelPhotosDisabledBody,
   AdminMerchantBrokerBody,
+  AdminModelContentReviewBody,
   AdminModelProfileAuditBody,
   AdminPlatformLedgerQuery,
   AdminUserIdParam,
@@ -474,6 +480,46 @@ export async function adminSetModelPhotosDisabledController(
   }
 }
 
+export async function adminSetModelAccountStatusController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const adminAuth = (req as AdminAuthenticatedRequest).adminAuth;
+    if (!adminAuth?.adminUserId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { userId } = req.params as unknown as AdminUserIdParam;
+    const body = req.body as AdminModelAccountStatusBody;
+    const result = await setModelAccountStatusForAdmin(userId, body.status as 1 | 2);
+    success(res, result as Record<string, unknown>);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function adminSetBrokerAccountStatusController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const adminAuth = (req as AdminAuthenticatedRequest).adminAuth;
+    if (!adminAuth?.adminUserId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { userId } = req.params as unknown as AdminUserIdParam;
+    const body = req.body as AdminBrokerAccountStatusBody;
+    const result = await setBrokerAccountStatusForAdmin(userId, body.status as 1 | 2);
+    success(res, result as Record<string, unknown>);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function adminSetModelLevelController(
   req: Request,
   res: Response,
@@ -528,6 +574,32 @@ export async function adminReviewModelProfileAuditController(
     const { userId } = req.params as unknown as AdminUserIdParam;
     const body = req.body as AdminModelProfileAuditBody;
     const result = await reviewModelProfileAuditForAdmin(userId, body.decision, body.rejectReason);
+    success(res, result as Record<string, unknown>);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function adminReviewModelContentController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const adminAuth = (req as AdminAuthenticatedRequest).adminAuth;
+    if (!adminAuth?.adminUserId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { userId } = req.params as unknown as AdminUserIdParam;
+    const body = req.body as AdminModelContentReviewBody;
+    const result = await reviewModelContentForAdmin(
+      userId,
+      body.section,
+      body.decision,
+      body.rejectReason,
+      body.photoIds
+    );
     success(res, result as Record<string, unknown>);
   } catch (error) {
     next(error);

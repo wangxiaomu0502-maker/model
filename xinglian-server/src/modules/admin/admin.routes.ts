@@ -21,9 +21,12 @@ import {
   adminGetBrokerDetailController,
   adminGetBrokerIncomeStatsController,
   adminListBrokerBoundMerchantsController,
+  adminReviewModelContentController,
   adminReviewModelProfileAuditController,
   adminSetModelAgentController,
   adminSetModelFeaturedController,
+  adminSetModelAccountStatusController,
+  adminSetBrokerAccountStatusController,
   adminSetModelLevelController,
   adminSetModelPhotosDisabledController,
   adminSetMerchantBrokerController,
@@ -38,10 +41,13 @@ import {
 } from "./admin.controller";
 import {
   adminModelAgentBodySchema,
+  adminModelAccountStatusBodySchema,
+  adminBrokerAccountStatusBodySchema,
   adminModelFeaturedBodySchema,
   adminModelLevelBodySchema,
   adminModelPhotosDisabledBodySchema,
   adminMerchantBrokerBodySchema,
+  adminModelContentReviewBodySchema,
   adminModelProfileAuditBodySchema,
   adminOrderIdParamSchema,
   adminPlatformLedgerQuerySchema,
@@ -112,6 +118,34 @@ import {
   csUserListQuerySchema,
   updateCsUserSchema
 } from "../admin-cs-user/admin-cs-user.types";
+import {
+  adminCreateCommercialShootController,
+  adminCreateCommercialShootPackageController,
+  adminDeleteCommercialShootController,
+  adminDeleteCommercialShootPackageController,
+  adminListCommercialShootsController,
+  adminListCommercialShootPackagesController,
+  adminUpdateCommercialShootController,
+  adminUpdateCommercialShootPackageController
+} from "../commercial-shoot-center/commercial-shoot-center.controller";
+import {
+  commercialShootIdParamSchema,
+  commercialShootListQuerySchema,
+  commercialShootPackageIdParamSchema,
+  commercialShootPackageListQuerySchema,
+  createCommercialShootSchema,
+  createCommercialShootPackageSchema,
+  updateCommercialShootSchema,
+  updateCommercialShootPackageSchema
+} from "../commercial-shoot-center/commercial-shoot-center.types";
+import {
+  adminGenerateModelRegistrationCodesController,
+  adminListModelRegistrationCodesController
+} from "../model-registration-code/model-registration-code.controller";
+import {
+  modelRegistrationCodeGenerateBodySchema,
+  modelRegistrationCodeListQuerySchema
+} from "../model-registration-code/model-registration-code.types";
 
 const adminRouter = Router();
 
@@ -157,6 +191,70 @@ adminRouter.delete(
   requireAdminAuth,
   validate(csUserIdParamSchema, "params"),
   deleteCsUserHandler
+);
+adminRouter.get(
+  "/commercial-shoots",
+  requireAdminAuth,
+  validate(commercialShootListQuerySchema, "query"),
+  adminListCommercialShootsController
+);
+adminRouter.post(
+  "/commercial-shoots",
+  requireAdminAuth,
+  validate(createCommercialShootSchema),
+  adminCreateCommercialShootController
+);
+adminRouter.patch(
+  "/commercial-shoots/:id",
+  requireAdminAuth,
+  validate(commercialShootIdParamSchema, "params"),
+  validate(updateCommercialShootSchema),
+  adminUpdateCommercialShootController
+);
+adminRouter.delete(
+  "/commercial-shoots/:id",
+  requireAdminAuth,
+  validate(commercialShootIdParamSchema, "params"),
+  adminDeleteCommercialShootController
+);
+adminRouter.get(
+  "/commercial-shoots/:id/packages",
+  requireAdminAuth,
+  validate(commercialShootIdParamSchema, "params"),
+  validate(commercialShootPackageListQuerySchema, "query"),
+  adminListCommercialShootPackagesController
+);
+adminRouter.post(
+  "/commercial-shoots/:id/packages",
+  requireAdminAuth,
+  validate(commercialShootIdParamSchema, "params"),
+  validate(createCommercialShootPackageSchema),
+  adminCreateCommercialShootPackageController
+);
+adminRouter.patch(
+  "/commercial-shoots/:id/packages/:packageId",
+  requireAdminAuth,
+  validate(commercialShootPackageIdParamSchema, "params"),
+  validate(updateCommercialShootPackageSchema),
+  adminUpdateCommercialShootPackageController
+);
+adminRouter.delete(
+  "/commercial-shoots/:id/packages/:packageId",
+  requireAdminAuth,
+  validate(commercialShootPackageIdParamSchema, "params"),
+  adminDeleteCommercialShootPackageController
+);
+adminRouter.get(
+  "/model-registration-codes",
+  requireAdminAuth,
+  validate(modelRegistrationCodeListQuerySchema, "query"),
+  adminListModelRegistrationCodesController
+);
+adminRouter.post(
+  "/model-registration-codes/generate",
+  requireAdminAuth,
+  validate(modelRegistrationCodeGenerateBodySchema),
+  adminGenerateModelRegistrationCodesController
 );
 adminRouter.get(
   "/pending-orders",
@@ -275,6 +373,13 @@ adminRouter.post(
   validate(adminModelProfileAuditBodySchema),
   adminReviewModelProfileAuditController
 );
+adminRouter.post(
+  "/models/:userId/content-review",
+  requireAdminAuth,
+  validate(adminUserIdParamSchema, "params"),
+  validate(adminModelContentReviewBodySchema),
+  adminReviewModelContentController
+);
 adminRouter.patch(
   "/models/:userId/agent",
   requireAdminAuth,
@@ -295,6 +400,20 @@ adminRouter.patch(
   validate(adminUserIdParamSchema, "params"),
   validate(adminModelPhotosDisabledBodySchema),
   adminSetModelPhotosDisabledController
+);
+adminRouter.patch(
+  "/models/:userId/status",
+  requireAdminAuth,
+  validate(adminUserIdParamSchema, "params"),
+  validate(adminModelAccountStatusBodySchema),
+  adminSetModelAccountStatusController
+);
+adminRouter.patch(
+  "/brokers/:userId/status",
+  requireAdminAuth,
+  validate(adminUserIdParamSchema, "params"),
+  validate(adminBrokerAccountStatusBodySchema),
+  adminSetBrokerAccountStatusController
 );
 adminRouter.patch(
   "/models/:userId/level",

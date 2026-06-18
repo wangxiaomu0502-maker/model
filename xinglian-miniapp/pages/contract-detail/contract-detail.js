@@ -6,6 +6,7 @@ const {
   ROLE_TO_KIND,
   KIND_TYPE_LABEL,
   PENDING_REGISTRATION_KEY,
+  MODEL_REGISTRATION_CODE_KEY,
   contractKindForRole
 } = require("../../utils/registration-contract.js");
 
@@ -45,6 +46,7 @@ function parseSignedAtDate(raw) {
 Page({
   data: {
     loading: true,
+    loadError: "",
     signing: false,
     isRegisterMode: false,
     registerCompleting: false,
@@ -183,7 +185,7 @@ Page({
     const apiBase = app.globalData.apiBaseUrl;
     const token = app.globalData.token;
 
-    this.setData({ loading: true, contractKind: kind });
+    this.setData({ loading: true, loadError: "", contractKind: kind });
 
     const pending = this.data.isRegisterMode ? this.readPendingRegistration() : null;
     const registerRole = pending ? Number(pending.role) : 0;
@@ -219,7 +221,10 @@ Page({
         });
       })
       .catch((err) => {
-        this.setData({ loading: false });
+        this.setData({
+          loading: false,
+          loadError: err.message || "加载失败"
+        });
         wx.showToast({
           title: err.message || "加载失败",
           icon: "none"
@@ -502,6 +507,7 @@ Page({
 
         try {
           wx.removeStorageSync(PENDING_REGISTRATION_KEY);
+          wx.removeStorageSync(MODEL_REGISTRATION_CODE_KEY);
         } catch {
           /* ignore */
         }

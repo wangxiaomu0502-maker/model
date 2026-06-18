@@ -1,0 +1,66 @@
+<view class="business-showcase-page">
+  <view class="showcase-hero">
+    <text class="showcase-kicker">BUSINESS ORDERS</text>
+    <text class="showcase-title">商单展示</text>
+    <text class="showcase-desc">实时展示客户下单与模特匹配动态，了解平台真实商单类型与合作流程。</text>
+    <view class="showcase-stat-row">
+      <view class="showcase-stat">
+        <text class="showcase-stat-num">{{summary.total}}</text>
+        <text class="showcase-stat-label">展示商单</text>
+      </view>
+      <view class="showcase-stat">
+        <text class="showcase-stat-num">{{summary.matched}}</text>
+        <text class="showcase-stat-label">已匹配</text>
+      </view>
+      <view class="showcase-stat">
+        <text class="showcase-stat-num">{{summary.active}}</text>
+        <text class="showcase-stat-label">进行中</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="showcase-card">
+    <text class="showcase-section-title">平台说明</text>
+    <view wx:for="{{introPoints}}" wx:key="title" class="point-card">
+      <text class="point-title">{{item.title}}</text>
+      <text class="point-desc">{{item.desc}}</text>
+    </view>
+  </view>
+
+  <view class="showcase-card">
+    <view class="showcase-card-head">
+      <text class="showcase-section-title">近期商单</text>
+      <text class="showcase-section-sub">以下为平台展示案例，信息已做脱敏处理</text>
+    </view>
+    <view wx:for="{{cases}}" wx:key="id" class="order-card">
+      <view class="order-card-top">
+        <text class="order-status order-status--{{item.statusClass}}">{{item.status}}</text>
+        <text class="order-budget">{{item.budget}}</text>
+      </view>
+      <text class="order-content">{{item.content}}</text>
+      <view class="order-parties">
+        <view class="order-party">
+          <text class="order-label">下单客户</text>
+          <text class="order-name">{{item.customer}}</text>
+        </view>
+        <text class="order-arrow">→</text>
+        <view class="order-party">
+          <text class="order-label">服务模特</text>
+          <text class="order-name">{{item.model}}</text>
+        </view>
+      </view>
+      <text class="order-city">{{item.city}}</text>
+    </view>
+  </view>
+
+  <view class="showcase-card showcase-card--flow">
+    <text class="showcase-section-title">撮合流程</text>
+    <view wx:for="{{flowSteps}}" wx:key="step" class="flow-row">
+      <view class="flow-step">{{item.step}}</view>
+      <view class="flow-body">
+        <text class="flow-title">{{item.title}}</text>
+        <text class="flow-desc">{{item.desc}}</text>
+      </view>
+    </view>
+  </view>
+</view>

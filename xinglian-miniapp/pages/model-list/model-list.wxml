@@ -217,7 +217,7 @@
     <view class="category-filter-selected">
       <view class="category-filter-selected-head">
         <text class="category-filter-selected-title">已选 {{draftSelectedCount}} 项</text>
-        <text class="category-filter-selected-tip">可多选，匹配任意一个</text>
+        <text class="category-filter-selected-tip">可多选；勾选大类将选中其下全部小类</text>
       </view>
       <scroll-view
         wx:if="{{draftSelectedOptions.length > 0}}"
@@ -265,13 +265,19 @@
     >
       <view class="category-filter-major-row">
         <view
-          class="category-filter-major-tab {{activeMajorGroup.id === item.id ? 'category-filter-major-tab--on' : ''}}"
+          class="category-filter-major-tab {{activeMajorGroup.id === item.id ? 'category-filter-major-tab--on' : ''}} {{majorGroupSelectMap[item.id] === 'all' ? 'category-filter-major-tab--picked' : ''}} {{majorGroupSelectMap[item.id] === 'partial' ? 'category-filter-major-tab--partial' : ''}}"
           wx:for="{{majorGroups}}"
           wx:key="id"
-          data-id="{{item.id}}"
-          bindtap="onCategoryFilterMajorTap"
         >
-          {{item.name}}
+          <view
+            class="category-filter-major-check category-filter-major-check--{{majorGroupSelectMap[item.id] || 'none'}}"
+            catchtap="onCategoryFilterMajorGroupToggle"
+            data-id="{{item.id}}"
+          >
+            <text wx:if="{{majorGroupSelectMap[item.id] === 'all'}}">✓</text>
+            <text wx:elif="{{majorGroupSelectMap[item.id] === 'partial'}}">−</text>
+          </view>
+          <text class="category-filter-major-name" data-id="{{item.id}}" bindtap="onCategoryFilterMajorTap">{{item.name}}</text>
         </view>
       </view>
     </scroll-view>
@@ -279,8 +285,26 @@
     <scroll-view scroll-y class="category-filter-body" enhanced show-scrollbar="{{false}}">
       <view wx:if="{{!activeMajorGroup}}" class="category-filter-empty">暂无分类数据</view>
       <view wx:elif="{{categoryCurrentTab === 'main'}}" class="category-filter-panel-inner">
+        <view
+          wx:if="{{activeMajorGroup}}"
+          class="category-filter-parent-row"
+          bindtap="onCategoryFilterMajorGroupToggle"
+          data-id="{{activeMajorGroup.id}}"
+        >
+          <view class="category-filter-parent-check category-filter-parent-check--{{activeMajorSelectState}}">
+            <text wx:if="{{activeMajorSelectState === 'all'}}">✓</text>
+            <text wx:elif="{{activeMajorSelectState === 'partial'}}">−</text>
+          </view>
+          <text class="category-filter-parent-label">全选「{{activeMajorGroup.name}}」</text>
+        </view>
         <view class="category-filter-sub-block" wx:for="{{activeMajorGroup.children}}" wx:key="id">
-          <text class="category-filter-sub-title">{{item.name}}</text>
+          <view class="category-filter-sub-head" bindtap="onCategoryFilterSubGroupToggle" data-id="{{item.id}}">
+            <view class="category-filter-parent-check category-filter-parent-check--{{subGroupSelectMap[item.id] || 'none'}}">
+              <text wx:if="{{subGroupSelectMap[item.id] === 'all'}}">✓</text>
+              <text wx:elif="{{subGroupSelectMap[item.id] === 'partial'}}">−</text>
+            </view>
+            <text class="category-filter-sub-title">{{item.name}}</text>
+          </view>
           <view class="category-filter-chip-grid">
             <view
               class="category-filter-chip {{draftSelectedMap[optionNode.id] ? 'category-filter-chip--on' : ''}}"
@@ -296,6 +320,18 @@
         </view>
       </view>
       <view wx:else class="category-filter-panel-inner">
+        <view
+          wx:if="{{activeMajorGroup}}"
+          class="category-filter-parent-row"
+          bindtap="onCategoryFilterMajorGroupToggle"
+          data-id="{{activeMajorGroup.id}}"
+        >
+          <view class="category-filter-parent-check category-filter-parent-check--{{activeMajorSelectState}}">
+            <text wx:if="{{activeMajorSelectState === 'all'}}">✓</text>
+            <text wx:elif="{{activeMajorSelectState === 'partial'}}">−</text>
+          </view>
+          <text class="category-filter-parent-label">全选「{{activeMajorGroup.name}}」</text>
+        </view>
         <view class="category-filter-chip-grid">
           <view
             class="category-filter-chip {{draftSelectedMap[optionNode.id] ? 'category-filter-chip--on' : ''}}"

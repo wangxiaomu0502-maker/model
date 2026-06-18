@@ -14,6 +14,11 @@ export function notFoundHandler(_req: Request, res: Response): void {
   });
 }
 
+function isRetriableNetworkError(err: Error): boolean {
+  const errno = (err as NodeJS.ErrnoException).code;
+  return errno === "ETIMEDOUT" || errno === "ECONNRESET" || errno === "EPIPE" || errno === "PROTOCOL_CONNECTION_LOST";
+}
+
 export function errorHandler(
   err: Error,
   req: Request,
@@ -21,9 +26,26 @@ export function errorHandler(
   _next: NextFunction
 ): void {
   const uploadSizeExceeded = err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE";
-  const statusCode = uploadSizeExceeded ? 400 : err instanceof AppError ? err.statusCode : 500;
-  const code = uploadSizeExceeded ? ErrorCodes.VALIDATION_ERROR : err instanceof AppError ? err.code : ErrorCodes.INTERNAL_ERROR;
-  const message = uploadSizeExceeded ? `图片大小不能超过 ${IMAGE_UPLOAD_MAX_LABEL}` : err.message;
+  const networkError = !(err instanceof AppError) && isRetriableNetworkError(err);
+  const statusCode = uploadSizeExceeded
+    ? 400
+    : err instanceof AppError
+      ? err.statusCode
+      : networkError
+        ? 502
+        : 500;
+  const code = uploadSizeExceeded
+    ? ErrorCodes.VALIDATION_ERROR
+    : err instanceof AppError
+      ? err.code
+      : networkError
+        ? ErrorCodes.UPSTREAM_ERROR
+        : ErrorCodes.INTERNAL_ERROR;
+  const message = uploadSizeExceeded
+    ? `图片大小不能超过 ${IMAGE_UPLOAD_MAX_LABEL}`
+    : networkError
+      ? "网络连接超时，请稍后重试"
+      : err.message;
   const traceId = (req as RequestWithContext).traceId;
 
   log("error", message, {
@@ -39,6 +61,6 @@ export function errorHandler(
     message: statusCode === 500 ? "Internal server error" : message,
     code,
     traceId,
-    error: process.env.NODE_ENV === "development" ? message : undefined
+    error: process.env.NODE_ENV === "development" ? (networkError ? err.message : message) : undefined
   });
 }

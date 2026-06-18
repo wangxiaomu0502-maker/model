@@ -153,7 +153,8 @@ export async function completeRegistrationController(
       idCardValidDate,
       brokerUserNo,
       isProfessional,
-      brokerLicenseUrl
+      brokerLicenseUrl,
+      modelRegistrationCode
     } = req.body as {
       role?: number;
       identity?: string;
@@ -171,6 +172,7 @@ export async function completeRegistrationController(
       brokerUserNo?: string;
       isProfessional?: boolean;
       brokerLicenseUrl?: string;
+      modelRegistrationCode?: string;
     };
 
     if (!userId || !openid) {
@@ -197,7 +199,8 @@ export async function completeRegistrationController(
       idCardValidDate,
       brokerUserNo,
       isProfessional,
-      brokerLicenseUrl
+      brokerLicenseUrl,
+      modelRegistrationCode
     });
 
     const token = issueUserAccessToken(userId, openid, result.role);

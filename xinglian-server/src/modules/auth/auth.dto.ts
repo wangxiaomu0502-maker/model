@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import { verifyModelRegistrationCodeSchema } from "../model-registration-code/model-registration-code.types";
+
+export { verifyModelRegistrationCodeSchema };
+
 export const wechatLoginSchema = z.object({
   code: z.string().min(1),
   /** 推广扫码/链接携带的经纪人 user_no，登录时写入 referrer_id（游客或未绑定客户） */
@@ -56,7 +60,9 @@ export const completeRegistrationSchema = z
     /** 经纪人注册：是否专业经纪人 */
     isProfessional: z.boolean().optional(),
     /** 经纪人注册：经纪人证图片 URL（专业经纪人必填） */
-    brokerLicenseUrl: trimMax(2048).optional()
+    brokerLicenseUrl: trimMax(2048).optional(),
+    /** 模特自行注册授权码 */
+    modelRegistrationCode: trimMax(8).optional()
   })
   .refine((value) => value.role !== undefined || value.identity !== undefined, {
     message: "role or identity is required"
@@ -102,6 +108,16 @@ export const completeRegistrationSchema = z
     }
 
     const role = Number(value.role || 0);
+    if (role === 1) {
+      const code = String(value.modelRegistrationCode ?? "").trim();
+      if (!/^[0-9A-Za-z]{8}$/.test(code)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "model registration code required",
+          path: ["modelRegistrationCode"]
+        });
+      }
+    }
     if (role === 3) {
       if (value.isProfessional === undefined) {
         ctx.addIssue({

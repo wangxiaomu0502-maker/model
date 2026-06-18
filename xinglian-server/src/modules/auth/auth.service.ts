@@ -33,8 +33,10 @@ import {
   transferVisitorOpenidToPlatformUser,
   updateUnionid
 } from "./auth.repository";
-import { getWechatAccessToken } from "../../integrations/wechat/client";
+import { getWechatAccessToken, wechatFetch } from "../../integrations/wechat/client";
 import { assertEidVerified } from "../eid/eid.service";
+import { ensureModelExtra, ensureModelProfile } from "../model/model.repository";
+import { consumeModelRegistrationCodeForUser } from "../model-registration-code/model-registration-code.service";
 import {
   identityRoleMap,
   PLATFORM_MODEL_BIND_FAIL_MESSAGE,
@@ -112,7 +114,7 @@ export async function loginByWechatCode(
     grant_type: "authorization_code"
   });
 
-  const response = await fetch(
+  const response = await wechatFetch(
     `https://api.weixin.qq.com/sns/jscode2session?${query.toString()}`,
     { method: "GET" }
   );
@@ -177,14 +179,23 @@ export async function loginByWechatCode(
 
 async function fetchWechatPhoneNumber(code: string): Promise<string> {
   const accessToken = await getWechatAccessToken();
-  const phoneResponse = await fetch(
-    `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${accessToken}`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ code })
-    }
-  );
+  let phoneResponse: Response;
+  try {
+    phoneResponse = await wechatFetch(
+      `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${accessToken}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code })
+      }
+    );
+  } catch (error) {
+    throw new AppError(
+      "微信手机号授权连接超时，请稍后重试",
+      502,
+      ErrorCodes.UPSTREAM_ERROR
+    );
+  }
   const phoneResult = (await phoneResponse.json()) as WechatPhoneResponse;
   const phoneNumber = phoneResult.phone_info?.phoneNumber?.trim();
 
@@ -359,6 +370,8 @@ export async function completeRegistration(input: {
   brokerUserNo?: string;
   isProfessional?: boolean;
   brokerLicenseUrl?: string;
+  /** 模特自行注册授权码 */
+  modelRegistrationCode?: string;
 }): Promise<{ role: number; verifiedStatus: number; profileAuditStatus: number }> {
   const {
     userId,
@@ -377,7 +390,8 @@ export async function completeRegistration(input: {
     idCardValidDate,
     brokerUserNo,
     isProfessional,
-    brokerLicenseUrl
+    brokerLicenseUrl,
+    modelRegistrationCode
   } = input;
 
   if (!faceVerified) {
@@ -436,6 +450,10 @@ export async function completeRegistration(input: {
   }
   assertRegistrationContractSigned(visitor, targetRole as RegistrationTargetRole);
 
+  if (targetRole === MODEL_ROLE) {
+    await consumeModelRegistrationCodeForUser(String(modelRegistrationCode ?? ""), userId);
+  }
+
   try {
     await completeRegistrationByUserId(
       userId,
@@ -462,6 +480,10 @@ export async function completeRegistration(input: {
           ? String(brokerLicenseUrl ?? "").trim()
           : null
       });
+    }
+    if (targetRole === MODEL_ROLE) {
+      await ensureModelProfile(userId, { photosDisabled: true });
+      await ensureModelExtra(userId);
     }
   } catch (error) {
     toDuplicatePhoneAppError(error);

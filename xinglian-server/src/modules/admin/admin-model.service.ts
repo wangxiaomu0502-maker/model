@@ -68,14 +68,15 @@ async function saveModelPayloadForAdmin(
 ): Promise<void> {
   await saveBasicInfo(userId, body.basicInfo as Record<string, unknown>);
   await saveCategories(userId, { categoryIds: body.categoryIds ?? [] });
+  const autoApprove = { autoApprove: true as const };
   if (body.card) {
-    await saveCard(userId, body.card as Record<string, unknown>);
+    await saveCard(userId, body.card as Record<string, unknown>, autoApprove);
   }
   if (body.portfolio) {
-    await savePortfolio(userId, body.portfolio as Record<string, unknown>);
+    await savePortfolio(userId, body.portfolio as Record<string, unknown>, autoApprove);
   }
   if (body.stylePosition) {
-    await saveStylePosition(userId, body.stylePosition as Record<string, unknown>);
+    await saveStylePosition(userId, body.stylePosition as Record<string, unknown>, autoApprove);
   }
   if (body.pricing) {
     await savePricing(userId, body.pricing as Record<string, unknown>);

@@ -409,10 +409,7 @@ Page({
     const card = (model && model.card) || {};
     const cardHairColor = String(card.hairColor || "").trim();
     const cardSkinColor = String(card.skinColor || "").trim();
-    const cardPhotoItems = (cardUrls || []).map((url, index) => ({
-      url,
-      label: index === 0 ? "封面" : `${index + 1}`
-    }));
+    const cardPhotoItems = (cardUrls || []).map((url) => ({ url }));
     const cardPrimaryMetrics = [];
     const addPrimary = (key, label, unit) => {
       if (has(key)) {

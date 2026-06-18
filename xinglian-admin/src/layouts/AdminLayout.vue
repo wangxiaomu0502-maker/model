@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
+  Key,
   Connection,
   Document,
   Headset,
@@ -28,6 +29,8 @@ const activeMenu = computed(() => {
   if (p === "/platform-billing" || p.startsWith("/platform-billing")) return "/platform-billing";
   if (p === "/pending-orders" || p.startsWith("/pending-orders")) return "/pending-orders";
   if (p === "/cs-users" || p.startsWith("/cs-users")) return "/cs-users";
+  if (p === "/commercial-shoot-center" || p.startsWith("/commercial-shoot-center")) return "/commercial-shoot-center";
+  if (p === "/model-registration-codes" || p.startsWith("/model-registration-codes")) return "/model-registration-codes";
   if (p === "/image-upload" || p.startsWith("/image-upload")) return "/image-upload";
   if (p === "/system-settings" || p.startsWith("/system-settings")) return "/system-settings";
   return p;
@@ -134,6 +137,14 @@ function logout(): void {
               <el-menu-item index="/contract-templates">
                 <el-icon><Document /></el-icon>
                 <span>合同管理</span>
+              </el-menu-item>
+              <el-menu-item index="/commercial-shoot-center">
+                <el-icon><Shop /></el-icon>
+                <span>商拍中心</span>
+              </el-menu-item>
+              <el-menu-item index="/model-registration-codes">
+                <el-icon><Key /></el-icon>
+                <span>授权码管理</span>
               </el-menu-item>
               <el-menu-item index="/image-upload">
                 <el-icon><UploadFilled /></el-icon>

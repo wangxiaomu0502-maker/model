@@ -157,8 +157,8 @@ export async function insertModelUserForAdmin(input: {
   const userId = Number(result.insertId);
   await dbPool.query(
     `INSERT INTO model_profiles (
-       user_id, is_admin_created, is_available, only_local_orders, only_female_clients
-     ) VALUES (?, 1, 0, 0, 0)`,
+       user_id, is_admin_created, is_available, only_local_orders, only_female_clients, photos_disabled
+     ) VALUES (?, 1, 0, 0, 0, 0)`,
     [userId]
   );
   await dbPool.query(`INSERT INTO model_extra_data (user_id) VALUES (?)`, [userId]);

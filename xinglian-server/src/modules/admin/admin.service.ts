@@ -14,6 +14,8 @@ import {
   findValidAgentUserIdForAdmin,
   findValidBrokerUserIdForAdmin,
   updateModelAgentUserIdForAdmin,
+  updateModelAccountStatusForAdmin,
+  updateBrokerAccountStatusForAdmin,
   updateModelLevelOverrideForAdmin,
   updateModelPhotosDisabledForAdmin,
   updateMerchantReferrerIdForAdmin,
@@ -25,7 +27,12 @@ import {
 } from "./admin.repository";
 import { normalizePortfolioFromStorage } from "../model/model.portfolio";
 import { buildModelLevel, ModelLevelInfo, parseAdminModelLevelOverride } from "../model/model-level";
-import { ensureModelProfile } from "../model/model.repository";
+import {
+  applyModelContentReviewDecision,
+  ensureModelProfile,
+  type ModelContentReviewSection
+} from "../model/model.repository";
+import { buildContentReviewPendingCounts, buildContentReviewState, CONTENT_REVIEW_STATUS, materializeLegacyPhotoReviewsInPayload, type ContentReviewPendingCounts, type ModelContentReviewState } from "../model/model-content-review";
 import { enrichCardFromProfile } from "../model/model.service";
 import { hasModelProfilesColumn } from "../../shared/model-profile-columns";
 import { listHonorsForPublicDisplay } from "../model/model-honor.service";
@@ -139,6 +146,8 @@ export async function listUsersForAdminByRole(
     modelLevelOverride?: ReturnType<typeof parseAdminModelLevelOverride>;
     /** 模特列表：自动计算等级 */
     modelLevel?: ModelLevelInfo | null;
+    /** 模特列表：模卡/作品集/风格定位待审图片数 */
+    contentReviewPending?: ContentReviewPendingCounts | null;
   }>;
   total: number;
   page: number;
@@ -246,6 +255,19 @@ export async function listUsersForAdminByRole(
               profileAuditStatus: row.profile_audit_status,
               isPlatformFeatured: row.model_is_platform_featured
             })
+          : null,
+      contentReviewPending:
+        Number(row.role) === 1
+          ? buildContentReviewPendingCounts(
+              row.model_card_json ?? null,
+              row.model_portfolio_json ?? null,
+              row.model_style_position_json ?? null,
+              {
+                card: row.card_review_status,
+                portfolio: row.portfolio_review_status,
+                stylePosition: row.style_position_review_status
+              }
+            )
           : null
     })),
     total,
@@ -298,14 +320,22 @@ function toDateYmd(value: unknown): string | null {
 }
 
 type AdminModelCardPayload = {
-  photoAngles: Array<{ key: string; label?: string; url?: string; width?: number; height?: number }>;
+  photoAngles: Array<{
+    key: string;
+    label?: string;
+    url?: string;
+    width?: number;
+    height?: number;
+    reviewStatus?: number;
+    rejectReason?: string;
+  }>;
   measurements: Record<string, unknown>;
   hairColor: string;
   skinColor: string;
 };
 
 type AdminStylePositionPayload = {
-  photos: Array<{ id: string; url: string }>;
+  photos: Array<{ id: string; url: string; reviewStatus?: number; rejectReason?: string }>;
 };
 
 function parseCardJson(raw: unknown): AdminModelCardPayload {
@@ -330,13 +360,25 @@ function parseCardJson(raw: unknown): AdminModelCardPayload {
     skinColor?: unknown;
   };
   const photoAngles = Array.isArray(obj.photoAngles)
-    ? obj.photoAngles.filter((x) => x && typeof x === "object").map((x) => x as {
-        key: string;
-        label?: string;
-        url?: string;
-        width?: number;
-        height?: number;
-      })
+    ? obj.photoAngles
+        .filter((x) => x && typeof x === "object")
+        .map((x) => {
+          const row = x as Record<string, unknown>;
+          const next: AdminModelCardPayload["photoAngles"][number] = {
+            key: String(row.key || ""),
+            label: row.label != null ? String(row.label) : undefined,
+            url: row.url != null ? String(row.url) : undefined,
+            width: row.width != null ? Number(row.width) : undefined,
+            height: row.height != null ? Number(row.height) : undefined
+          };
+          if (row.reviewStatus != null && Number.isFinite(Number(row.reviewStatus))) {
+            next.reviewStatus = Number(row.reviewStatus);
+          }
+          const rejectReason = row.rejectReason != null ? String(row.rejectReason).trim() : "";
+          if (rejectReason) next.rejectReason = rejectReason;
+          return next;
+        })
+        .filter((x) => x.key)
     : [];
   const measurements =
     obj.measurements && typeof obj.measurements === "object" && !Array.isArray(obj.measurements)
@@ -373,12 +415,18 @@ function parseStylePositionJson(raw: unknown): AdminStylePositionPayload {
           const row = x as Record<string, unknown>;
           const url = String(row.url || "").trim();
           if (!url) return null;
-          return {
+          const next: AdminStylePositionPayload["photos"][number] = {
             id: String(row.id || `style_${index}`),
             url
           };
+          if (row.reviewStatus != null && Number.isFinite(Number(row.reviewStatus))) {
+            next.reviewStatus = Number(row.reviewStatus);
+          }
+          const rejectReason = row.rejectReason != null ? String(row.rejectReason).trim() : "";
+          if (rejectReason) next.rejectReason = rejectReason;
+          return next;
         })
-        .filter((x): x is { id: string; url: string } => Boolean(x))
+        .filter((x): x is AdminStylePositionPayload["photos"][number] => Boolean(x))
     : [];
   return { photos };
 }
@@ -443,6 +491,35 @@ function parseOrderSettingsJson(
   };
 }
 
+export async function reviewModelContentForAdmin(
+  targetUserId: number,
+  section: ModelContentReviewSection,
+  decision: "approve" | "reject",
+  rejectReason?: string,
+  photoIds?: string[]
+): Promise<{ section: ModelContentReviewSection; status: number; updatedCount: number }> {
+  const trimmed = rejectReason?.trim() ?? "";
+  if (decision === "reject" && !trimmed) {
+    throw new AppError("请填写驳回原因", 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  const updatedCount = await applyModelContentReviewDecision(
+    targetUserId,
+    section,
+    decision,
+    decision === "approve" ? null : trimmed,
+    photoIds
+  );
+  if (updatedCount <= 0) {
+    throw new AppError("没有可审核的待审图片", 409, ErrorCodes.CONFLICT);
+  }
+  const detail = await getModelBasicDetailForAdmin(targetUserId);
+  return {
+    section,
+    status: detail.contentReview[section].status,
+    updatedCount
+  };
+}
+
 export async function reviewModelProfileAuditForAdmin(
   targetUserId: number,
   decision: "approve" | "reject",
@@ -497,6 +574,44 @@ export async function setModelPlatformFeaturedForAdmin(
     throw new AppError("model user not found", 404, ErrorCodes.NOT_FOUND);
   }
   return { isPlatformFeatured: featured };
+}
+
+export async function setModelAccountStatusForAdmin(
+  modelUserId: number,
+  status: 1 | 2
+): Promise<{ status: number }> {
+  const model = await findModelBasicDetailForAdminByUserId(modelUserId);
+  if (!model) {
+    throw new AppError("model user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  const currentStatus = Number(model.status ?? 0);
+  if (currentStatus !== 1 && currentStatus !== 2) {
+    throw new AppError("当前账号状态不可禁用/启用（仅正常或禁用状态可操作）", 409, ErrorCodes.CONFLICT);
+  }
+  const ok = await updateModelAccountStatusForAdmin(modelUserId, status);
+  if (!ok) {
+    throw new AppError("更新模特账号状态失败", 500, ErrorCodes.INTERNAL_ERROR);
+  }
+  return { status };
+}
+
+export async function setBrokerAccountStatusForAdmin(
+  brokerUserId: number,
+  status: 1 | 2
+): Promise<{ status: number }> {
+  const broker = await findBrokerBasicDetailForAdminByUserId(brokerUserId);
+  if (!broker) {
+    throw new AppError("broker user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  const currentStatus = Number(broker.status ?? 0);
+  if (currentStatus !== 1 && currentStatus !== 2) {
+    throw new AppError("当前账号状态不可禁用/启用（仅正常或禁用状态可操作）", 409, ErrorCodes.CONFLICT);
+  }
+  const ok = await updateBrokerAccountStatusForAdmin(brokerUserId, status);
+  if (!ok) {
+    throw new AppError("更新经纪人账号状态失败", 500, ErrorCodes.INTERNAL_ERROR);
+  }
+  return { status };
 }
 
 export async function setModelPhotosDisabledForAdmin(
@@ -641,13 +756,14 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
   photosDisabled: boolean;
   modelLevelOverride: ReturnType<typeof parseAdminModelLevelOverride>;
   modelLevel: ModelLevelInfo;
+  contentReview: ModelContentReviewState;
 }> {
   const row = await findModelBasicDetailForAdminByUserId(userId);
   if (!row) {
     throw new AppError("model user not found", 404, ErrorCodes.NOT_FOUND);
   }
   const categories = await findModelCategoriesForAdminByUserId(userId);
-  const card = enrichCardFromProfile(parseCardJson(row.card_json), {
+  const cardEnriched = enrichCardFromProfile(parseCardJson(row.card_json), {
     height: row.height,
     weight: row.weight,
     bust: row.bust,
@@ -657,8 +773,24 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     hair_color: row.hair_color,
     skin_tone: row.skin_tone
   }) as AdminModelCardPayload;
-  const portfolio = normalizePortfolioFromStorage(row.portfolio_json, { stripNonRemoteUrls: false });
-  const stylePosition = parseStylePositionJson(row.style_position_json);
+  const card = materializeLegacyPhotoReviewsInPayload(
+    "card",
+    cardEnriched as Record<string, unknown>,
+    row.card_review_status
+  ) as AdminModelCardPayload;
+  const portfolio = materializeLegacyPhotoReviewsInPayload(
+    "portfolio",
+    normalizePortfolioFromStorage(row.portfolio_json, { stripNonRemoteUrls: false }) as Record<
+      string,
+      unknown
+    >,
+    row.portfolio_review_status
+  ) as ReturnType<typeof normalizePortfolioFromStorage>;
+  const stylePosition = materializeLegacyPhotoReviewsInPayload(
+    "stylePosition",
+    parseStylePositionJson(row.style_position_json) as Record<string, unknown>,
+    row.style_position_review_status
+  ) as AdminStylePositionPayload;
   const isPlatformFeatured = Boolean(Number(row.is_platform_featured ?? 0));
   const photosDisabled = Boolean(Number(row.photos_disabled ?? 0));
   const modelLevelOverride = parseAdminModelLevelOverride(row.model_level_override);
@@ -752,7 +884,12 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
       modelLevelOverride,
       profileAuditStatus: row.profile_audit_status,
       isPlatformFeatured
-    })
+    }),
+    contentReview: buildContentReviewState(
+      card as Record<string, unknown>,
+      portfolio as Record<string, unknown>,
+      stylePosition as Record<string, unknown>
+    )
   };
 }
 

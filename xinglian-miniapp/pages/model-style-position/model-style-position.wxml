@@ -1,8 +1,11 @@
 <view class="page page-themed-root">
+  <view wx:if="{{reviewBannerText}}" class="content-review-banner content-review-banner--{{reviewBannerType}}">
+    {{reviewBannerText}}
+  </view>
   <view class="top-bar">
     <view class="top-bar-text">
       <text class="top-title">风格定位</text>
-      <text class="top-sub">上传能代表个人风格、气质和商业拍摄方向的图片，最多 100 张，一次最多 9 张，单张照片不能超过5M。</text>
+      <text class="top-sub">上传能代表个人风格、气质和商业拍摄方向的图片，最多 100 张；支持调整顺序与删除，单张不能超过5M。</text>
     </view>
     <view class="top-add-photo" bindtap="choosePhotos">+ 图片</view>
   </view>
@@ -32,11 +35,17 @@
           bindtap="previewPhoto"
         />
         <view
-          class="delete-hit"
-          catchtap="removePhoto"
+          class="more-hit"
+          catchtap="onPhotoMore"
           data-photo-id="{{item.id}}"
         >
-          <text class="delete-mark">×</text>
+          <text class="more-dots">···</text>
+        </view>
+        <view
+          wx:if="{{item.reviewBadgeText}}"
+          class="photo-review-badge photo-review-badge--{{item.reviewBadgeType}}"
+        >
+          {{item.reviewBadgeText}}
         </view>
       </view>
 

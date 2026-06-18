@@ -3,7 +3,13 @@ import { AppError } from "../../core/errors/app-error";
 
 /** 每个文件夹可有独立封面：指向该文件夹内某张照片 id */
 export type PortfolioFolder = { id: string; name: string; coverPhotoId?: string };
-export type PortfolioPhoto = { id: string; folderId: string; url: string };
+export type PortfolioPhoto = {
+  id: string;
+  folderId: string;
+  url: string;
+  reviewStatus?: number;
+  rejectReason?: string;
+};
 
 type PortfolioPhotoDraft = PortfolioPhoto & { isCover?: boolean };
 
@@ -117,11 +123,19 @@ export function normalizePortfolioFromStorage(
     }
     if (!folderId || !folderIdsFinal.has(folderId)) return;
 
+    const reviewStatusRaw = po.reviewStatus;
+    const reviewStatus =
+      reviewStatusRaw != null && Number.isFinite(Number(reviewStatusRaw))
+        ? Number(reviewStatusRaw)
+        : undefined;
+    const rejectReasonRaw = po.rejectReason != null ? String(po.rejectReason).trim() : "";
     photos.push({
       id,
       folderId,
       url,
-      isCover: Boolean(po.isCover)
+      isCover: Boolean(po.isCover),
+      ...(reviewStatus != null ? { reviewStatus } : {}),
+      ...(rejectReasonRaw ? { rejectReason: rejectReasonRaw } : {})
     });
   });
 
@@ -139,7 +153,16 @@ export function normalizePortfolioFromStorage(
     if (fd && !fd.coverPhotoId) fd.coverPhotoId = globalMarked.id;
   }
 
-  const photosOut: PortfolioPhoto[] = photos.map(({ isCover: _drop, ...rest }) => rest);
+  const photosOut: PortfolioPhoto[] = photos.map(({ isCover: _drop, ...rest }) => {
+    const next: PortfolioPhoto = {
+      id: rest.id,
+      folderId: rest.folderId,
+      url: rest.url
+    };
+    if (rest.reviewStatus != null) next.reviewStatus = rest.reviewStatus;
+    if (rest.rejectReason) next.rejectReason = rest.rejectReason;
+    return next;
+  });
   const foldersOut = finalizeFolderCovers(folders, photosOut);
 
   return { folders: foldersOut, photos: photosOut };
@@ -181,8 +204,18 @@ export function normalizePortfolioForPersist(payload: Record<string, unknown>): 
     }
   }
 
+  const photosOut = photos.map((photo) => {
+    const next: PortfolioPhoto = {
+      id: photo.id,
+      folderId: photo.folderId,
+      url: photo.url
+    };
+    if (photo.reviewStatus != null) next.reviewStatus = photo.reviewStatus;
+    if (photo.rejectReason) next.rejectReason = photo.rejectReason;
+    return next;
+  });
   return {
-    folders: finalizeFolderCovers(folders, photos),
-    photos
+    folders: finalizeFolderCovers(folders, photosOut),
+    photos: photosOut
   };
 }

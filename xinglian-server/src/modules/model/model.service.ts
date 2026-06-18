@@ -15,11 +15,21 @@ import {
   trySetModelProfileAuditPending,
   updateBasicInfo,
   updateExtraJson,
+  updateModelExtraSectionWithReview,
+  approveAllModelContentReviewForAdmin,
   updateOrderSettings,
   updatePricing,
   syncModelProfileFromCard,
   updateUserPhone
 } from "./model.repository";
+import {
+  buildContentReviewState,
+  deriveSectionReviewFromPhotos,
+  extractSectionPhotos,
+  materializeLegacyPhotoReviewsInPayload,
+  mergeSectionPhotoReviewsOnSave,
+  stripSectionPhotosForPublic
+} from "./model-content-review";
 import { ErrorCodes } from "../../core/constants/error-codes";
 import { AppError } from "../../core/errors/app-error";
 import { getHomeStatOffsets } from "../system-settings/system-settings.service";
@@ -54,15 +64,32 @@ function isPhotosDisabledFlag(value: unknown): boolean {
   return Boolean(Number(value ?? 0));
 }
 
-/** 用户端公开接口：禁用后清空模卡/作品集/形象定位 */
-function stripModelPhotosForPublic<T extends Record<string, unknown>>(payload: T, photosDisabled: boolean): T {
-  if (!photosDisabled) return payload;
+/** 用户端公开接口：仅展示审核通过的单张图片；身材数据等非图片内容始终可见 */
+function stripModelPhotosForPublic<T extends Record<string, unknown>>(
+  payload: T,
+  photosDisabled: boolean
+): T {
+  if (photosDisabled) {
+    return {
+      ...payload,
+      card: { ...(payload.card as Record<string, unknown>), photoAngles: [] },
+      portfolio: EMPTY_PUBLIC_PORTFOLIO,
+      stylePosition: EMPTY_PUBLIC_STYLE_POSITION
+    };
+  }
+  const cardRaw = (payload.card as Record<string, unknown>) || {};
   return {
     ...payload,
-    card: EMPTY_PUBLIC_CARD,
-    portfolio: EMPTY_PUBLIC_PORTFOLIO,
-    stylePosition: EMPTY_PUBLIC_STYLE_POSITION
-  };
+    card: stripSectionPhotosForPublic("card", cardRaw),
+    portfolio: stripSectionPhotosForPublic(
+      "portfolio",
+      (payload.portfolio as Record<string, unknown>) || {}
+    ),
+    stylePosition: stripSectionPhotosForPublic(
+      "stylePosition",
+      (payload.stylePosition as Record<string, unknown>) || {}
+    )
+  } as T;
 }
 
 function formatDateKey(date: Date): string {
@@ -337,7 +364,10 @@ export async function getMerchantModelList(query: MerchantModelListQuery = {}): 
       const stylePosition = normalizeStylePositionFromStorage(parseJsonField(row.style_position_json));
       const card = { photoAngles, measurements };
       const isPlatformFeatured = Boolean(Number(row.is_platform_featured ?? 0));
-      const photosDisabled = isPhotosDisabledFlag(row.photos_disabled);
+      const publicBundle = stripModelPhotosForPublic(
+        { card, portfolio, stylePosition },
+        isPhotosDisabledFlag(row.photos_disabled)
+      );
       const categoryIds = String(row.category_ids || "")
         .split(",")
         .map((s) => Number(s.trim()))
@@ -365,14 +395,14 @@ export async function getMerchantModelList(query: MerchantModelListQuery = {}): 
         profileAuditStatus: Number(row.profile_audit_status || 0),
         isPlatformFeatured,
         modelLevel: buildModelLevel({
-          card,
-          portfolio,
-          stylePosition,
+          card: publicBundle.card as Record<string, unknown>,
+          portfolio: publicBundle.portfolio as { folders: unknown[]; photos: unknown[] },
+          stylePosition: publicBundle.stylePosition as { photos: unknown[] },
           modelLevelOverride: row.model_level_override,
           profileAuditStatus: row.profile_audit_status,
           isPlatformFeatured
         }),
-        card: photosDisabled ? EMPTY_PUBLIC_CARD : card
+        card: publicBundle.card as typeof card
       };
     })
   };
@@ -410,41 +440,56 @@ function parseJsonField(value: unknown): Record<string, unknown> | null {
   return parsed as Record<string, unknown>;
 }
 
-function normalizeStylePositionFromStorage(value: unknown): { photos: Array<{ id: string; url: string }> } {
+type StylePositionPhoto = {
+  id: string;
+  url: string;
+  reviewStatus?: number;
+  rejectReason?: string;
+};
+
+function normalizeStylePositionPhoto(
+  row: Record<string, unknown>,
+  fallbackId: string
+): StylePositionPhoto | null {
+  const url = String(row.url || "").trim();
+  if (!url) return null;
+  const next: StylePositionPhoto = {
+    id: String(row.id || fallbackId).slice(0, 80),
+    url
+  };
+  const reviewStatusRaw = row.reviewStatus;
+  if (reviewStatusRaw != null && Number.isFinite(Number(reviewStatusRaw))) {
+    next.reviewStatus = Number(reviewStatusRaw);
+  }
+  const rejectReason = row.rejectReason != null ? String(row.rejectReason).trim() : "";
+  if (rejectReason) next.rejectReason = rejectReason;
+  return next;
+}
+
+function normalizeStylePositionFromStorage(value: unknown): { photos: StylePositionPhoto[] } {
   const parsed = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
   const rawPhotos = Array.isArray(parsed.photos) ? parsed.photos : [];
   return {
     photos: rawPhotos
       .filter((item) => item && typeof item === "object")
-      .map((item, index) => {
-        const row = item as Record<string, unknown>;
-        const url = String(row.url || "").trim();
-        if (!url) return null;
-        return {
-          id: String(row.id || `style_${index}`),
-          url
-        };
-      })
-      .filter((item): item is { id: string; url: string } => Boolean(item))
+      .map((item, index) => normalizeStylePositionPhoto(item as Record<string, unknown>, `style_${index}`))
+      .filter((item): item is StylePositionPhoto => Boolean(item))
       .slice(0, 100)
   };
 }
 
-function normalizeStylePositionForPersist(payload: Record<string, unknown>): { photos: Array<{ id: string; url: string }> } {
+function normalizeStylePositionForPersist(payload: Record<string, unknown>): { photos: StylePositionPhoto[] } {
   const rawPhotos = Array.isArray(payload.photos) ? payload.photos : [];
   return {
     photos: rawPhotos
       .filter((item) => item && typeof item === "object")
-      .map((item, index) => {
-        const row = item as Record<string, unknown>;
-        const url = String(row.url || "").trim();
-        if (!url) return null;
-        return {
-          id: String(row.id || `style_${Date.now()}_${index}`).slice(0, 80),
-          url
-        };
-      })
-      .filter((item): item is { id: string; url: string } => Boolean(item))
+      .map((item, index) =>
+        normalizeStylePositionPhoto(
+          item as Record<string, unknown>,
+          `style_${Date.now()}_${index}`
+        )
+      )
+      .filter((item): item is StylePositionPhoto => Boolean(item))
       .slice(0, 100)
   };
 }
@@ -532,7 +577,6 @@ export async function getModelPublicDetail(
     skin_tone: row.skin_tone
   });
   const isPlatformFeatured = Boolean(Number(row.is_platform_featured ?? 0));
-  const photosDisabled = isPhotosDisabledFlag(row.photos_disabled);
   const scheduleRaw = parseJsonField(row.schedule_json) || { scheduleMap: {} };
   const scheduleMap = normalizeScheduleMap(scheduleRaw.scheduleMap);
   const orderSettingsRaw = parseJsonField(row.order_settings_json);
@@ -548,45 +592,50 @@ export async function getModelPublicDetail(
   const gender = row.profile_gender === 1 ? "男" : "女";
   const honors = await listHonorsForPublicDisplay(row.id);
 
-  return stripModelPhotosForPublic(
-    {
-      userId: row.id,
-      userNo: row.user_no,
-      nickname: row.nickname || `模特${row.user_no}`,
-      avatarUrl: row.avatar_url || "",
-      city: row.city || "",
-      intro: row.intro || "",
-      gender,
-      price: {
-        hourly: row.price_hour,
-        halfDay: row.price_halfday,
-        fullDay: row.price_allday
-      },
-      profileAuditStatus: Number(row.profile_audit_status || 0),
-      isPlatformFeatured,
-      modelLevel: buildModelLevel({
-        card: enrichedCard,
-        portfolio,
-        stylePosition,
-        modelLevelOverride: row.model_level_override,
-        profileAuditStatus: row.profile_audit_status,
-        isPlatformFeatured
-      }),
-      card: enrichedCard,
-      portfolio,
-      stylePosition,
-      honors,
-      schedule: {
-        scheduleMap
-      },
-      orderSettings: {
-        orderEnabled: Boolean(orderSettings.orderEnabled ?? row.is_available),
-        onlyLocal: Boolean(orderSettings.onlyLocal ?? row.only_local_orders),
-        onlyFemale: Boolean(orderSettings.onlyFemale ?? row.only_female_clients)
-      }
-    },
-    photosDisabled
+  const publicBundle = stripModelPhotosForPublic(
+    { card: enrichedCard, portfolio, stylePosition },
+    isPhotosDisabledFlag(row.photos_disabled)
   );
+  const publicCard = publicBundle.card as Record<string, unknown>;
+  const publicPortfolio = publicBundle.portfolio as { folders: unknown[]; photos: unknown[] };
+  const publicStylePosition = publicBundle.stylePosition as { photos: unknown[] };
+
+  return {
+    userId: row.id,
+    userNo: row.user_no,
+    nickname: row.nickname || `模特${row.user_no}`,
+    avatarUrl: row.avatar_url || "",
+    city: row.city || "",
+    intro: row.intro || "",
+    gender,
+    price: {
+      hourly: row.price_hour,
+      halfDay: row.price_halfday,
+      fullDay: row.price_allday
+    },
+    profileAuditStatus: Number(row.profile_audit_status || 0),
+    isPlatformFeatured,
+    modelLevel: buildModelLevel({
+      card: publicCard,
+      portfolio: publicPortfolio,
+      stylePosition: publicStylePosition,
+      modelLevelOverride: row.model_level_override,
+      profileAuditStatus: row.profile_audit_status,
+      isPlatformFeatured
+    }),
+    card: publicCard,
+    portfolio: publicPortfolio,
+    stylePosition: publicStylePosition,
+    honors,
+    schedule: {
+      scheduleMap
+    },
+    orderSettings: {
+      orderEnabled: Boolean(orderSettings.orderEnabled ?? row.is_available),
+      onlyLocal: Boolean(orderSettings.onlyLocal ?? row.only_local_orders),
+      onlyFemale: Boolean(orderSettings.onlyFemale ?? row.only_female_clients)
+    }
+  };
 }
 
 export async function getModelData(userId: number): Promise<Record<string, unknown>> {
@@ -602,11 +651,27 @@ export async function getModelData(userId: number): Promise<Record<string, unkno
   const categoryIds = await findMyCategoryIds(userId);
   const cardRaw =
     (parseJsonColumn(extra?.card_json) as Record<string, unknown> | null) || { photoAngles: [], measurements: {} };
-  const card = enrichCardFromProfile(cardRaw, profile);
-  const portfolio = normalizePortfolioFromStorage(parseJsonColumn(extra?.portfolio_json), {
-    stripNonRemoteUrls: false
-  });
-  const stylePosition = normalizeStylePositionFromStorage(parseJsonColumn(extra?.style_position_json));
+  const cardEnriched = enrichCardFromProfile(cardRaw, profile);
+  const card = materializeLegacyPhotoReviewsInPayload(
+    "card",
+    cardEnriched,
+    extra?.card_review_status
+  );
+  const portfolio = materializeLegacyPhotoReviewsInPayload(
+    "portfolio",
+    normalizePortfolioFromStorage(parseJsonColumn(extra?.portfolio_json), {
+      stripNonRemoteUrls: false
+    }) as Record<string, unknown>,
+    extra?.portfolio_review_status
+  );
+  const stylePosition = materializeLegacyPhotoReviewsInPayload(
+    "stylePosition",
+    normalizeStylePositionFromStorage(parseJsonColumn(extra?.style_position_json)) as Record<
+      string,
+      unknown
+    >,
+    extra?.style_position_review_status
+  );
   const isPlatformFeatured = Boolean(Number(profile?.is_platform_featured ?? 0));
   const scheduleRaw =
     (parseJsonColumn(extra?.schedule_json) as Record<string, unknown> | null) || { scheduleMap: {} };
@@ -653,9 +718,20 @@ export async function getModelData(userId: number): Promise<Record<string, unkno
     stylePosition,
     honors,
     schedule,
-    orderSettings
+    orderSettings,
+    contentReview: buildContentReviewState(
+      card as Record<string, unknown>,
+      portfolio as Record<string, unknown>,
+      stylePosition as Record<string, unknown>
+    )
   };
 }
+
+export type SaveModelContentOptions = {
+  autoApprove?: boolean;
+  /** 后管显式清空模卡/作品/风格照片时为 true；默认不允许一次保存抹掉全部已有照片 */
+  allowClearAllPhotos?: boolean;
+};
 
 export async function saveBasicInfo(userId: number, payload: Record<string, unknown>): Promise<void> {
   await ensureModelProfile(userId);
@@ -669,23 +745,108 @@ export async function saveCategories(userId: number, payload: Record<string, unk
   await replaceMyCategoryIds(userId, ids);
 }
 
-export async function saveCard(userId: number, payload: Record<string, unknown>): Promise<void> {
+function parseStoredExtraPayload(raw: unknown): Record<string, unknown> {
+  if (raw == null) return {};
+  if (Buffer.isBuffer(raw)) {
+    try {
+      const parsed = JSON.parse(raw.toString("utf8")) as unknown;
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (!s) return {};
+    try {
+      const parsed = JSON.parse(s) as unknown;
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+export async function saveCard(
+  userId: number,
+  payload: Record<string, unknown>,
+  options?: SaveModelContentOptions
+): Promise<void> {
   await ensureModelProfile(userId);
   await ensureModelExtra(userId);
-  await updateExtraJson(userId, "card_json", payload);
+  const extra = await findModelExtra(userId);
+  const oldPayload = parseStoredExtraPayload(extra?.card_json);
+  const merged = mergeSectionPhotoReviewsOnSave("card", oldPayload, payload, options);
+  const oldPhotoCount = extractSectionPhotos("card", oldPayload).filter((photo) =>
+    String(photo.url || "").trim()
+  ).length;
+  const mergedPhotoCount = extractSectionPhotos("card", merged).filter((photo) =>
+    String(photo.url || "").trim()
+  ).length;
+  if (oldPhotoCount > 0 && mergedPhotoCount === 0 && !options?.allowClearAllPhotos) {
+    throw new AppError("不能清空已有模卡照片", 409, ErrorCodes.CONFLICT);
+  }
+  const derived = deriveSectionReviewFromPhotos(extractSectionPhotos("card", merged));
+  await updateModelExtraSectionWithReview(
+    userId,
+    "card",
+    merged,
+    derived.status,
+    derived.rejectReason
+  );
   await syncModelProfileFromCard(userId, payload);
 }
 
-export async function savePortfolio(userId: number, payload: Record<string, unknown>): Promise<void> {
+export async function savePortfolio(
+  userId: number,
+  payload: Record<string, unknown>,
+  options?: SaveModelContentOptions
+): Promise<void> {
   await ensureModelExtra(userId);
+  const extra = await findModelExtra(userId);
   const canonical = normalizePortfolioForPersist(payload);
-  await updateExtraJson(userId, "portfolio_json", canonical);
+  const oldPayload = parseStoredExtraPayload(extra?.portfolio_json);
+  const merged = mergeSectionPhotoReviewsOnSave("portfolio", oldPayload, canonical, options);
+  const derived = deriveSectionReviewFromPhotos(extractSectionPhotos("portfolio", merged));
+  await updateModelExtraSectionWithReview(
+    userId,
+    "portfolio",
+    merged,
+    derived.status,
+    derived.rejectReason
+  );
 }
 
-export async function saveStylePosition(userId: number, payload: Record<string, unknown>): Promise<void> {
+export async function saveStylePosition(
+  userId: number,
+  payload: Record<string, unknown>,
+  options?: SaveModelContentOptions
+): Promise<void> {
   await ensureModelExtra(userId);
+  const extra = await findModelExtra(userId);
   const canonical = normalizeStylePositionForPersist(payload);
-  await updateExtraJson(userId, "style_position_json", canonical);
+  const oldPayload = parseStoredExtraPayload(extra?.style_position_json);
+  const merged = mergeSectionPhotoReviewsOnSave("stylePosition", oldPayload, canonical, options);
+  const derived = deriveSectionReviewFromPhotos(extractSectionPhotos("stylePosition", merged));
+  await updateModelExtraSectionWithReview(
+    userId,
+    "stylePosition",
+    merged,
+    derived.status,
+    derived.rejectReason
+  );
+}
+
+export async function approveAllModelContentForAdmin(userId: number): Promise<void> {
+  await approveAllModelContentReviewForAdmin(userId);
 }
 
 export async function savePricing(userId: number, payload: Record<string, unknown>): Promise<void> {

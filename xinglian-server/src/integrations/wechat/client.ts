@@ -5,6 +5,35 @@ import { AppError } from "../../core/errors/app-error";
 /** 微信 URL Link：expire_type=1 时 expire_interval 最大天数（官方上限 30，不可永久） */
 export const WECHAT_URL_LINK_MAX_EXPIRE_DAYS = 30;
 
+const RETRIABLE_WECHAT_NETWORK_CODES = new Set(["ETIMEDOUT", "ECONNRESET", "EPIPE", "ECONNREFUSED"]);
+
+function isRetriableWechatNetworkError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException)?.code;
+  return code != null && RETRIABLE_WECHAT_NETWORK_CODES.has(code);
+}
+
+/** 避免 undici 复用失效连接导致 read ETIMEDOUT；网络抖动时自动重试一次 */
+export async function wechatFetch(
+  url: string,
+  init: RequestInit = {},
+  retries = 2
+): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    try {
+      const headers = new Headers(init.headers);
+      headers.set("Connection", "close");
+      return await fetch(url, { ...init, headers });
+    } catch (error) {
+      lastError = error;
+      if (!isRetriableWechatNetworkError(error) || attempt === retries - 1) {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
 let cachedAccessToken = "";
 let cachedAccessTokenExpireAt = 0;
 
@@ -14,16 +43,27 @@ export async function getWechatAccessToken(forceRefresh = false): Promise<string
     return cachedAccessToken;
   }
 
-  const response = await fetch("https://api.weixin.qq.com/cgi-bin/stable_token", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-    grant_type: "client_credential",
-    appid: env.wechat.appId,
-      secret: env.wechat.appSecret,
-      force_refresh: forceRefresh
-    })
-  });
+  let response: Response;
+  try {
+    response = await wechatFetch("https://api.weixin.qq.com/cgi-bin/stable_token", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "client_credential",
+        appid: env.wechat.appId,
+        secret: env.wechat.appSecret,
+        force_refresh: forceRefresh
+      })
+    });
+  } catch (error) {
+    throw new AppError(
+      isRetriableWechatNetworkError(error)
+        ? "微信服务连接超时，请稍后重试"
+        : `get wechat access_token failed: ${(error as Error).message}`,
+      502,
+      ErrorCodes.UPSTREAM_ERROR
+    );
+  }
   const result = (await response.json()) as {
     access_token?: string;
     expires_in?: number;
@@ -92,7 +132,7 @@ export async function generateWechatUrlLink(
   }
 
   async function requestUrlLink(token: string) {
-    return fetch(`https://api.weixin.qq.com/wxa/generate_urllink?access_token=${token}`, {
+    return wechatFetch(`https://api.weixin.qq.com/wxa/generate_urllink?access_token=${token}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body)
@@ -150,7 +190,7 @@ export async function generateUnlimitedWxacode(
   };
 
   async function requestWxacode(token: string) {
-    return fetch(`https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${token}`, {
+    return wechatFetch(`https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${token}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body)

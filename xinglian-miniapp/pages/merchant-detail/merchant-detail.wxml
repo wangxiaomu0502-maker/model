@@ -1,0 +1,45 @@
+<view class="profile-detail-page profile-detail-page--merchant">
+  <view wx:if="{{loading}}" class="profile-state">加载中…</view>
+  <view wx:elif="{{loadError}}" class="profile-state">{{loadError}}</view>
+  <view wx:elif="{{merchant}}" class="profile-detail-body">
+    <view class="profile-hero">
+      <view class="profile-hero-avatar-wrap">
+        <image
+          wx:if="{{merchant.showAvatarImg}}"
+          class="profile-hero-avatar"
+          src="{{merchant.avatarUrl}}"
+          mode="aspectFill"
+        />
+        <view wx:else class="profile-hero-fallback">{{merchant.avatarText}}</view>
+      </view>
+      <text class="profile-hero-kicker">MERCHANT</text>
+      <text class="profile-hero-name">{{merchant.nickname}}</text>
+      <text class="profile-hero-sub">{{merchant.city || "城市未填"}}</text>
+    </view>
+
+    <view class="profile-card">
+      <text class="profile-card-title">基本信息</text>
+      <view class="profile-row">
+        <text class="profile-row-label">所在城市</text>
+        <text class="profile-row-value">{{merchant.city || "未填写"}}</text>
+      </view>
+      <view class="profile-row">
+        <text class="profile-row-label">入驻时间</text>
+        <text class="profile-row-value">{{merchant.joinedAtText}}</text>
+      </view>
+      <view class="profile-row" wx:if="{{merchant.broker}}">
+        <text class="profile-row-label">绑定经纪人</text>
+        <text
+          class="profile-row-value profile-row-value--link"
+          data-user-no="{{merchant.broker.userNo}}"
+          bindtap="goBrokerDetail"
+        >{{merchant.broker.nickname}}</text>
+      </view>
+    </view>
+
+    <view class="profile-card">
+      <text class="profile-card-title">简介</text>
+      <text class="profile-desc">星链模库合作商家，可通过平台预约模特、发布商单需求。</text>
+    </view>
+  </view>
+</view>

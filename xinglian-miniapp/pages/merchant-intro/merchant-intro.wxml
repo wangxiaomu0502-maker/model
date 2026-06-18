@@ -1,0 +1,48 @@
+<view class="merchant-intro-page">
+  <view class="intro-hero">
+    <text class="intro-kicker">MERCHANT NETWORK</text>
+    <text class="intro-title">商家介绍</text>
+    <text class="intro-desc">星链模库服务品牌、工作室与各类商业客户，提供模特筛选、下单预约与履约协同。</text>
+    <view class="intro-hero-stat">
+      <text class="intro-hero-stat-num">{{merchantCount}}</text>
+      <text class="intro-hero-stat-label">平台注册客户</text>
+    </view>
+  </view>
+
+  <view class="intro-card">
+    <view class="intro-card-head">
+      <text class="intro-section-title">商家地域</text>
+      <text class="intro-section-sub">各地区活跃客户数（展示数据）</text>
+    </view>
+    <view wx:if="{{loading}}" class="intro-loading">加载中…</view>
+    <view wx:else class="region-list">
+      <view wx:for="{{regionStats}}" wx:key="name" class="region-row">
+        <view class="region-top">
+          <text class="region-name">{{item.name}}</text>
+          <text class="region-count">{{item.count}} 家</text>
+        </view>
+        <view class="region-bar-track">
+          <view class="region-bar-fill" style="width: {{item.barWidth}}%;"></view>
+        </view>
+      </view>
+    </view>
+    <text class="intro-footnote">地域分布为平台展示口径，随注册与活跃情况动态调整。</text>
+  </view>
+
+  <view class="intro-card">
+    <text class="intro-section-title">平台介绍</text>
+    <view wx:for="{{introPoints}}" wx:key="title" class="point-card">
+      <text class="point-title">{{item.title}}</text>
+      <text class="point-desc">{{item.desc}}</text>
+    </view>
+  </view>
+
+  <view class="intro-card intro-card--ethics">
+    <text class="intro-section-title">合作规范</text>
+    <text class="intro-ethics-lead">星链模库倡导商家以诚信、合规、互相尊重为原则开展合作：</text>
+    <view wx:for="{{ethicsPoints}}" wx:key="*this" class="ethics-row">
+      <text class="ethics-dot">·</text>
+      <text class="ethics-text">{{item}}</text>
+    </view>
+  </view>
+</view>

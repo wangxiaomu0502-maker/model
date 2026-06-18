@@ -21,6 +21,8 @@ import brokerRouter from "./modules/broker/broker.routes";
 import walletRouter from "./modules/wallet/wallet.routes";
 import payRouter from "./modules/pay/pay.routes";
 import systemSettingsRouter from "./modules/system-settings/system-settings.routes";
+import commercialShootCenterRouter from "./modules/commercial-shoot-center/commercial-shoot-center.routes";
+import searchRouter from "./modules/search/search.routes";
 
 const app = express();
 
@@ -54,6 +56,8 @@ app.use("/api/broker", brokerRouter);
 app.use("/api/wallet", walletRouter);
 app.use("/api/pay", payRouter);
 app.use("/api/system-settings", systemSettingsRouter);
+app.use("/api/commercial-shoots", commercialShootCenterRouter);
+app.use("/api/search", searchRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
 

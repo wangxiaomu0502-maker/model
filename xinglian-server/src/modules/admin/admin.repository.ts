@@ -2,6 +2,7 @@ import { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { dbPool } from "../../config/db";
 import { type AdminModelLevelOverride } from "../model/model-level";
+import { mexColumnExpr } from "../../shared/model-extra-columns";
 import { hasModelProfilesColumn, mpColumnExpr } from "../../shared/model-profile-columns";
 
 export type AdminUserListRow = RowDataPacket & {
@@ -41,6 +42,9 @@ export type AdminUserListRow = RowDataPacket & {
   model_card_json?: string | null;
   model_portfolio_json?: string | null;
   model_style_position_json?: string | null;
+  card_review_status?: number | string | null;
+  portfolio_review_status?: number | string | null;
+  style_position_review_status?: number | string | null;
 };
 
 export type AdminModelBasicDetailRow = RowDataPacket & {
@@ -92,6 +96,12 @@ export type AdminModelBasicDetailRow = RowDataPacket & {
   style_position_json: string | null;
   schedule_json: string | null;
   order_settings_json: string | null;
+  card_review_status?: number | string | null;
+  card_review_reject_reason?: string | null;
+  portfolio_review_status?: number | string | null;
+  portfolio_review_reject_reason?: string | null;
+  style_position_review_status?: number | string | null;
+  style_position_review_reject_reason?: string | null;
 };
 
 export type AdminModelCategoryRow = RowDataPacket & {
@@ -190,6 +200,9 @@ export async function findUsersPageForAdminByRole(
   const photosDisabledSelect = `${await mpColumnExpr("photos_disabled", "0")} AS model_photos_disabled`;
   const levelOverrideSelect = `${await mpColumnExpr("model_level_override", "NULL")} AS model_level_override`;
   const levelOverrideExpr = await mpColumnExpr("model_level_override", "NULL");
+  const cardReviewSelect = `${await mexColumnExpr("card_review_status", "2")} AS card_review_status`;
+  const portfolioReviewSelect = `${await mexColumnExpr("portfolio_review_status", "2")} AS portfolio_review_status`;
+  const styleReviewSelect = `${await mexColumnExpr("style_position_review_status", "2")} AS style_position_review_status`;
   if (role === 1 && Number.isInteger(filters.modelLevel)) {
     where.push(`${buildModelLevelSql(levelOverrideExpr)} = ?`);
     params.push(Number(filters.modelLevel));
@@ -227,7 +240,10 @@ export async function findUsersPageForAdminByRole(
             ${levelOverrideSelect},
             mex.card_json AS model_card_json,
             mex.portfolio_json AS model_portfolio_json,
-            mex.style_position_json AS model_style_position_json
+            mex.style_position_json AS model_style_position_json,
+            ${cardReviewSelect},
+            ${portfolioReviewSelect},
+            ${styleReviewSelect}
      FROM users u
      LEFT JOIN model_profiles mp ON mp.user_id = u.id
      LEFT JOIN model_extra_data mex ON mex.user_id = u.id
@@ -250,6 +266,12 @@ export async function findModelBasicDetailForAdminByUserId(
   const platformFeaturedExpr = await mpColumnExpr("is_platform_featured", "0");
   const photosDisabledExpr = await mpColumnExpr("photos_disabled", "0");
   const levelOverrideExpr = await mpColumnExpr("model_level_override", "NULL");
+  const cardReviewExpr = await mexColumnExpr("card_review_status", "2");
+  const portfolioReviewExpr = await mexColumnExpr("portfolio_review_status", "2");
+  const styleReviewExpr = await mexColumnExpr("style_position_review_status", "2");
+  const cardReviewReasonExpr = await mexColumnExpr("card_review_reject_reason", "NULL");
+  const portfolioReviewReasonExpr = await mexColumnExpr("portfolio_review_reject_reason", "NULL");
+  const styleReviewReasonExpr = await mexColumnExpr("style_position_review_reject_reason", "NULL");
   const [rows] = await dbPool.query<AdminModelBasicDetailRow[]>(
     `SELECT u.id, u.user_no, u.nickname, u.status, u.agent_user_id, u.avatar_url, u.phone,
             ag.user_no AS agent_user_no, ag.nickname AS agent_nickname,
@@ -266,7 +288,13 @@ export async function findModelBasicDetailForAdminByUserId(
             mp.is_admin_created, ${platformFeaturedExpr} AS is_platform_featured,
             ${photosDisabledExpr} AS photos_disabled,
             ${levelOverrideExpr} AS model_level_override,
-            mex.card_json, mex.portfolio_json, mex.style_position_json, mex.schedule_json, mex.order_settings_json
+            mex.card_json, mex.portfolio_json, mex.style_position_json, mex.schedule_json, mex.order_settings_json,
+            ${cardReviewExpr} AS card_review_status,
+            ${cardReviewReasonExpr} AS card_review_reject_reason,
+            ${portfolioReviewExpr} AS portfolio_review_status,
+            ${portfolioReviewReasonExpr} AS portfolio_review_reject_reason,
+            ${styleReviewExpr} AS style_position_review_status,
+            ${styleReviewReasonExpr} AS style_position_review_reject_reason
      FROM users u
      LEFT JOIN users ag ON ag.id = u.agent_user_id AND ag.deleted_at IS NULL
      LEFT JOIN agent_profiles ap ON ap.user_id = ag.id
@@ -310,6 +338,44 @@ export async function updateModelPlatformFeaturedForAdmin(
          mp.updated_at = CURRENT_TIMESTAMP
      WHERE mp.user_id = ? AND u.role = 1 AND u.deleted_at IS NULL`,
     [featured ? 1 : 0, id]
+  );
+  return result.affectedRows > 0;
+}
+
+export async function updateModelAccountStatusForAdmin(
+  modelUserId: number,
+  status: 1 | 2
+): Promise<boolean> {
+  const id = Math.floor(Number(modelUserId));
+  if (!Number.isFinite(id) || id <= 0) return false;
+  const [result] = await dbPool.query<ResultSetHeader>(
+    `UPDATE users
+     SET status = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?
+       AND role = 1
+       AND deleted_at IS NULL
+       AND status IN (1, 2)`,
+    [status, id]
+  );
+  return result.affectedRows > 0;
+}
+
+export async function updateBrokerAccountStatusForAdmin(
+  brokerUserId: number,
+  status: 1 | 2
+): Promise<boolean> {
+  const id = Math.floor(Number(brokerUserId));
+  if (!Number.isFinite(id) || id <= 0) return false;
+  const [result] = await dbPool.query<ResultSetHeader>(
+    `UPDATE users
+     SET status = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?
+       AND role = 3
+       AND deleted_at IS NULL
+       AND status IN (1, 2)`,
+    [status, id]
   );
   return result.affectedRows > 0;
 }

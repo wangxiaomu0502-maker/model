@@ -1,0 +1,21 @@
+@import "../../styles/profile-detail-page.wxss";
+
+.profile-detail-page--merchant {
+  background:
+    radial-gradient(circle at 88% 10%, rgba(251, 146, 60, 0.18) 0, rgba(251, 146, 60, 0) 260rpx),
+    linear-gradient(180deg, #fff7ed 0%, #f8fafc 100%);
+}
+
+.profile-detail-page--merchant .profile-hero {
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.28) 0, rgba(255, 255, 255, 0) 180rpx),
+    linear-gradient(135deg, #ea580c 0%, #f97316 42%, #9a3412 100%);
+}
+
+.profile-detail-page--merchant .profile-hero-fallback {
+  color: #c2410c;
+}
+
+.profile-row-value--link {
+  color: #2563eb;
+}

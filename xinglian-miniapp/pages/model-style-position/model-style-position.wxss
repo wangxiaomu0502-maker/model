@@ -127,24 +127,25 @@
   display: block;
 }
 
-.delete-hit {
+.more-hit {
   position: absolute;
-  right: 8rpx;
-  top: 8rpx;
-  width: 44rpx;
-  height: 44rpx;
-  border-radius: 50%;
-  background: rgba(15, 23, 42, 0.58);
+  right: 0;
+  bottom: 0;
+  width: 64rpx;
+  height: 56rpx;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 4rpx 10rpx 8rpx;
+  box-sizing: border-box;
 }
 
-.delete-mark {
-  color: #fff;
+.more-dots {
   font-size: 34rpx;
+  font-weight: 700;
+  color: #fff;
   line-height: 1;
-  transform: translateY(-2rpx);
+  text-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.55);
 }
 
 .add-tile {

@@ -18,6 +18,49 @@
   padding: 0;
 }
 
+.content-review-banner {
+  margin-bottom: 16rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 16rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.content-review-banner--pending {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1rpx solid #fcd34d;
+}
+
+.content-review-banner--rejected {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1rpx solid #fecaca;
+}
+
+.photo-review-badge {
+  position: absolute;
+  left: 8rpx;
+  right: 8rpx;
+  bottom: 8rpx;
+  padding: 6rpx 10rpx;
+  border-radius: 10rpx;
+  font-size: 20rpx;
+  line-height: 1.3;
+  text-align: center;
+  z-index: 2;
+}
+
+.photo-review-badge--pending {
+  color: #92400e;
+  background: rgba(255, 251, 235, 0.95);
+}
+
+.photo-review-badge--rejected {
+  color: #b91c1c;
+  background: rgba(254, 242, 242, 0.95);
+}
+
 .page-themed-root .bottom-bar {
   position: fixed;
   left: 0;

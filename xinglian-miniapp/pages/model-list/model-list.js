@@ -51,8 +51,25 @@ Page({
 
   onShow() {
     updateTabBar();
+    const app = getApp();
+    const pending = app.globalData.pendingModelListFilter;
+    let filterState = this.data.filterState;
+    if (pending && pending.ts && Date.now() - pending.ts < 60000) {
+      app.globalData.pendingModelListFilter = null;
+      filterState = {
+        ...defaultModelFilterState(),
+        categoryIds: pending.categoryIds || [],
+        categoryKeyword: pending.categoryKeyword || "",
+        categoryLabel: pending.categoryLabel || "",
+        levelIndex: pending.levelIndex || 0
+      };
+      this.setData({
+        filterState,
+        categoryFilterText: pending.categoryLabel || this.data.categoryFilterText
+      });
+    }
     this.ensureCategoryTreeLoaded();
-    this.loadModelList(this.data.filterState, true);
+    this.loadModelList(filterState, !pending);
   },
 
   preventTouchMove() {},
@@ -97,7 +114,11 @@ Page({
           ...filterPatch,
           loadError: ""
         });
-        this.syncCategoryFilterText(nextFilterState);
+        if (nextFilterState.categoryLabel) {
+          this.setData({ categoryFilterText: nextFilterState.categoryLabel });
+        } else {
+          this.syncCategoryFilterText(nextFilterState);
+        }
       },
       fail: () => {
         this.setData({ modelList: [], loadError: "网络异常，模特列表加载失败" });

@@ -90,6 +90,18 @@ const router = createRouter({
           meta: { title: "合同管理" }
         },
         {
+          path: "commercial-shoot-center",
+          name: "commercial-shoot-center",
+          component: () => import("@/views/CommercialShootCenterView.vue"),
+          meta: { title: "商拍中心", adminOnly: true }
+        },
+        {
+          path: "model-registration-codes",
+          name: "model-registration-codes",
+          component: () => import("@/views/ModelRegistrationCodesView.vue"),
+          meta: { title: "授权码管理", adminOnly: true }
+        },
+        {
           path: "image-upload",
           name: "image-upload",
           component: () => import("@/views/ImageUploadView.vue"),

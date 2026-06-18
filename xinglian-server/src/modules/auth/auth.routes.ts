@@ -8,6 +8,7 @@ import {
   platformBindModelSchema,
   registrationContractQuerySchema,
   signRegistrationContractSchema,
+  verifyModelRegistrationCodeSchema,
   wechatLoginSchema
 } from "./auth.dto";
 import {
@@ -19,6 +20,7 @@ import {
   signRegistrationContractController,
   wechatLoginController
 } from "./auth.controller";
+import { verifyModelRegistrationCodeController } from "../model-registration-code/model-registration-code.controller";
 
 const authRouter = Router();
 
@@ -29,6 +31,12 @@ authRouter.post(
   requireAuth,
   validate(platformBindModelSchema),
   platformBindModelController
+);
+authRouter.post(
+  "/model/verify-registration-code",
+  requireAuth,
+  validate(verifyModelRegistrationCodeSchema),
+  verifyModelRegistrationCodeController
 );
 authRouter.get(
   "/registration-contract",

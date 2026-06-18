@@ -1,0 +1,176 @@
+<view class="shoot-page">
+  <view class="shoot-content">
+    <view class="shoot-hero">
+      <view class="shoot-hero-shine" />
+      <view class="shoot-hero-grid" />
+      <view class="shoot-hero-inner">
+        <view class="shoot-hero-top">
+          <text class="shoot-kicker">COMMERCIAL SHOOT</text>
+          <view class="shoot-hero-chip">PRO</view>
+        </view>
+        <text class="shoot-title">商拍中心</text>
+        <text class="shoot-desc">精选场地 · 专属套餐 · 一键联系</text>
+        <view wx:if="{{total > 0 || packageTotal > 0}}" class="shoot-stats">
+          <view class="shoot-stat-item">
+            <text class="shoot-stat-num">{{total}}</text>
+            <text class="shoot-stat-label">合作场地</text>
+          </view>
+          <view class="shoot-stat-line" />
+          <view class="shoot-stat-item">
+            <text class="shoot-stat-num">{{packageTotal}}</text>
+            <text class="shoot-stat-label">可选套餐</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading && list.length === 0}}" class="shoot-state">
+      <view class="shoot-state-ring" />
+      <text>正在加载…</text>
+    </view>
+
+    <view wx:if="{{!loading && list.length === 0}}" class="shoot-state shoot-state--empty">
+      <text class="shoot-state-title">暂无商拍内容</text>
+      <text class="shoot-state-desc">精彩场地筹备中</text>
+    </view>
+
+    <view wx:for="{{list}}" wx:key="id" class="venue-card">
+      <view class="venue-rank">NO.{{index + 1}}</view>
+
+      <view class="venue-media">
+        <swiper
+          wx:if="{{item.imageUrls.length > 0}}"
+          class="venue-swiper"
+          indicator-dots
+          indicator-color="rgba(255,255,255,0.35)"
+          indicator-active-color="#ffffff"
+          circular
+          autoplay
+          interval="4500"
+        >
+          <swiper-item wx:for="{{item.imageUrls}}" wx:for-item="imageUrl" wx:key="*this">
+            <image
+              class="venue-swiper-img"
+              src="{{imageUrl}}"
+              mode="aspectFill"
+              data-id="{{item.id}}"
+              data-current="{{imageUrl}}"
+              bindtap="onPreviewImage"
+            />
+          </swiper-item>
+        </swiper>
+        <view wx:else class="venue-media-empty">暂无图片</view>
+        <view class="venue-media-shade" />
+        <view class="venue-media-foot">
+          <view class="venue-price-badge">
+            <text class="venue-price-badge-label">参考价</text>
+            <text class="venue-price-badge-value">{{item.priceRangeText}}</text>
+          </view>
+          <text wx:if="{{item.imageUrls.length > 1}}" class="venue-photo-num">{{item.imageUrls.length}} 图</text>
+        </view>
+      </view>
+
+      <view class="venue-body">
+        <view class="venue-head">
+          <view class="venue-name-line" />
+          <text class="venue-name">{{item.nameText}}</text>
+        </view>
+
+        <view wx:if="{{item.packages.length > 0}}" class="venue-packages">
+          <view class="venue-section-title">
+            <view class="venue-section-left">
+              <view class="venue-section-bar" />
+              <text class="venue-section-text">商拍套餐</text>
+            </view>
+            <text class="venue-section-count">{{item.packageCount}} 个</text>
+          </view>
+          <view class="pkg-list">
+            <view
+              wx:for="{{item.packages}}"
+              wx:for-item="pkg"
+              wx:for-index="pkgIndex"
+              wx:key="id"
+              class="pkg-item"
+            >
+              <view class="pkg-cover" data-url="{{pkg.coverUrl}}" bindtap="onPreviewPackageCover">
+                <image
+                  wx:if="{{pkg.coverUrl}}"
+                  class="pkg-cover-img"
+                  src="{{pkg.coverUrl}}"
+                  mode="aspectFill"
+                />
+                <view wx:else class="pkg-cover-img pkg-cover-img--empty">暂无头图</view>
+              </view>
+              <view class="pkg-info">
+                <view class="pkg-info-top">
+                  <text class="pkg-index">{{pkgIndex + 1}}</text>
+                  <text class="pkg-name">{{pkg.nameText}}</text>
+                </view>
+                <view class="pkg-price-row">
+                  <view class="pkg-fee-wrap">
+                    <text class="pkg-fee-label">费用</text>
+                    <text class="pkg-fee-value">{{pkg.feeText}}</text>
+                  </view>
+                  <view class="pkg-origin-wrap">
+                    <text class="pkg-origin-label">原价</text>
+                    <text class="pkg-origin-value">{{pkg.listPriceText}}</text>
+                  </view>
+                </view>
+                <view wx:if="{{pkg.remarkTags.length > 0 || pkg.remarkText}}" class="pkg-remark-block">
+                  <text class="pkg-remark-label">套餐说明</text>
+                  <view wx:if="{{pkg.remarkTags.length > 0}}" class="pkg-remark-tags">
+                    <text wx:for="{{pkg.remarkTags}}" wx:for-item="tag" wx:key="*this" class="pkg-remark-tag">{{tag}}</text>
+                  </view>
+                  <text wx:elif="{{pkg.remarkText}}" class="pkg-remark">{{pkg.remarkText}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="venue-meta">
+          <view class="venue-meta-row">
+            <view class="venue-meta-dot venue-meta-dot--blue" />
+            <view class="venue-meta-main">
+              <text class="venue-meta-key">地址</text>
+              <text class="venue-meta-val">{{item.addressText}}</text>
+            </view>
+          </view>
+          <view class="venue-meta-row">
+            <view class="venue-meta-dot venue-meta-dot--violet" />
+            <view class="venue-meta-main">
+              <text class="venue-meta-key">联系人</text>
+              <text class="venue-meta-val">{{item.contactNameText}}</text>
+            </view>
+          </view>
+          <view class="venue-meta-row venue-meta-row--phone">
+            <view class="venue-meta-dot venue-meta-dot--cyan" />
+            <view class="venue-meta-main">
+              <text class="venue-meta-key">电话</text>
+              <text class="venue-meta-val">{{item.contactPhoneText}}</text>
+            </view>
+            <view
+              wx:if="{{item.canCall}}"
+              class="venue-call-btn"
+              data-phone="{{item.contactPhone}}"
+              catchtap="onCallPhone"
+            >
+              立即拨打
+            </view>
+          </view>
+        </view>
+
+        <view wx:if="{{item.descriptionText}}" class="venue-intro">
+          <text class="venue-intro-label">场地介绍</text>
+          <text class="venue-intro-text">{{item.descriptionText}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{loadingMore}}" class="shoot-foot">
+      <view class="shoot-foot-pulse" />
+      <text>加载更多…</text>
+    </view>
+    <view wx:elif="{{list.length > 0 && list.length >= total}}" class="shoot-foot shoot-foot--end">— 已全部加载 —</view>
+  </view>
+</view>

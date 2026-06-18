@@ -537,8 +537,8 @@ function removeCardPhoto(id: string) {
 }
 
 function buildCardPhotoAnglesPayload() {
-  return form.cardPhotos.map((p, i) => ({
-    key: `photo_${i + 1}`,
+  return form.cardPhotos.map((p) => ({
+    key: p.id,
     url: p.url,
     width: 0,
     height: 0
@@ -630,22 +630,24 @@ function buildPayload(): AdminModelCreateBody {
   if (form.categoryIds.length) {
     body.categoryIds = [...form.categoryIds];
   }
-  body.card = {
-    photoAngles: buildCardPhotoAnglesPayload()
-  };
-  if (cardPhotoCount.value > 0) {
-    const measurements: Record<string, number> = {};
-    for (const f of MODEL_MEASUREMENT_FIELDS) {
-      const n = Number(form.measurements[f.key]);
-      if (Number.isFinite(n) && n > 0) {
-        measurements[f.key] = n;
+  if (cardPhotoCount.value > 0 || !isEditMode.value) {
+    body.card = {
+      photoAngles: buildCardPhotoAnglesPayload()
+    };
+    if (cardPhotoCount.value > 0) {
+      const measurements: Record<string, number> = {};
+      for (const f of MODEL_MEASUREMENT_FIELDS) {
+        const n = Number(form.measurements[f.key]);
+        if (Number.isFinite(n) && n > 0) {
+          measurements[f.key] = n;
+        }
       }
+      if (Object.keys(measurements).length > 0) {
+        body.card.measurements = measurements;
+      }
+      if (form.hairColor) body.card.hairColor = form.hairColor;
+      if (form.skinColor) body.card.skinColor = form.skinColor;
     }
-    if (Object.keys(measurements).length > 0) {
-      body.card.measurements = measurements;
-    }
-    if (form.hairColor) body.card.hairColor = form.hairColor;
-    if (form.skinColor) body.card.skinColor = form.skinColor;
   }
   body.pricing = {
     hourly: form.hourly ? Number(form.hourly) : null,

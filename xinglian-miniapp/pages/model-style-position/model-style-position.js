@@ -1,4 +1,12 @@
 const { prepareImageForUpload } = require("../../utils/image-upload.js");
+const {
+  getReviewItem,
+  contentReviewBannerText,
+  contentReviewBannerType,
+  photoReviewBannerText,
+  photoReviewBannerType
+} = require("../../utils/content-review.js");
+const { swapAdjacent, toastIfNotMoved } = require("../../utils/photo-list-actions.js");
 
 const MAX_PHOTOS = 100;
 const MAX_PICK_COUNT = 9;
@@ -8,7 +16,24 @@ Page({
   data: {
     photos: [],
     totalPhotos: 0,
-    saving: false
+    saving: false,
+    reviewBannerText: "",
+    reviewBannerType: ""
+  },
+
+  syncReviewBanner(contentReview, photos) {
+    const item = getReviewItem(contentReview, "stylePosition");
+    this.setData({
+      reviewBannerText: contentReviewBannerText(item, photos || this.data.photos),
+      reviewBannerType: contentReviewBannerType(item, photos || this.data.photos)
+    });
+  },
+
+  decoratePhoto(photo) {
+    const next = { ...photo };
+    next.reviewBadgeText = photoReviewBannerText(next);
+    next.reviewBadgeType = photoReviewBannerType(next);
+    return next;
   },
 
   genId() {
@@ -33,7 +58,7 @@ Page({
   },
 
   patchPhotos(photos, skipSave) {
-    const next = Array.isArray(photos) ? photos.slice(0, MAX_PHOTOS) : [];
+    const next = Array.isArray(photos) ? photos.slice(0, MAX_PHOTOS).map((p) => this.decoratePhoto(p)) : [];
     this.setData(
       {
         photos: next,
@@ -48,13 +73,18 @@ Page({
   async onLoad() {
     try {
       const data = await this.requestWithAuth("/api/models/me", "GET");
+      this.syncReviewBanner(data?.contentReview);
       const source = data?.stylePosition;
       const photos = Array.isArray(source?.photos)
         ? source.photos
-            .map((p) => ({
-              id: p.id || this.genId(),
-              url: p.url
-            }))
+            .map((p) =>
+              this.decoratePhoto({
+                id: p.id || this.genId(),
+                url: p.url,
+                reviewStatus: p.reviewStatus,
+                rejectReason: p.rejectReason
+              })
+            )
             .filter((p) => p.url)
         : [];
       this.patchPhotos(photos, true);
@@ -69,6 +99,10 @@ Page({
       url: p.url
     }));
     return this.requestWithAuth("/api/models/style-position", "PUT", { photos })
+      .then((data) => {
+        if (data?.contentReview) this.syncReviewBanner(data.contentReview);
+        else this.syncReviewBanner({ stylePosition: { pendingCount: 1 } }, this.data.photos);
+      })
       .catch(() => {
         wx.showToast({ title: "保存失败，请稍后重试", icon: "none" });
       })
@@ -168,9 +202,34 @@ Page({
     });
   },
 
+  onPhotoMore(e) {
+    const photoId = e.currentTarget.dataset.photoId || "";
+    if (!photoId) return;
+    wx.showActionSheet({
+      itemList: ["前移", "后移", "删除照片"],
+      success: (res) => {
+        if (res.tapIndex === 0) this.movePhoto(photoId, "up");
+        else if (res.tapIndex === 1) this.movePhoto(photoId, "down");
+        else if (res.tapIndex === 2) this.removePhotoById(photoId);
+      }
+    });
+  },
+
+  movePhoto(photoId, direction) {
+    const photos = this.data.photos || [];
+    const index = photos.findIndex((p) => p.id === photoId);
+    const { list: next, moved } = swapAdjacent(photos, index, direction);
+    toastIfNotMoved(moved, direction);
+    if (moved) this.patchPhotos(next);
+  },
+
   removePhoto(e) {
     const photoId = e.currentTarget.dataset.photoId;
     if (!photoId) return;
+    this.removePhotoById(photoId);
+  },
+
+  removePhotoById(photoId) {
     wx.showModal({
       title: "删除照片",
       content: "确定从风格定位中删除这张照片？",

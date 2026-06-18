@@ -142,6 +142,321 @@ export async function deleteCsUser(id: number): Promise<void> {
   }
 }
 
+export type ModelRegistrationCodeRow = {
+  id: number;
+  code: string;
+  usedByUserId: number | null;
+  usedAt: string | null;
+  createdAt: string;
+};
+
+type ModelRegistrationCodeListResponse = {
+  ok?: boolean;
+  list?: ModelRegistrationCodeRow[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  stats?: { total: number; unused: number; used: number };
+  message?: string;
+  code?: string;
+};
+
+export async function fetchModelRegistrationCodes(params: {
+  page: number;
+  pageSize: number;
+  status?: "all" | "unused" | "used";
+}): Promise<{
+  list: ModelRegistrationCodeRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  stats: { total: number; unused: number; used: number };
+}> {
+  const token = getAdminToken();
+  const qs = new URLSearchParams({
+    page: String(params.page),
+    pageSize: String(params.pageSize),
+    status: params.status || "all"
+  });
+  const res = await fetch(adminApiUrl(`/api/admin/model-registration-codes?${qs}`), {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  });
+  const data = (await res.json()) as ModelRegistrationCodeListResponse;
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `请求失败 (${res.status})`);
+  }
+  return {
+    list: Array.isArray(data.list) ? data.list : [],
+    total: typeof data.total === "number" ? data.total : 0,
+    page: typeof data.page === "number" ? data.page : params.page,
+    pageSize: typeof data.pageSize === "number" ? data.pageSize : params.pageSize,
+    stats: data.stats || { total: 0, unused: 0, used: 0 }
+  };
+}
+
+export async function generateModelRegistrationCodes(
+  count = 1000
+): Promise<{ requested: number; created: number }> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl("/api/admin/model-registration-codes/generate"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ count })
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    requested?: number;
+    created?: number;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `生成失败 (${res.status})`);
+  }
+  return {
+    requested: typeof data.requested === "number" ? data.requested : count,
+    created: typeof data.created === "number" ? data.created : 0
+  };
+}
+
+export type CommercialShootRow = {
+  id: number;
+  name: string;
+  province: string | null;
+  city: string | null;
+  district: string | null;
+  detailAddress: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  priceRange: string | null;
+  description: string | null;
+  imageUrls: string[];
+  packageCount?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type CommercialShootListResponse = {
+  ok?: boolean;
+  list?: CommercialShootRow[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  message?: string;
+  code?: string;
+};
+
+export type CommercialShootFormBody = {
+  name: string;
+  province?: string | null;
+  city?: string | null;
+  district?: string | null;
+  detailAddress?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  priceRange?: string | null;
+  description?: string | null;
+  imageUrls?: string[];
+};
+
+export async function fetchCommercialShoots(params: {
+  page: number;
+  pageSize: number;
+}): Promise<{ list: CommercialShootRow[]; total: number; page: number; pageSize: number }> {
+  const token = getAdminToken();
+  const qs = new URLSearchParams({
+    page: String(params.page),
+    pageSize: String(params.pageSize)
+  });
+  const res = await fetch(adminApiUrl(`/api/admin/commercial-shoots?${qs}`), {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  });
+  const data = (await res.json()) as CommercialShootListResponse;
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `请求失败 (${res.status})`);
+  }
+  return {
+    list: Array.isArray(data.list) ? data.list : [],
+    total: typeof data.total === "number" ? data.total : 0,
+    page: typeof data.page === "number" ? data.page : params.page,
+    pageSize: typeof data.pageSize === "number" ? data.pageSize : params.pageSize
+  };
+}
+
+export async function createCommercialShoot(
+  body: CommercialShootFormBody
+): Promise<CommercialShootRow> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl("/api/admin/commercial-shoots"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as CommercialShootRow & { ok?: boolean; message?: string; code?: string };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `创建失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function updateCommercialShoot(
+  id: number,
+  body: CommercialShootFormBody
+): Promise<CommercialShootRow> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/commercial-shoots/${id}`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as CommercialShootRow & { ok?: boolean; message?: string; code?: string };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `更新失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function deleteCommercialShoot(id: number): Promise<void> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/commercial-shoots/${id}`), {
+    method: "DELETE",
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  });
+  const data = (await res.json()) as { ok?: boolean; message?: string; code?: string };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `删除失败 (${res.status})`);
+  }
+}
+
+export type CommercialShootPackageRow = {
+  id: number;
+  shootId: number;
+  name: string;
+  fee: string;
+  listPrice: string;
+  remark: string;
+  coverUrl: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type CommercialShootPackageListResponse = {
+  ok?: boolean;
+  list?: CommercialShootPackageRow[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  message?: string;
+  code?: string;
+};
+
+export type CommercialShootPackageFormBody = {
+  name: string;
+  fee: string;
+  listPrice: string;
+  remark?: string;
+  coverUrl: string;
+  sortOrder?: number;
+};
+
+export async function fetchCommercialShootPackages(
+  shootId: number,
+  params: {
+    page: number;
+    pageSize: number;
+  }
+): Promise<{ list: CommercialShootPackageRow[]; total: number; page: number; pageSize: number }> {
+  const token = getAdminToken();
+  const qs = new URLSearchParams({
+    page: String(params.page),
+    pageSize: String(params.pageSize)
+  });
+  const res = await fetch(adminApiUrl(`/api/admin/commercial-shoots/${shootId}/packages?${qs}`), {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  });
+  const data = (await res.json()) as CommercialShootPackageListResponse;
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `请求失败 (${res.status})`);
+  }
+  return {
+    list: Array.isArray(data.list) ? data.list : [],
+    total: typeof data.total === "number" ? data.total : 0,
+    page: typeof data.page === "number" ? data.page : params.page,
+    pageSize: typeof data.pageSize === "number" ? data.pageSize : params.pageSize
+  };
+}
+
+export async function createCommercialShootPackage(
+  shootId: number,
+  body: CommercialShootPackageFormBody
+): Promise<CommercialShootPackageRow> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/commercial-shoots/${shootId}/packages`), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as CommercialShootPackageRow & {
+    ok?: boolean;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `创建失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function updateCommercialShootPackage(
+  shootId: number,
+  packageId: number,
+  body: CommercialShootPackageFormBody
+): Promise<CommercialShootPackageRow> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/commercial-shoots/${shootId}/packages/${packageId}`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as CommercialShootPackageRow & {
+    ok?: boolean;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `更新失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function deleteCommercialShootPackage(shootId: number, packageId: number): Promise<void> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/commercial-shoots/${shootId}/packages/${packageId}`), {
+    method: "DELETE",
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  });
+  const data = (await res.json()) as { ok?: boolean; message?: string; code?: string };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `删除失败 (${res.status})`);
+  }
+}
+
 export type CsPendingOrderRow = {
   orderId: number;
   orderNo: string;
@@ -351,6 +666,12 @@ export type AdminUserRow = {
   modelLevelOverride?: AdminModelLevelOverrideValue;
   /** 模特列表：自动计算等级 */
   modelLevel?: ModelLevelInfo | null;
+  /** 模特列表：模卡/作品集/风格定位待审图片数 */
+  contentReviewPending?: {
+    card: number;
+    portfolio: number;
+    stylePosition: number;
+  } | null;
   createdAt: string;
   updatedAt: string;
   /** 商家：绑定经纪人展示文案 */
@@ -514,6 +835,8 @@ export type AdminModelBasicInfo = {
       url?: string;
       width?: number;
       height?: number;
+      reviewStatus?: number;
+      rejectReason?: string;
     }>;
     measurements: Record<string, unknown>;
     hairColor: string;
@@ -522,11 +845,11 @@ export type AdminModelBasicInfo = {
   /** 旧后端可能暂无该字段 */
   portfolio?: {
     folders: Array<{ id: string; name: string; coverPhotoId?: string }>;
-    photos: Array<{ id: string; folderId: string; url: string }>;
+    photos: Array<{ id: string; folderId: string; url: string; reviewStatus?: number; rejectReason?: string }>;
   };
   /** 风格定位图片 */
   stylePosition?: {
-    photos: Array<{ id: string; url: string }>;
+    photos: Array<{ id: string; url: string; reviewStatus?: number; rejectReason?: string }>;
   };
   /** 个人荣誉 */
   honors?: Array<{
@@ -550,6 +873,7 @@ export type AdminModelBasicInfo = {
   photosDisabled?: boolean;
   modelLevelOverride?: AdminModelLevelOverrideValue;
   modelLevel?: ModelLevelInfo;
+  contentReview?: ModelContentReviewState;
 };
 
 export type AdminModelLevelOverride = 2 | 3 | 4 | 5;
@@ -1341,6 +1665,62 @@ export type AdminModelProfileAuditBody = {
   rejectReason?: string;
 };
 
+export type ModelContentReviewSection = "card" | "portfolio" | "stylePosition";
+
+export type ModelContentReviewItem = {
+  status: number;
+  rejectReason: string | null;
+  pendingCount: number;
+  rejectedCount: number;
+};
+
+export type ModelPhotoReviewFields = {
+  reviewStatus?: number;
+  rejectReason?: string;
+};
+
+export type ModelContentReviewState = {
+  card: ModelContentReviewItem;
+  portfolio: ModelContentReviewItem;
+  stylePosition: ModelContentReviewItem;
+};
+
+export type AdminModelContentReviewBody = {
+  section: ModelContentReviewSection;
+  decision: "approve" | "reject";
+  photoIds?: string[];
+  rejectReason?: string;
+};
+
+export async function postAdminModelContentReview(
+  userId: number,
+  body: AdminModelContentReviewBody
+): Promise<{ section: ModelContentReviewSection; status: number; updatedCount?: number }> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/models/${userId}/content-review`), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    section?: ModelContentReviewSection;
+    status?: number;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `请求失败 (${res.status})`);
+  }
+  return {
+    section: data.section || body.section,
+    status: typeof data.status === "number" ? data.status : 0
+  };
+}
+
 export async function postAdminModelProfileAudit(
   userId: number,
   body: AdminModelProfileAuditBody
@@ -1821,6 +2201,60 @@ export async function patchAdminModelPhotosDisabled(
   }
   return {
     photosDisabled: Boolean(data.photosDisabled)
+  };
+}
+
+export async function patchAdminModelAccountStatus(
+  modelUserId: number,
+  status: 1 | 2
+): Promise<{ status: number }> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/models/${modelUserId}/status`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ status })
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    status?: number;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `保存失败 (${res.status})`);
+  }
+  return {
+    status: Number(data.status ?? status)
+  };
+}
+
+export async function patchAdminBrokerAccountStatus(
+  brokerUserId: number,
+  status: 1 | 2
+): Promise<{ status: number }> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/brokers/${brokerUserId}/status`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ status })
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    status?: number;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `保存失败 (${res.status})`);
+  }
+  return {
+    status: Number(data.status ?? status)
   };
 }
 

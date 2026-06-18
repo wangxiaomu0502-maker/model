@@ -1,0 +1,17 @@
+@import "../../styles/profile-detail-page.wxss";
+
+.profile-detail-page--broker {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(251, 191, 36, 0.18) 0, rgba(251, 191, 36, 0) 280rpx),
+    linear-gradient(180deg, #fffbeb 0%, #f8fafc 100%);
+}
+
+.profile-detail-page--broker .profile-hero {
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.28) 0, rgba(255, 255, 255, 0) 180rpx),
+    linear-gradient(135deg, #b45309 0%, #d97706 42%, #7c2d12 100%);
+}
+
+.profile-detail-page--broker .profile-hero-fallback {
+  color: #b45309;
+}

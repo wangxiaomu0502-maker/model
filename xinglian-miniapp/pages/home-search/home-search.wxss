@@ -1,0 +1,64 @@
+@import "../../styles/broker-bound-list.wxss";
+
+.home-search-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 24rpx 24rpx 0;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #fff1fb 0%, #eef4ff 280rpx, #f8fbff 100%);
+}
+
+.home-search-toolbar {
+  margin-bottom: 20rpx;
+}
+
+.item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.type-tag {
+  flex-shrink: 0;
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  font-weight: 800;
+}
+
+.type-tag--model {
+  color: #be185d;
+  background: #fdf2f8;
+}
+
+.type-tag--broker {
+  color: #0e7490;
+  background: #ecfeff;
+}
+
+.type-tag--merchant {
+  color: #c2410c;
+  background: #fff7ed;
+}
+
+.av--model {
+  background: linear-gradient(145deg, #fdf2f8, #fce7f3);
+}
+
+.av--broker {
+  background: linear-gradient(145deg, #ecfeff, #cffafe);
+}
+
+.av--merchant {
+  background: linear-gradient(145deg, #fff7ed, #ffedd5);
+}
+
+.item-arrow {
+  flex-shrink: 0;
+  font-size: 40rpx;
+  line-height: 1;
+  font-weight: 900;
+  color: #c4b5fd;
+}

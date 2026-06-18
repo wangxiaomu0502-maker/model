@@ -12,6 +12,7 @@ const KIND_TYPE_LABEL = {
 };
 
 const PENDING_REGISTRATION_KEY = "pendingRegistration";
+const MODEL_REGISTRATION_CODE_KEY = "modelRegistrationCode";
 
 function contractKindForRole(role) {
   return ROLE_TO_KIND[Number(role)] || "";
@@ -21,5 +22,6 @@ module.exports = {
   ROLE_TO_KIND,
   KIND_TYPE_LABEL,
   PENDING_REGISTRATION_KEY,
+  MODEL_REGISTRATION_CODE_KEY,
   contractKindForRole
 };

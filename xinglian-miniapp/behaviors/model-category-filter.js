@@ -4,7 +4,11 @@ const {
   toSelectedMap,
   buildSelectedOptions,
   formatCategoryFilterLabel,
-  defaultCategoryFilterPopupState
+  defaultCategoryFilterPopupState,
+  toggleCategoryGroupLeaves,
+  buildMajorGroupSelectMap,
+  findCategoryGroupById,
+  getCategoryGroupSelectState
 } = require("../utils/model-category-tree.js");
 const { normalizeCategoryIds } = require("../utils/model-list-display.js");
 
@@ -55,7 +59,9 @@ module.exports = Behavior({
               ...patch,
               ...syncMajorPanel("main", patch)
             });
-            this.syncCategoryFilterText();
+            if (!(this.data.filterState || {}).categoryLabel) {
+              this.syncCategoryFilterText();
+            }
             resolve(true);
           },
           fail: () => resolve(false),
@@ -68,6 +74,13 @@ module.exports = Behavior({
 
     syncCategoryFilterText(filterState) {
       const state = filterState || this.data.filterState || {};
+      if (state.categoryLabel) {
+        this.setData({
+          categoryFilterText: state.categoryLabel,
+          appliedCategoryOptions: [{ id: 0, name: state.categoryLabel }]
+        });
+        return;
+      }
       const ids = normalizeCategoryIds(state.categoryIds);
       const nameMap = this.data.categoryNameMap || {};
       const text = formatCategoryFilterLabel(ids, nameMap);
@@ -77,14 +90,30 @@ module.exports = Behavior({
       });
     },
 
-    syncDraftCategorySelection(ids) {
+    buildCategorySelectMeta(ids) {
       const draftCategoryIds = normalizeCategoryIds(ids);
-      this.setData({
+      const majorGroups = this.data.majorGroups || [];
+      const activeMajorGroup = this.data.activeMajorGroup;
+      const subGroupSelectMap = {};
+      (activeMajorGroup?.children || []).forEach((subGroup) => {
+        if (!subGroup?.id) return;
+        subGroupSelectMap[subGroup.id] = getCategoryGroupSelectState(subGroup, draftCategoryIds);
+      });
+      return {
         draftCategoryIds,
         draftSelectedMap: toSelectedMap(draftCategoryIds),
         draftSelectedCount: draftCategoryIds.length,
-        draftSelectedOptions: buildSelectedOptions(draftCategoryIds, this.data.categoryNameMap || {})
-      });
+        draftSelectedOptions: buildSelectedOptions(draftCategoryIds, this.data.categoryNameMap || {}),
+        majorGroupSelectMap: buildMajorGroupSelectMap(majorGroups, draftCategoryIds),
+        activeMajorSelectState: activeMajorGroup
+          ? getCategoryGroupSelectState(activeMajorGroup, draftCategoryIds)
+          : "none",
+        subGroupSelectMap
+      };
+    },
+
+    syncDraftCategorySelection(ids) {
+      this.setData(this.buildCategorySelectMeta(ids));
     },
 
     async openCategoryFilterPopup() {
@@ -113,7 +142,9 @@ module.exports = Behavior({
       if (!tab || tab === this.data.categoryCurrentTab) return;
       const patch = syncMajorPanel(tab, this.data);
       patch.categoryCurrentTab = tab;
-      this.setData(patch);
+      this.setData(patch, () => {
+        this.syncDraftCategorySelection(this.data.draftCategoryIds);
+      });
     },
 
     onCategoryFilterMajorTap(e) {
@@ -131,7 +162,34 @@ module.exports = Behavior({
       if (tab === "main") patch.activeMainGroupId = id;
       if (tab === "style") patch.activeStyleGroupId = id;
       if (tab === "scene") patch.activeSceneGroupId = id;
-      this.setData(patch);
+      this.setData(patch, () => {
+        this.syncDraftCategorySelection(this.data.draftCategoryIds);
+      });
+    },
+
+    onCategoryFilterMajorGroupToggle(e) {
+      const id = Number(e.currentTarget.dataset.id || 0);
+      if (!id) return;
+      const tab = this.data.categoryCurrentTab;
+      const groups =
+        tab === "style"
+          ? this.data.styleGroups
+          : tab === "scene"
+            ? this.data.sceneGroups
+            : this.data.mainTypeGroups;
+      const group = findCategoryGroupById(groups, id);
+      if (!group) return;
+      const next = toggleCategoryGroupLeaves(group, this.data.draftCategoryIds);
+      this.syncDraftCategorySelection(next);
+    },
+
+    onCategoryFilterSubGroupToggle(e) {
+      const id = Number(e.currentTarget.dataset.id || 0);
+      if (!id) return;
+      const subGroup = findCategoryGroupById(this.data.activeMajorGroup?.children, id);
+      if (!subGroup) return;
+      const next = toggleCategoryGroupLeaves(subGroup, this.data.draftCategoryIds);
+      this.syncDraftCategorySelection(next);
     },
 
     onCategoryFilterChipTap(e) {
@@ -158,7 +216,9 @@ module.exports = Behavior({
       const categoryIds = normalizeCategoryIds(this.data.draftCategoryIds);
       const filterState = {
         ...(this.data.filterState || {}),
-        categoryIds
+        categoryIds,
+        categoryKeyword: "",
+        categoryLabel: ""
       };
       this.closeCategoryFilterPopup();
       this.syncCategoryFilterText(filterState);

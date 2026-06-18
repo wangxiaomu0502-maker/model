@@ -3,7 +3,17 @@ import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { dbPool } from "../../config/db";
 import { ErrorCodes } from "../../core/constants/error-codes";
 import { AppError } from "../../core/errors/app-error";
+import { hasModelExtraColumn, mexColumnExpr } from "../../shared/model-extra-columns";
 import { hasModelProfilesColumn, mpColumnExpr } from "../../shared/model-profile-columns";
+import {
+  applyPhotoReviewDecisionsToPayload,
+  approveAllPhotosInPayload,
+  CONTENT_REVIEW_STATUS,
+  deriveSectionReviewFromPhotos,
+  extractSectionPhotos,
+  materializeLegacyPhotoReviewsInPayload,
+  type ModelContentReviewSection
+} from "./model-content-review";
 
 type ModelProfileRow = RowDataPacket & {
   user_id: number;
@@ -35,10 +45,39 @@ type ModelProfileRow = RowDataPacket & {
 type ModelExtraRow = RowDataPacket & {
   user_id: number;
   card_json: string | null;
+  card_review_status?: number | string | null;
+  card_review_reject_reason?: string | null;
   portfolio_json: string | null;
+  portfolio_review_status?: number | string | null;
+  portfolio_review_reject_reason?: string | null;
   style_position_json: string | null;
+  style_position_review_status?: number | string | null;
+  style_position_review_reject_reason?: string | null;
   schedule_json: string | null;
   order_settings_json: string | null;
+};
+
+export type { ModelContentReviewSection } from "./model-content-review";
+
+const CONTENT_REVIEW_COLUMNS: Record<
+  ModelContentReviewSection,
+  { status: string; reason: string; json: "card_json" | "portfolio_json" | "style_position_json" }
+> = {
+  card: {
+    status: "card_review_status",
+    reason: "card_review_reject_reason",
+    json: "card_json"
+  },
+  portfolio: {
+    status: "portfolio_review_status",
+    reason: "portfolio_review_reject_reason",
+    json: "portfolio_json"
+  },
+  stylePosition: {
+    status: "style_position_review_status",
+    reason: "style_position_review_reject_reason",
+    json: "style_position_json"
+  }
 };
 
 type CategoryNodeRow = RowDataPacket & {
@@ -75,6 +114,9 @@ type MerchantModelListRow = RowDataPacket & {
   card_json: string | Buffer | null;
   portfolio_json: string | Buffer | null;
   style_position_json: string | Buffer | null;
+  card_review_status?: number | string | null;
+  portfolio_review_status?: number | string | null;
+  style_position_review_status?: number | string | null;
 };
 
 export type MerchantModelListFilters = {
@@ -103,6 +145,7 @@ export async function countPublicHomeUsers(): Promise<{
      FROM users
      WHERE deleted_at IS NULL
        AND role IN (1, 2, 3)
+       AND (role <> 1 OR status = 1)
      GROUP BY role`
   );
   const byRole = new Map<number, number>();
@@ -157,12 +200,18 @@ type PublicModelDetailRow = RowDataPacket & {
   style_position_json: string | null;
   order_settings_json: string | null;
   schedule_json: string | null;
+  card_review_status?: number | string | null;
+  portfolio_review_status?: number | string | null;
+  style_position_review_status?: number | string | null;
 };
 
 async function getPublicModelDetailSelect(): Promise<string> {
   const platformFeaturedExpr = await mpColumnExpr("is_platform_featured", "0");
   const photosDisabledExpr = await mpColumnExpr("photos_disabled", "0");
   const levelOverrideExpr = await mpColumnExpr("model_level_override", "NULL");
+  const cardReviewExpr = await mexColumnExpr("card_review_status", "2");
+  const portfolioReviewExpr = await mexColumnExpr("portfolio_review_status", "2");
+  const styleReviewExpr = await mexColumnExpr("style_position_review_status", "2");
   return `SELECT u.id,
             u.user_no,
             u.nickname,
@@ -189,7 +238,10 @@ async function getPublicModelDetailSelect(): Promise<string> {
             mex.portfolio_json,
             mex.style_position_json,
             mex.order_settings_json,
-            mex.schedule_json
+            mex.schedule_json,
+            ${cardReviewExpr} AS card_review_status,
+            ${portfolioReviewExpr} AS portfolio_review_status,
+            ${styleReviewExpr} AS style_position_review_status
      FROM users u
      LEFT JOIN model_profiles mp ON mp.user_id = u.id
      LEFT JOIN model_extra_data mex ON mex.user_id = u.id
@@ -198,7 +250,21 @@ async function getPublicModelDetailSelect(): Promise<string> {
        AND u.deleted_at IS NULL`;
 }
 
-export async function ensureModelProfile(userId: number): Promise<void> {
+export async function ensureModelProfile(
+  userId: number,
+  options?: { photosDisabled?: boolean }
+): Promise<void> {
+  const photosDisabled = options?.photosDisabled ?? true;
+  if (await hasModelProfilesColumn("photos_disabled")) {
+    await dbPool.query(
+      `INSERT INTO model_profiles (
+         user_id, is_available, only_local_orders, only_female_clients, photos_disabled
+       ) VALUES (?, 0, 0, 0, ?)
+       ON DUPLICATE KEY UPDATE user_id = VALUES(user_id)`,
+      [userId, photosDisabled ? 1 : 0]
+    );
+    return;
+  }
   await dbPool.query(
     `INSERT INTO model_profiles (user_id, is_available, only_local_orders, only_female_clients)
      VALUES (?, 0, 0, 0)
@@ -361,6 +427,119 @@ export async function updateExtraJson(
   );
 }
 
+export async function updateModelExtraSectionWithReview(
+  userId: number,
+  section: ModelContentReviewSection,
+  payload: unknown,
+  reviewStatus: number,
+  rejectReason: string | null = null
+): Promise<void> {
+  const meta = CONTENT_REVIEW_COLUMNS[section];
+  const hasReview = await hasModelExtraColumn(meta.status);
+  if (!hasReview) {
+    await updateExtraJson(userId, meta.json, payload);
+    return;
+  }
+  const reasonValue =
+    reviewStatus === CONTENT_REVIEW_STATUS.REJECTED ? rejectReason : null;
+  await dbPool.query(
+    `UPDATE model_extra_data
+     SET ${meta.json} = ?,
+         ${meta.status} = ?,
+         ${meta.reason} = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE user_id = ?`,
+    [JSON.stringify(payload), reviewStatus, reasonValue, userId]
+  );
+}
+
+function parseExtraJsonColumn(raw: unknown): Record<string, unknown> {
+  if (raw == null) return {};
+  if (Buffer.isBuffer(raw)) {
+    try {
+      const parsed = JSON.parse(raw.toString("utf8")) as unknown;
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (!s) return {};
+    try {
+      const parsed = JSON.parse(s) as unknown;
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+export async function applyModelContentReviewDecision(
+  userId: number,
+  section: ModelContentReviewSection,
+  decision: "approve" | "reject",
+  rejectReason?: string | null,
+  photoIds?: string[]
+): Promise<number> {
+  const meta = CONTENT_REVIEW_COLUMNS[section];
+  const extra = await findModelExtra(userId);
+  if (!extra) return 0;
+
+  const sectionDbStatus = extra[meta.status as keyof ModelExtraRow];
+  const legacySectionPending = Number(sectionDbStatus ?? CONTENT_REVIEW_STATUS.APPROVED) === CONTENT_REVIEW_STATUS.PENDING;
+  let currentPayload = parseExtraJsonColumn(extra[meta.json]);
+  currentPayload = materializeLegacyPhotoReviewsInPayload(section, currentPayload, sectionDbStatus);
+
+  const { payload: updatedPayload, updatedCount } = applyPhotoReviewDecisionsToPayload(
+    section,
+    currentPayload,
+    photoIds,
+    decision,
+    rejectReason,
+    legacySectionPending
+  );
+  if (updatedCount <= 0) return 0;
+
+  const derived = deriveSectionReviewFromPhotos(extractSectionPhotos(section, updatedPayload));
+  await updateModelExtraSectionWithReview(
+    userId,
+    section,
+    updatedPayload,
+    derived.status,
+    derived.rejectReason
+  );
+  return updatedCount;
+}
+
+export async function approveAllModelContentReviewForAdmin(userId: number): Promise<void> {
+  const extra = await findModelExtra(userId);
+  if (!extra) return;
+
+  for (const [section, meta] of Object.entries(CONTENT_REVIEW_COLUMNS) as Array<
+    [ModelContentReviewSection, (typeof CONTENT_REVIEW_COLUMNS)[ModelContentReviewSection]]
+  >) {
+    const currentPayload = parseExtraJsonColumn(extra[meta.json]);
+    const updatedPayload = approveAllPhotosInPayload(section, currentPayload);
+    const derived = deriveSectionReviewFromPhotos(extractSectionPhotos(section, updatedPayload));
+    await updateModelExtraSectionWithReview(
+      userId,
+      section,
+      updatedPayload,
+      derived.status,
+      derived.rejectReason
+    );
+  }
+}
+
 export async function findCategoryTreeRows(): Promise<CategoryNodeRow[]> {
   const [rows] = await dbPool.query<CategoryNodeRow[]>(
     `SELECT id, parent_id, type, name, sort_order
@@ -479,6 +658,9 @@ export async function findMerchantModelList(filters: MerchantModelListFilters = 
   const platformFeaturedExpr = await mpColumnExpr("is_platform_featured", "0");
   const photosDisabledExpr = await mpColumnExpr("photos_disabled", "0");
   const levelOverrideExpr = await mpColumnExpr("model_level_override", "NULL");
+  const cardReviewExpr = await mexColumnExpr("card_review_status", "2");
+  const portfolioReviewExpr = await mexColumnExpr("portfolio_review_status", "2");
+  const styleReviewExpr = await mexColumnExpr("style_position_review_status", "2");
   const platformFeaturedGroupBy = (await hasModelProfilesColumn("is_platform_featured"))
     ? ",\n              mp.is_platform_featured"
     : "";
@@ -555,7 +737,10 @@ export async function findMerchantModelList(filters: MerchantModelListFilters = 
             GROUP_CONCAT(DISTINCT n.name ORDER BY n.sort_order ASC, n.id ASC SEPARATOR ',') AS category_names,
             MAX(mex.card_json) AS card_json,
             MAX(mex.portfolio_json) AS portfolio_json,
-            MAX(mex.style_position_json) AS style_position_json
+            MAX(mex.style_position_json) AS style_position_json,
+            MAX(${cardReviewExpr}) AS card_review_status,
+            MAX(${portfolioReviewExpr}) AS portfolio_review_status,
+            MAX(${styleReviewExpr}) AS style_position_review_status
      FROM users u
      LEFT JOIN model_profiles mp ON mp.user_id = u.id
      LEFT JOIN model_extra_data mex ON mex.user_id = u.id

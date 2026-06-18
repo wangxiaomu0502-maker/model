@@ -1,3 +1,11 @@
+const {
+  flattenCategoryTree,
+  toggleCategoryGroupLeaves,
+  buildMajorGroupSelectMap,
+  findCategoryGroupById,
+  getCategoryGroupSelectState
+} = require("../../utils/model-category-tree.js");
+
 Page({
   data: {
     tabs: [
@@ -17,7 +25,10 @@ Page({
     selectedCategoryIds: [],
     selectedMap: {},
     selectedCount: 0,
-    selectedOptions: []
+    selectedOptions: [],
+    majorGroupSelectMap: {},
+    activeMajorSelectState: "none",
+    subGroupSelectMap: {}
   },
 
   requestWithAuth(url, method, data) {
@@ -69,25 +80,34 @@ Page({
     return patch;
   },
 
-  flattenCategoryTree(groups) {
-    const result = [];
-    const walk = (nodes) => {
-      (nodes || []).forEach((node) => {
-        if (!node || !node.id) return;
-        result.push({ id: Number(node.id), name: node.name || "" });
-        if (node.children && node.children.length) walk(node.children);
-      });
-    };
-    walk(groups);
-    return result;
-  },
-
   buildSelectedOptions(ids) {
     const nameMap = this.data.categoryNameMap || {};
     return (ids || []).map((id) => ({
       id,
       name: nameMap[id] || `分类${id}`
     }));
+  },
+
+  syncSelection(ids) {
+    const selectedCategoryIds = (ids || []).map((id) => Number(id)).filter((id) => id > 0);
+    const majorGroups = this.data.majorGroups || [];
+    const activeMajorGroup = this.data.activeMajorGroup;
+    const subGroupSelectMap = {};
+    (activeMajorGroup?.children || []).forEach((subGroup) => {
+      if (!subGroup?.id) return;
+      subGroupSelectMap[subGroup.id] = getCategoryGroupSelectState(subGroup, selectedCategoryIds);
+    });
+    this.setData({
+      selectedCategoryIds,
+      selectedMap: this.toMap(selectedCategoryIds),
+      selectedCount: selectedCategoryIds.length,
+      selectedOptions: this.buildSelectedOptions(selectedCategoryIds),
+      majorGroupSelectMap: buildMajorGroupSelectMap(majorGroups, selectedCategoryIds),
+      activeMajorSelectState: activeMajorGroup
+        ? getCategoryGroupSelectState(activeMajorGroup, selectedCategoryIds)
+        : "none",
+      subGroupSelectMap
+    });
   },
 
   async onLoad() {
@@ -97,7 +117,7 @@ Page({
         const mainTypeGroups = treeResp.tree.mainTypeGroups || [];
         const styleGroups = treeResp.tree.styleGroups || [];
         const sceneGroups = treeResp.tree.sceneGroups || [];
-        const allOptions = this.flattenCategoryTree([
+        const allOptions = flattenCategoryTree([
           ...mainTypeGroups,
           ...styleGroups,
           ...sceneGroups
@@ -119,13 +139,7 @@ Page({
       }
       const categoryResp = await this.requestWithAuth("/api/models/categories", "GET");
       if (!categoryResp?.ok) return;
-      const selectedCategoryIds = categoryResp.categoryIds || [];
-      this.setData({
-        selectedCategoryIds,
-        selectedMap: this.toMap(selectedCategoryIds),
-        selectedCount: selectedCategoryIds.length,
-        selectedOptions: this.buildSelectedOptions(selectedCategoryIds)
-      });
+      this.syncSelection(categoryResp.categoryIds || []);
     } catch (_error) {}
   },
 
@@ -143,24 +157,32 @@ Page({
     const current = this.data.selectedCategoryIds || [];
     const exists = current.includes(value);
     const next = exists ? current.filter((item) => item !== value) : [...current, value];
-    this.setData({
-      selectedCategoryIds: next,
-      selectedMap: this.toMap(next),
-      selectedCount: next.length,
-      selectedOptions: this.buildSelectedOptions(next)
-    });
+    this.syncSelection(next);
   },
 
   removeSelected(e) {
     const value = Number(e.currentTarget.dataset.value || 0);
     if (!value) return;
     const next = (this.data.selectedCategoryIds || []).filter((item) => item !== value);
-    this.setData({
-      selectedCategoryIds: next,
-      selectedMap: this.toMap(next),
-      selectedCount: next.length,
-      selectedOptions: this.buildSelectedOptions(next)
-    });
+    this.syncSelection(next);
+  },
+
+  toggleMajorGroup(e) {
+    const id = Number(e.currentTarget.dataset.id || 0);
+    if (!id) return;
+    const group = findCategoryGroupById(this.data.majorGroups, id);
+    if (!group) return;
+    const next = toggleCategoryGroupLeaves(group, this.data.selectedCategoryIds);
+    this.syncSelection(next);
+  },
+
+  toggleSubGroup(e) {
+    const id = Number(e.currentTarget.dataset.id || 0);
+    if (!id) return;
+    const subGroup = findCategoryGroupById(this.data.activeMajorGroup?.children, id);
+    if (!subGroup) return;
+    const next = toggleCategoryGroupLeaves(subGroup, this.data.selectedCategoryIds);
+    this.syncSelection(next);
   },
 
   switchTab(e) {
@@ -168,7 +190,9 @@ Page({
     if (!tab || tab === this.data.currentTab) return;
     const patch = this.syncMajorPanel(tab);
     patch.currentTab = tab;
-    this.setData(patch);
+    this.setData(patch, () => {
+      this.syncSelection(this.data.selectedCategoryIds);
+    });
   },
 
   switchMajorGroup(e) {
@@ -181,7 +205,9 @@ Page({
     if (tab === "main") patch.activeMainGroupId = id;
     if (tab === "style") patch.activeStyleGroupId = id;
     if (tab === "scene") patch.activeSceneGroupId = id;
-    this.setData(patch);
+    this.setData(patch, () => {
+      this.syncSelection(this.data.selectedCategoryIds);
+    });
   },
 
   async saveSelection() {

@@ -65,14 +65,14 @@
 
   <view
     wx:if="{{showModelModal}}"
-    class="identity-modal-mask"
+    class="identity-modal-mask {{modelModalStep === 'authCode' || modelModalStep === 'authCodeSuccess' ? 'identity-modal-mask--center' : ''}}"
     bindtap="closeModelModal"
     catchtouchmove="preventModalBubble"
   >
     <view class="identity-modal-panel" catchtap="preventModalBubble">
       <view class="identity-modal-head">
-        <text class="identity-modal-title">模特注册方式</text>
-        <text class="identity-modal-close" bindtap="closeModelModal">关闭</text>
+        <text class="identity-modal-title">{{modelModalStep === 'authCodeSuccess' ? '授权完成' : '模特注册方式'}}</text>
+        <text wx:if="{{modelModalStep !== 'authCodeSuccess'}}" class="identity-modal-close" bindtap="closeModelModal">关闭</text>
       </view>
 
       <block wx:if="{{modelModalStep === 'choose'}}">
@@ -91,6 +91,37 @@
           </view>
           <text class="identity-modal-option-arrow">›</text>
         </view>
+      </block>
+
+      <block wx:elif="{{modelModalStep === 'authCode'}}">
+        <text class="identity-modal-back" bindtap="onModelModalBackFromAuthCode">‹ 返回</text>
+        <text class="identity-modal-desc">请输入平台发放的 8 位授权码后继续自行注册</text>
+        <input
+          class="identity-auth-code-input"
+          type="text"
+          maxlength="8"
+          placeholder="请输入授权码"
+          value="{{authCodeInput}}"
+          bindinput="onAuthCodeInput"
+        />
+        <button
+          class="identity-phone-btn"
+          bindtap="onSubmitAuthCode"
+          loading="{{authCodeLoading}}"
+          disabled="{{authCodeLoading}}"
+        >
+          验证并继续
+        </button>
+        <text wx:if="{{authCodeError}}" class="identity-modal-error">{{authCodeError}}</text>
+      </block>
+
+      <block wx:elif="{{modelModalStep === 'authCodeSuccess'}}">
+        <view class="identity-auth-success">
+          <view class="identity-auth-success-icon">✓</view>
+          <text class="identity-auth-success-title">授权完成</text>
+          <text class="identity-auth-success-desc">授权码验证通过，请继续完成实名核验与资料提交</text>
+        </view>
+        <button class="identity-phone-btn" bindtap="onAuthCodeSuccessContinue">继续注册</button>
       </block>
 
       <block wx:else>
