@@ -1,0 +1,20 @@
+<view
+  wx:if="{{bannerVideoVisible}}"
+  class="home-banner-video-modal"
+  catchtap="closeBannerVideo"
+>
+  <view class="home-banner-video-panel" catchtap="preventBannerPreviewBubble">
+    <video
+      id="homeBannerVideo"
+      class="home-banner-video-player"
+      src="{{bannerVideoUrl}}"
+      poster="{{bannerVideoCover}}"
+      controls
+      autoplay
+      object-fit="contain"
+      show-center-play-btn
+      binderror="onBannerVideoError"
+    />
+    <view class="home-banner-video-close" catchtap="closeBannerVideo">关闭</view>
+  </view>
+</view>

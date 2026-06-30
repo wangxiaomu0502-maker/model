@@ -1,3 +1,5 @@
+const { switchToModelListTab } = require("./model-list-navigation.js");
+
 /** 首页六大模特类型 → 分类树 rootIds（含子孙叶子节点用于列表筛选） */
 const HOME_MODEL_CATEGORIES = [
   {
@@ -132,10 +134,6 @@ async function goModelListByHomeCategory(key) {
   const app = getApp();
   const item = findHomeCategory(key);
   if (!item) return;
-  if (!requireLogin(app, {
-    title: "登录后查看模特",
-    content: "请先注册或登录，即可按类型浏览模特列表。"
-  })) return;
 
   wx.showLoading({ title: "加载中", mask: true });
   try {
@@ -144,7 +142,7 @@ async function goModelListByHomeCategory(key) {
       ...filter,
       ts: Date.now()
     };
-    wx.switchTab({ url: "/pages/model-list/model-list" });
+    switchToModelListTab();
   } finally {
     wx.hideLoading();
   }

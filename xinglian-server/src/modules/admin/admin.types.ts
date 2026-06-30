@@ -103,6 +103,13 @@ export const adminModelLevelBodySchema = z.object({
 
 export type AdminModelLevelBody = z.infer<typeof adminModelLevelBodySchema>;
 
+/** 后台设置模特列表排序，越大越靠前 */
+export const adminModelSortOrderBodySchema = z.object({
+  sortOrder: z.coerce.number().int().min(0).max(999999)
+});
+
+export type AdminModelSortOrderBody = z.infer<typeof adminModelSortOrderBodySchema>;
+
 /** 后台为商家设置绑定经纪人；传 null 表示清除 */
 export const adminMerchantBrokerBodySchema = z.object({
   brokerUserId: z.union([z.coerce.number().int().positive(), z.null()])

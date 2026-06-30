@@ -8,6 +8,8 @@ import { fetchAdminSystemSettings, updateAdminSystemSettings } from "@/api/admin
 const loading = ref(true);
 const saving = ref(false);
 const merchantOrderEnabled = ref(true);
+const platformMaintenanceEnabled = ref(false);
+const platformMaintenanceMessage = ref("系统维护中，请稍后再试");
 const homeStatModelOffset = ref(0);
 const homeStatMerchantOffset = ref(0);
 const homeStatBrokerOffset = ref(0);
@@ -33,6 +35,8 @@ async function load(): Promise<void> {
   try {
     const data = await fetchAdminSystemSettings();
     merchantOrderEnabled.value = data.merchantOrderEnabled !== false;
+    platformMaintenanceEnabled.value = data.platformMaintenanceEnabled === true;
+    platformMaintenanceMessage.value = data.platformMaintenanceMessage || "系统维护中，请稍后再试";
     homeStatModelOffset.value = Number(data.homeStatModelOffset || 0);
     homeStatMerchantOffset.value = Number(data.homeStatMerchantOffset || 0);
     homeStatBrokerOffset.value = Number(data.homeStatBrokerOffset || 0);
@@ -49,11 +53,15 @@ async function save(): Promise<void> {
   try {
     const data = await updateAdminSystemSettings({
       merchantOrderEnabled: merchantOrderEnabled.value,
+      platformMaintenanceEnabled: platformMaintenanceEnabled.value,
+      platformMaintenanceMessage: platformMaintenanceMessage.value.trim() || "系统维护中，请稍后再试",
       homeStatModelOffset: Math.trunc(Number(homeStatModelOffset.value || 0)),
       homeStatMerchantOffset: Math.trunc(Number(homeStatMerchantOffset.value || 0)),
       homeStatBrokerOffset: Math.trunc(Number(homeStatBrokerOffset.value || 0))
     });
     merchantOrderEnabled.value = data.merchantOrderEnabled !== false;
+    platformMaintenanceEnabled.value = data.platformMaintenanceEnabled === true;
+    platformMaintenanceMessage.value = data.platformMaintenanceMessage || "系统维护中，请稍后再试";
     homeStatModelOffset.value = Number(data.homeStatModelOffset || 0);
     homeStatMerchantOffset.value = Number(data.homeStatMerchantOffset || 0);
     homeStatBrokerOffset.value = Number(data.homeStatBrokerOffset || 0);

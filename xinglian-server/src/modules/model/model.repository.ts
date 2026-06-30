@@ -131,6 +131,7 @@ export type MerchantModelListFilters = {
   modelLevels?: number[];
   preferPortfolio?: boolean;
   limit?: number;
+  offset?: number;
 };
 
 let modelRatingScoreColumnExists: boolean | null = null;
@@ -598,6 +599,7 @@ export async function replaceMyCategoryIds(userId: number, categoryIds: number[]
 
 export async function findMerchantModelList(filters: MerchantModelListFilters = {}): Promise<MerchantModelListRow[]> {
   const safeLimit = Math.max(1, Math.min(100, Number(filters.limit) || 50));
+  const safeOffset = Math.max(0, Math.floor(Number(filters.offset) || 0));
   const where: string[] = [
     "u.role = 1",
     "u.status = 1",
@@ -670,6 +672,9 @@ export async function findMerchantModelList(filters: MerchantModelListFilters = 
   const levelOverrideGroupBy = (await hasModelProfilesColumn("model_level_override"))
     ? ",\n              mp.model_level_override"
     : "";
+  const sortOrderGroupBy = (await hasModelProfilesColumn("sort_order"))
+    ? ",\n              mp.sort_order"
+    : "";
   const modelLevels = (filters.modelLevels || []).filter(
     (level) => Number.isInteger(level) && level >= 0 && level <= 5
   );
@@ -680,6 +685,9 @@ export async function findMerchantModelList(filters: MerchantModelListFilters = 
     havingParams.push(...modelLevels);
   }
   const orderParts: string[] = [];
+  if (await hasModelProfilesColumn("sort_order")) {
+    orderParts.push("mp.sort_order DESC");
+  }
   if (filters.preferPortfolio) {
     orderParts.push("has_portfolio DESC");
   }
@@ -758,12 +766,12 @@ export async function findMerchantModelList(filters: MerchantModelListFilters = 
               mp.price_halfday,
               mp.price_allday,
               rating_score,
-              mp.is_available${platformFeaturedGroupBy}${photosDisabledGroupBy}${levelOverrideGroupBy},
+              mp.is_available${platformFeaturedGroupBy}${photosDisabledGroupBy}${levelOverrideGroupBy}${sortOrderGroupBy},
               u.profile_audit_status
      ${havingParts.length > 0 ? `HAVING ${havingParts.join("\n        AND ")}` : ""}
      ORDER BY ${orderParts.join(",\n              ")}
-     LIMIT ?`,
-    [...params, ...havingParams, safeLimit]
+     LIMIT ? OFFSET ?`,
+    [...params, ...havingParams, safeLimit, safeOffset]
   );
   return rows;
 }

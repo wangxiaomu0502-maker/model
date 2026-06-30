@@ -1,5 +1,5 @@
-const MAX_UPLOAD_IMAGE_BYTES = 5 * 1024 * 1024;
-const MAX_UPLOAD_IMAGE_LABEL = "5M";
+const MAX_UPLOAD_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_UPLOAD_IMAGE_LABEL = "10M";
 const DEFAULT_COMPRESS_QUALITY = 75;
 
 function getFileSize(filePath) {

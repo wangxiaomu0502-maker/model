@@ -246,6 +246,7 @@ export type MerchantModelListQuery = {
   modelLevels?: unknown;
   preferPortfolio?: unknown;
   limit?: unknown;
+  offset?: unknown;
 };
 
 function cleanText(value: unknown): string | undefined {
@@ -290,6 +291,7 @@ function toMerchantModelListFilters(query: MerchantModelListQuery = {}): Merchan
   const categoryIds = parseCategoryIds(query.categoryIds);
   const modelLevels = parseModelLevels(query.modelLevel, query.modelLevels);
   const limit = Number(query.limit || 50);
+  const offset = Number(query.offset || 0);
   return {
     province: cleanText(query.province),
     city: cleanText(query.city),
@@ -306,7 +308,8 @@ function toMerchantModelListFilters(query: MerchantModelListQuery = {}): Merchan
     ratingSort: ratingSort === "desc" ? "desc" : undefined,
     modelLevels: modelLevels.length > 0 ? modelLevels : undefined,
     preferPortfolio: isTruthyQueryFlag(query.preferPortfolio),
-    limit: Number.isFinite(limit) ? limit : 50
+    limit: Number.isFinite(limit) ? limit : 50,
+    offset: Number.isFinite(offset) && offset >= 0 ? Math.floor(offset) : 0
   };
 }
 

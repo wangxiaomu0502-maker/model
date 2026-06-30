@@ -28,6 +28,7 @@ import {
   adminSetModelAccountStatusController,
   adminSetBrokerAccountStatusController,
   adminSetModelLevelController,
+  adminSetModelSortOrderController,
   adminSetModelPhotosDisabledController,
   adminSetMerchantBrokerController,
   adminListOrdersController,
@@ -46,6 +47,7 @@ import {
   adminModelFeaturedBodySchema,
   adminModelLevelBodySchema,
   adminModelPhotosDisabledBodySchema,
+  adminModelSortOrderBodySchema,
   adminMerchantBrokerBodySchema,
   adminModelContentReviewBodySchema,
   adminModelProfileAuditBodySchema,
@@ -146,6 +148,20 @@ import {
   modelRegistrationCodeGenerateBodySchema,
   modelRegistrationCodeListQuerySchema
 } from "../model-registration-code/model-registration-code.types";
+import {
+  adminCreateHomeBannerController,
+  adminDeleteHomeBannerController,
+  adminListHomeBannersController,
+  adminUpdateHomeBannerController,
+  adminUploadHomeBannerVideoController
+} from "../home-banner/home-banner.controller";
+import { homeBannerVideoUploader } from "../home-banner/home-banner-video.middleware";
+import {
+  createHomeBannerSchema,
+  homeBannerIdParamSchema,
+  homeBannerListQuerySchema,
+  updateHomeBannerSchema
+} from "../home-banner/home-banner.types";
 
 const adminRouter = Router();
 
@@ -243,6 +259,37 @@ adminRouter.delete(
   requireAdminAuth,
   validate(commercialShootPackageIdParamSchema, "params"),
   adminDeleteCommercialShootPackageController
+);
+adminRouter.get(
+  "/home-banners",
+  requireAdminAuth,
+  validate(homeBannerListQuerySchema, "query"),
+  adminListHomeBannersController
+);
+adminRouter.post(
+  "/home-banners",
+  requireAdminAuth,
+  validate(createHomeBannerSchema),
+  adminCreateHomeBannerController
+);
+adminRouter.patch(
+  "/home-banners/:id",
+  requireAdminAuth,
+  validate(homeBannerIdParamSchema, "params"),
+  validate(updateHomeBannerSchema),
+  adminUpdateHomeBannerController
+);
+adminRouter.delete(
+  "/home-banners/:id",
+  requireAdminAuth,
+  validate(homeBannerIdParamSchema, "params"),
+  adminDeleteHomeBannerController
+);
+adminRouter.post(
+  "/home-banners/video/upload",
+  requireAdminAuth,
+  homeBannerVideoUploader.single("file"),
+  adminUploadHomeBannerVideoController
 );
 adminRouter.get(
   "/model-registration-codes",
@@ -421,6 +468,13 @@ adminRouter.patch(
   validate(adminUserIdParamSchema, "params"),
   validate(adminModelLevelBodySchema),
   adminSetModelLevelController
+);
+adminRouter.patch(
+  "/models/:userId/sort-order",
+  requireAdminAuth,
+  validate(adminUserIdParamSchema, "params"),
+  validate(adminModelSortOrderBodySchema),
+  adminSetModelSortOrderController
 );
 adminRouter.get(
   "/agent-users",

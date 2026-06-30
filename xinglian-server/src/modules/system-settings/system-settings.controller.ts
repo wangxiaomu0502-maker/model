@@ -4,7 +4,7 @@ import { ErrorCodes } from "../../core/constants/error-codes";
 import { fail, success } from "../../core/http/response";
 import { AdminAuthenticatedRequest } from "../../middlewares/require-admin-auth";
 
-import { getSystemSettings, updateSystemSettings } from "./system-settings.service";
+import { getSystemSettings, getPlatformMaintenanceStatus, updateSystemSettings } from "./system-settings.service";
 import type { SystemSettingsUpdateDto } from "./system-settings.types";
 
 export async function adminGetSystemSettingsController(
@@ -53,6 +53,19 @@ export async function getMerchantOrderSettingController(
     success(res, {
       merchantOrderEnabled: data.merchantOrderEnabled
     });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getPlatformMaintenanceStatusController(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const data = await getPlatformMaintenanceStatus();
+    success(res, data);
   } catch (e) {
     next(e);
   }

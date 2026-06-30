@@ -1,6 +1,1 @@
-@import "../../styles/model-dash-page.wxss";
 @import "../../styles/home-page.wxss";
-
-.container {
-  padding-bottom: calc(128rpx + env(safe-area-inset-bottom));
-}

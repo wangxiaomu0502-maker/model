@@ -5,6 +5,7 @@ import type { UploadRequestOptions } from "element-plus";
 import { Link, Picture, UploadFilled } from "@element-plus/icons-vue";
 
 import { uploadAdminAssetImage } from "@/api/admin";
+import { MAX_UPLOAD_FILE_LABEL } from "@/utils/upload-file";
 
 type UploadedImage = {
   id: string;
@@ -106,7 +107,7 @@ function clearList(): void {
       >
         <el-icon class="upload-icon"><UploadFilled /></el-icon>
         <div class="upload-title">拖拽图片到这里，或点击选择多张图片</div>
-        <div class="upload-desc">支持 JPG、PNG、WEBP，单张不超过 5M，系统会自动压缩大图。</div>
+        <div class="upload-desc">支持 JPG、PNG、WEBP，单张不超过 {{ MAX_UPLOAD_FILE_LABEL }}，系统会自动压缩大图。</div>
       </el-upload>
 
       <div class="upload-status" v-if="uploading || uploadedImages.length > 0">

@@ -23,6 +23,7 @@ import {
   type AdminAgentIncomeLedgerRow,
   type AdminAgentRow
 } from "@/api/admin";
+import { MAX_UPLOAD_FILE_LABEL } from "@/utils/upload-file";
 
 const loading = ref(false);
 const saving = ref(false);
@@ -674,7 +675,7 @@ onUnmounted(() => {
               <p class="license-drop-title">
                 将营业执照拖到此处，或<em>点击上传</em>
               </p>
-              <p class="license-drop-tip">支持 JPG、PNG、WEBP、PDF，图片上传前会自动压缩，单文件不超过 5M</p>
+              <p class="license-drop-tip">支持 JPG、PNG、WEBP、PDF，图片上传前会自动压缩，单文件不超过 {{ MAX_UPLOAD_FILE_LABEL }}</p>
             </div>
           </el-upload>
           <div v-if="form.businessLicenseUrl" class="license-actions">

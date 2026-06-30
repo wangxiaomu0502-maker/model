@@ -1,0 +1,14 @@
+<view class="page">
+  <view class="bg-blob bg-blob-1"></view>
+  <view class="bg-blob bg-blob-2"></view>
+  <view class="bg-grid"></view>
+  <view class="center">
+    <view class="icon-wrap">🔧</view>
+    <text class="title">平台维护中</text>
+    <text class="message">{{message}}</text>
+    <button class="retry-btn" loading="{{checking}}" disabled="{{checking}}" bindtap="onRetryTap">
+      重新进入
+    </button>
+    <text class="brand-mark">星链模库</text>
+  </view>
+</view>

@@ -1,12 +1,148 @@
 @import "../../styles/model-dash-page.wxss";
 @import "../../styles/model-category-filter-popup.wxss";
+@import "../../styles/premium-model-card.wxss";
+@import "../../styles/home-page.wxss";
+
+.model-list-page-root {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.model-list-page-root .home-status-bar-shield--solid .model-list-shield-nav {
+  pointer-events: auto;
+}
+
+.model-list-immersive-bg-wrap {
+  height: 320rpx;
+}
+
+.model-list-immersive-bg {
+  height: 320rpx;
+}
+
+.model-list-immersive-head .home-immersive-inner {
+  padding-bottom: 8rpx;
+}
+
+.model-list-nav-row {
+  position: relative;
+}
+
+.model-list-shield-nav {
+  position: relative;
+}
+
+.model-list-nav-back {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  height: 56rpx;
+  padding: 0 20rpx 0 14rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(199, 210, 254, 0.95);
+  box-shadow: 0 8rpx 22rpx rgba(67, 56, 202, 0.08);
+  box-sizing: border-box;
+  transform: translateY(-50%);
+}
+
+.model-list-nav-back--compact {
+  left: 16rpx;
+  height: 48rpx;
+  padding: 0 16rpx;
+  transform: translateY(-50%);
+}
+
+.model-list-nav-back--active {
+  opacity: 0.86;
+}
+
+.model-list-nav-back-icon {
+  font-size: 40rpx;
+  line-height: 1;
+  color: #4338ca;
+  transform: translateY(-1rpx);
+}
+
+.model-list-nav-back-text {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #4338ca;
+  letter-spacing: 0.04em;
+}
 
 .container {
   padding-bottom: calc(128rpx + env(safe-area-inset-bottom));
 }
 
+.model-list-page--guest {
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
+}
+
+.model-list-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 0 12rpx;
+}
+
+.model-list-load-more-text {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.model-list-guest-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  padding: 16rpx 0 calc(16rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1rpx solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 -8rpx 32rpx rgba(15, 23, 42, 0.06);
+}
+
+.model-list-guest-bar-inner {
+  padding-left: 25rpx;
+  padding-right: 25rpx;
+  box-sizing: border-box;
+}
+
+.model-list-guest-register-btn {
+  width: 100%;
+  height: 100rpx;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 20rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  background: linear-gradient(135deg, #7c3aed, #ec4899 58%, #f97316);
+  box-shadow: 0 10rpx 24rpx rgba(236, 72, 153, 0.28);
+}
+
+.model-list-guest-register-btn--active {
+  opacity: 0.92;
+}
+
 .model-list-page {
   position: relative;
+  z-index: 3;
   overflow: hidden;
   background:
     radial-gradient(circle at 12% 6%, rgba(255, 122, 201, 0.34) 0, rgba(255, 122, 201, 0) 230rpx),
@@ -23,7 +159,7 @@
 }
 
 .model-list-bg--pink {
-  top: 118rpx;
+  top: 24rpx;
   left: -84rpx;
   width: 210rpx;
   height: 210rpx;
@@ -31,7 +167,7 @@
 }
 
 .model-list-bg--blue {
-  top: 430rpx;
+  top: 336rpx;
   right: -96rpx;
   width: 260rpx;
   height: 260rpx;
@@ -356,6 +492,7 @@
 .model-list-card {
   position: relative;
   overflow: hidden;
+  border-radius: 24rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.9);
   background:
     linear-gradient(#ffffff, #ffffff) padding-box,
@@ -364,22 +501,30 @@
 }
 
 .model-list-card--crown {
-  border-color: rgba(245, 158, 11, 0.52);
+  border: 5rpx solid transparent;
   background:
-    radial-gradient(circle at 92% 0%, rgba(251, 191, 36, 0.2) 0, rgba(251, 191, 36, 0) 180rpx),
+    radial-gradient(circle at 92% 0%, rgba(251, 191, 36, 0.28) 0, rgba(251, 191, 36, 0) 200rpx),
+    radial-gradient(circle at 0% 100%, rgba(245, 158, 11, 0.16) 0, rgba(245, 158, 11, 0) 180rpx),
     linear-gradient(#fffdf6, #ffffff) padding-box,
-    linear-gradient(135deg, #f59e0b, #fde68a 48%, #b45309) border-box;
-  box-shadow: 0 18rpx 46rpx rgba(180, 83, 9, 0.22);
+    linear-gradient(135deg, #b45309, #fbbf24 22%, #fde68a 50%, #f59e0b 78%, #b45309) border-box;
+  box-shadow:
+    0 0 0 2rpx rgba(251, 191, 36, 0.42),
+    0 0 30rpx rgba(245, 158, 11, 0.34),
+    0 22rpx 52rpx rgba(180, 83, 9, 0.28);
 }
 
 .model-list-card--sky {
-  border-color: rgba(192, 132, 252, 0.64);
+  border: 5rpx solid transparent;
   background:
-    radial-gradient(circle at 92% 0%, rgba(236, 72, 153, 0.24) 0, rgba(236, 72, 153, 0) 190rpx),
-    radial-gradient(circle at 0% 12%, rgba(56, 189, 248, 0.18) 0, rgba(56, 189, 248, 0) 170rpx),
+    radial-gradient(circle at 92% 0%, rgba(236, 72, 153, 0.3) 0, rgba(236, 72, 153, 0) 200rpx),
+    radial-gradient(circle at 0% 12%, rgba(56, 189, 248, 0.24) 0, rgba(56, 189, 248, 0) 180rpx),
     linear-gradient(135deg, #fff7fb 0%, #ffffff 48%, #f5f3ff 100%) padding-box,
-    linear-gradient(135deg, #0f172a, #7c3aed 45%, #ec4899) border-box;
-  box-shadow: 0 20rpx 52rpx rgba(88, 28, 135, 0.26);
+    linear-gradient(135deg, #38bdf8, #a855f7 28%, #ec4899 58%, #f97316 82%, #7c3aed) border-box;
+  box-shadow:
+    0 0 0 2rpx rgba(192, 132, 252, 0.48),
+    0 0 34rpx rgba(124, 58, 237, 0.38),
+    0 0 52rpx rgba(236, 72, 153, 0.24),
+    0 24rpx 58rpx rgba(88, 28, 135, 0.32);
 }
 
 .model-list-card-shine {
@@ -394,13 +539,15 @@
 }
 
 .model-list-card--crown .model-list-card-shine {
-  background: rgba(245, 158, 11, 0.18);
-  box-shadow: 0 0 48rpx rgba(245, 158, 11, 0.24);
+  background: rgba(245, 158, 11, 0.24);
+  box-shadow: 0 0 60rpx rgba(251, 191, 36, 0.38);
 }
 
 .model-list-card--sky .model-list-card-shine {
-  background: rgba(124, 58, 237, 0.18);
-  box-shadow: 0 0 56rpx rgba(236, 72, 153, 0.28);
+  background: rgba(124, 58, 237, 0.22);
+  box-shadow:
+    0 0 48rpx rgba(168, 85, 247, 0.34),
+    0 0 72rpx rgba(236, 72, 153, 0.22);
 }
 
 .model-list-premium-aura {
@@ -427,16 +574,22 @@
 
 .model-list-card-badge--crown {
   color: #78350f;
-  background: linear-gradient(135deg, #fef3c7, #f59e0b);
-  border-color: rgba(180, 83, 9, 0.32);
-  box-shadow: 0 8rpx 20rpx rgba(245, 158, 11, 0.26);
+  background: linear-gradient(135deg, #fef3c7, #fde68a 42%, #f59e0b);
+  border: 2rpx solid rgba(251, 191, 36, 0.72);
+  box-shadow:
+    0 0 16rpx rgba(245, 158, 11, 0.42),
+    0 8rpx 20rpx rgba(245, 158, 11, 0.28);
+  letter-spacing: 0.04em;
 }
 
 .model-list-card-badge--sky {
   color: #ffffff;
-  background: linear-gradient(135deg, #0f172a, #7c3aed 48%, #ec4899);
-  border-color: rgba(255, 255, 255, 0.52);
-  box-shadow: 0 8rpx 24rpx rgba(124, 58, 237, 0.34);
+  background: linear-gradient(135deg, #0f172a, #7c3aed 38%, #ec4899 72%, #38bdf8);
+  border: 2rpx solid rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 0 18rpx rgba(124, 58, 237, 0.48),
+    0 8rpx 24rpx rgba(236, 72, 153, 0.34);
+  letter-spacing: 0.04em;
 }
 
 .model-list-name-row,
@@ -466,15 +619,15 @@
 .model-level-pill--crown {
   color: #78350f;
   background: linear-gradient(135deg, #fef3c7, #fde68a 50%, #f59e0b);
-  border-color: rgba(180, 83, 9, 0.34);
-  box-shadow: 0 6rpx 16rpx rgba(245, 158, 11, 0.22);
+  border: 2rpx solid rgba(251, 191, 36, 0.55);
+  box-shadow: 0 0 12rpx rgba(245, 158, 11, 0.28);
 }
 
 .model-level-pill--sky {
   color: #ffffff;
   background: linear-gradient(135deg, #0f172a, #7c3aed 52%, #ec4899);
-  border-color: rgba(255, 255, 255, 0.5);
-  box-shadow: 0 6rpx 18rpx rgba(124, 58, 237, 0.3);
+  border: 2rpx solid rgba(255, 255, 255, 0.62);
+  box-shadow: 0 0 14rpx rgba(124, 58, 237, 0.38);
 }
 
 .model-gender-pill {
@@ -540,6 +693,8 @@
 
 .model-large-card--fancy {
   position: relative;
+  overflow: hidden;
+  border-radius: 24rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.88);
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 14rpx 34rpx rgba(124, 58, 237, 0.14);
@@ -554,15 +709,29 @@
 }
 
 .model-large-card--crown {
-  border-color: rgba(245, 158, 11, 0.58);
-  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
-  box-shadow: 0 20rpx 48rpx rgba(180, 83, 9, 0.22);
+  border: 5rpx solid transparent;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(251, 191, 36, 0.28) 0, rgba(251, 191, 36, 0) 200rpx),
+    linear-gradient(#fffbeb, #ffffff) padding-box,
+    linear-gradient(135deg, #b45309, #fbbf24 22%, #fde68a 50%, #f59e0b 78%, #b45309) border-box;
+  box-shadow:
+    0 0 0 2rpx rgba(251, 191, 36, 0.42),
+    0 0 30rpx rgba(245, 158, 11, 0.34),
+    0 22rpx 52rpx rgba(180, 83, 9, 0.28);
 }
 
 .model-large-card--sky {
-  border-color: rgba(192, 132, 252, 0.64);
-  background: linear-gradient(180deg, #f5f3ff 0%, #fff7fb 100%);
-  box-shadow: 0 22rpx 56rpx rgba(88, 28, 135, 0.28);
+  border: 5rpx solid transparent;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(236, 72, 153, 0.3) 0, rgba(236, 72, 153, 0) 200rpx),
+    radial-gradient(circle at 0% 12%, rgba(56, 189, 248, 0.24) 0, rgba(56, 189, 248, 0) 180rpx),
+    linear-gradient(180deg, #f5f3ff 0%, #fff7fb 100%) padding-box,
+    linear-gradient(135deg, #38bdf8, #a855f7 28%, #ec4899 58%, #f97316 82%, #7c3aed) border-box;
+  box-shadow:
+    0 0 0 2rpx rgba(192, 132, 252, 0.48),
+    0 0 34rpx rgba(124, 58, 237, 0.38),
+    0 0 52rpx rgba(236, 72, 153, 0.24),
+    0 24rpx 58rpx rgba(88, 28, 135, 0.32);
 }
 
 .model-list-page .model-large-cover {
@@ -592,12 +761,22 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 240rpx;
-  height: 240rpx;
+  width: 280rpx;
+  height: 280rpx;
   border-radius: 999rpx;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.32) 0, rgba(255, 255, 255, 0) 66%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.38) 0, rgba(255, 255, 255, 0) 66%);
   pointer-events: none;
+}
+
+.model-large-card--crown .model-large-premium-aura {
+  background:
+    radial-gradient(circle, rgba(255, 251, 235, 0.55) 0, rgba(251, 191, 36, 0.18) 42%, rgba(251, 191, 36, 0) 72%);
+}
+
+.model-large-card--sky .model-large-premium-aura {
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.42) 0, rgba(168, 85, 247, 0.22) 38%, rgba(56, 189, 248, 0.12) 58%, rgba(236, 72, 153, 0) 74%);
 }
 
 .model-list-page .model-large-gradient {
@@ -652,12 +831,26 @@
 
 .model-large-premium-badge--crown {
   color: #78350f;
-  background: linear-gradient(135deg, #fef3c7, #f59e0b);
+  background: linear-gradient(135deg, #fef3c7, #fde68a 42%, #f59e0b);
+  border: 2rpx solid rgba(251, 191, 36, 0.72);
+  box-shadow: 0 0 16rpx rgba(245, 158, 11, 0.42);
 }
 
 .model-large-premium-badge--sky {
   color: #ffffff;
-  background: linear-gradient(135deg, #0f172a, #7c3aed 48%, #ec4899);
+  background: linear-gradient(135deg, #0f172a, #7c3aed 38%, #ec4899 72%, #38bdf8);
+  border: 2rpx solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 0 18rpx rgba(124, 58, 237, 0.48);
+}
+
+.model-large-card--crown .model-large-price-pill {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 6rpx 16rpx rgba(245, 158, 11, 0.34);
+}
+
+.model-large-card--sky .model-large-price-pill {
+  background: linear-gradient(135deg, #7c3aed, #ec4899 58%, #38bdf8);
+  box-shadow: 0 6rpx 18rpx rgba(124, 58, 237, 0.36);
 }
 
 .model-large-price-pill {

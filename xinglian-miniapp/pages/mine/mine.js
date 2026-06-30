@@ -534,6 +534,7 @@ Page({
         { name: "服务价格", icon: "价", menuKey: "pricing" },
         { name: "接单设置", icon: "开", menuKey: "orderSettings" },
         { name: "档期日历", icon: "期", menuKey: "scheduleCalendar" },
+        { name: "我的小程序码", icon: "码", menuKey: "modelQrCode" },
         { name: "我的订单", icon: "单", menuKey: "myOrders" },
         { name: "收入明细", icon: "收", menuKey: "modelIncomeDetail" },
         contractItem,
@@ -651,6 +652,10 @@ Page({
     }
     if (key === "brokerQrCode") {
       wx.navigateTo({ url: "/pages/broker-qrcode/broker-qrcode" });
+      return;
+    }
+    if (key === "modelQrCode") {
+      wx.navigateTo({ url: "/pages/model-qrcode/model-qrcode" });
       return;
     }
     if (key === "brokerLinkPromo") {

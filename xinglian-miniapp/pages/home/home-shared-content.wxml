@@ -1,0 +1,249 @@
+<view class="home-immersive-bg-wrap">
+  <image class="home-immersive-bg" src="{{homeHeaderBg}}" mode="scaleToFill" />
+</view>
+
+<view class="home-immersive-head">
+  <view class="home-immersive-inner">
+    <!-- 自定义导航：标题居中 -->
+    <view class="home-custom-nav" style="height: {{navBarHeight}}px; padding-top: {{navPaddingTop}}px;">
+      <view class="home-nav-row" style="height: {{navRowHeight}}px;">
+        <view class="home-nav-title-wrap">
+          <text class="home-nav-title">星链相连</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 搜索栏 -->
+    <view class="home-top-search">
+      <view class="home-search-row">
+        <view class="home-search-bar" bindtap="goSearchPage">
+          <text class="home-search-placeholder">搜索模特/经纪人/商家</text>
+          <image class="home-search-icon" src="{{homeSearchIconSrc}}" mode="aspectFit" />
+        </view>
+        <view
+          class="home-scan-btn"
+          catchtap="onScanTap"
+          hover-class="home-scan-btn--active"
+          hover-stay-time="80"
+        >
+          <image
+            wx:if="{{!scanIconLoadError}}"
+            class="home-scan-icon-img"
+            src="{{homeScanIconSrc}}"
+            mode="aspectFit"
+            binderror="onScanIconError"
+          />
+          <view wx:else class="home-scan-icon-fallback" aria-hidden="true">
+            <view class="home-scan-corner home-scan-corner--tl"></view>
+            <view class="home-scan-corner home-scan-corner--tr"></view>
+            <view class="home-scan-corner home-scan-corner--bl"></view>
+            <view class="home-scan-corner home-scan-corner--br"></view>
+            <view class="home-scan-line"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 等级分类 Tab -->
+<view class="home-section home-level-tabs">
+  <view
+    wx:for="{{homeModelLevels}}"
+    wx:key="level"
+    class="home-level-tab {{activeLevelIndex === item.levelIndex ? 'home-level-tab--active' : ''}}"
+    data-level-index="{{item.levelIndex}}"
+    bindtap="onModelLevelTap"
+    hover-class="home-level-tab--pressed"
+    hover-stay-time="80"
+  >
+    <text class="home-level-tab-name">{{item.shortName}}</text>
+  </view>
+</view>
+
+<!-- Banner 轮播 -->
+<view class="home-section home-section--banner">
+  <view class="home-banner-wrap">
+    <swiper
+      class="home-banner-swiper"
+      current="{{bannerCurrent}}"
+      bindchange="onBannerChange"
+      circular
+      autoplay
+      interval="4200"
+    >
+      <swiper-item wx:for="{{banners}}" wx:key="id">
+        <view
+          wx:if="{{item.coverUrl}}"
+          class="home-banner-hit"
+          data-id="{{item.id}}"
+          catchtap="goBannerDetail"
+        >
+          <image class="home-banner-media" src="{{item.coverUrl}}" mode="aspectFill" />
+        </view>
+        <view wx:else class="home-banner-slide home-banner-slide--{{item.theme}}">
+          <text class="home-banner-kicker">FEATURED</text>
+          <text class="home-banner-title">{{item.title}}</text>
+          <text class="home-banner-sub">{{item.subtitle}}</text>
+        </view>
+      </swiper-item>
+    </swiper>
+    <view wx:if="{{banners.length > 1}}" class="home-banner-dots">
+      <view
+        wx:for="{{banners}}"
+        wx:for-index="dotIndex"
+        wx:key="id"
+        class="home-banner-dot {{bannerCurrent === dotIndex ? 'home-banner-dot--active' : ''}}"
+      ></view>
+    </view>
+  </view>
+</view>
+
+<!-- 快捷入口 -->
+<view class="home-section home-quick-section">
+  <view class="home-quick-nav home-quick-nav--primary">
+    <view
+      wx:for="{{primaryQuickEntries}}"
+      wx:key="key"
+      class="home-quick-item home-quick-item--primary"
+      data-key="{{item.key}}"
+      bindtap="onQuickEntryTap"
+      hover-class="home-quick-item--active"
+      hover-stay-time="80"
+    >
+      <view class="home-quick-icon-wrap home-quick-icon-wrap--primary">
+        <image class="home-quick-icon home-quick-icon--primary" src="{{item.iconSrc}}" mode="aspectFit" />
+      </view>
+      <text class="home-quick-label home-quick-label--primary">{{item.label}}</text>
+    </view>
+  </view>
+  <view class="home-quick-nav home-quick-nav--secondary">
+    <view
+      wx:for="{{secondaryQuickEntries}}"
+      wx:key="key"
+      class="home-quick-item home-quick-item--secondary"
+      data-key="{{item.key}}"
+      bindtap="onQuickEntryTap"
+      hover-class="home-quick-item--active"
+      hover-stay-time="80"
+    >
+      <view class="home-quick-icon-wrap home-quick-icon-wrap--secondary" style="width: {{item.iconWidth}}rpx;">
+        <image
+          class="home-quick-icon home-quick-icon--secondary"
+          style="width: {{item.iconWidth}}rpx; height: {{item.iconHeight}}rpx;"
+          src="{{item.iconSrc}}"
+          mode="aspectFit"
+        />
+      </view>
+      <text class="home-quick-label home-quick-label--secondary">{{item.label}}</text>
+    </view>
+  </view>
+</view>
+
+<!-- 商单滚动条 -->
+<view class="home-section home-business-ticker-section">
+  <view class="home-business-ticker" bindtap="goBusinessShowcase">
+    <view class="home-business-ticker-leading">
+      <image
+        class="home-business-ticker-leading-icon"
+        src="{{homeBusinessTickerLeadingIconSrc}}"
+        mode="aspectFit"
+      />
+    </view>
+    <swiper
+      class="home-business-ticker-swiper"
+      vertical
+      autoplay
+      circular
+      interval="3200"
+      duration="450"
+    >
+      <swiper-item wx:for="{{businessTickerItems}}" wx:key="id">
+        <view class="home-business-ticker-item">
+          <text class="home-business-ticker-status home-business-ticker-status--{{item.statusClass}}">{{item.status}}</text>
+          <text class="home-business-ticker-text">{{item.line}}</text>
+        </view>
+      </swiper-item>
+    </swiper>
+    <image
+      class="home-business-ticker-more-icon"
+      src="{{homeBusinessTickerMoreIconSrc}}"
+      mode="aspectFit"
+    />
+  </view>
+</view>
+
+<!-- 推荐模特 -->
+<view class="home-section home-models-section">
+  <view class="home-section-head">
+    <view class="home-section-title-wrap">
+      <text class="home-section-title">推荐模特</text>
+      <text class="home-section-sub">精选资料完整、可预约的模特</text>
+    </view>
+    <view class="home-section-more" bindtap="goModelList">全部</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="home-empty-card">
+    <view class="home-empty-ring"></view>
+    <text class="home-empty-text">首页内容加载中...</text>
+  </view>
+  <view wx:elif="{{loadError}}" class="home-empty-card">
+    <text class="home-empty-text">{{loadError}}</text>
+  </view>
+  <block wx:else>
+    <view class="home-model-list">
+      <view
+        wx:for="{{featuredModels}}"
+        wx:key="userNo"
+        class="home-model-card"
+        data-user-no="{{item.userNo}}"
+        bindtap="goModelDetail"
+      >
+        <view class="home-model-cover">
+          <image wx:if="{{item.showCoverImage}}" class="home-model-img" src="{{item.coverImageUrl}}" mode="aspectFill" />
+          <view wx:else class="home-model-fallback">{{item.avatarText}}</view>
+          <image
+            wx:if="{{item.showSkyBadge}}"
+            class="home-model-premium-badge-img"
+            src="{{homeModelSkyBadgeIconSrc}}"
+            mode="scaleToFill"
+          />
+          <text
+            wx:elif="{{item.showCrownBadge}}"
+            class="home-model-premium-badge home-model-premium-badge--crown"
+          >+ 皇冠认证</text>
+        </view>
+        <view class="home-model-body">
+          <view class="home-model-name-row">
+            <text class="home-model-name">{{item.nickname}}</text>
+            <view wx:if="{{item.showSkyBadge}}" class="home-model-level-badge">
+              <image
+                class="home-model-level-badge-img"
+                src="{{homeModelSkyNameBadgeIconSrc}}"
+                mode="scaleToFill"
+              />
+              <text class="home-model-level-badge-text">L5天幕</text>
+            </view>
+            <text wx:else class="model-level-pill">{{item.modelLevelText}}</text>
+          </view>
+          <view class="home-model-location">
+            <text class="home-model-location-text">{{item.city || "城市待完善"}}</text>
+          </view>
+          <view class="home-model-price-text">
+            <block wx:if="{{item.hourlyText !== '-'}}">
+              <text class="home-model-price-symbol">¥ </text>
+              <text class="home-model-price-amount">{{item.hourlyPriceValue}}</text>
+              <text class="home-model-price-unit"> /小时</text>
+            </block>
+            <text wx:else class="home-model-price-fallback">{{item.hourlyText}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{featuredModels.length > 0}}" class="home-load-more">
+      <text wx:if="{{featuredLoadingMore}}" class="home-load-more-text">加载中...</text>
+      <text wx:elif="{{featuredHasMore}}" class="home-load-more-text">上滑加载更多</text>
+      <text wx:else class="home-load-more-text">已展示全部推荐模特</text>
+    </view>
+  </block>
+</view>

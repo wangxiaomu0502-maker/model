@@ -1,5 +1,52 @@
 <page-meta page-style="{{categoryFilterPopupVisible ? 'overflow: hidden;' : ''}}" />
-<view class="container model-list-page">
+<view class="model-list-page-root">
+  <view
+    class="home-status-bar-shield {{homeScrolled ? 'home-status-bar-shield--solid' : ''}}"
+    style="height: {{homeScrolled ? navBarHeight : statusBarHeight}}px; padding-top: {{homeScrolled ? navPaddingTop : 0}}px;"
+  >
+    <view
+      wx:if="{{homeScrolled}}"
+      class="home-status-bar-shield-nav model-list-shield-nav"
+      style="height: {{navRowHeight}}px;"
+    >
+      <view
+        wx:if="{{showNavBack}}"
+        class="model-list-nav-back model-list-nav-back--compact"
+        catchtap="goBackToHomeIntro"
+        hover-class="model-list-nav-back--active"
+      >
+        <text class="model-list-nav-back-icon">‹</text>
+      </view>
+      <text class="home-nav-title home-status-bar-shield-title">模特列表</text>
+    </view>
+  </view>
+
+  <view class="home-immersive-bg-wrap model-list-immersive-bg-wrap">
+    <image class="home-immersive-bg model-list-immersive-bg" src="{{modelListHeaderBg}}" mode="scaleToFill" />
+  </view>
+
+  <view class="home-immersive-head model-list-immersive-head">
+    <view class="home-immersive-inner">
+      <view class="home-custom-nav" style="height: {{navBarHeight}}px; padding-top: {{navPaddingTop}}px;">
+        <view class="home-nav-row model-list-nav-row" style="height: {{navRowHeight}}px;">
+          <view
+            wx:if="{{showNavBack}}"
+            class="model-list-nav-back"
+            catchtap="goBackToHomeIntro"
+            hover-class="model-list-nav-back--active"
+          >
+            <text class="model-list-nav-back-icon">‹</text>
+            <text class="model-list-nav-back-text">返回</text>
+          </view>
+          <view class="home-nav-title-wrap">
+            <text class="home-nav-title">模特列表</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="container model-list-page {{showRegisterBar ? 'model-list-page--guest' : ''}}">
   <view class="model-list-bg model-list-bg--pink"></view>
   <view class="model-list-bg model-list-bg--blue"></view>
   <view class="model-dash">
@@ -118,6 +165,20 @@
           data-user-no="{{item.userNo}}"
           bindtap="goModelDetail"
         >
+          <view
+            wx:if="{{item.modelLevel.level >= 4}}"
+            class="premium-model-frame {{item.modelLevel.level === 5 ? 'premium-model-frame--sky premium-model-frame--sky-corners-only' : 'premium-model-frame--crown'}}"
+          >
+            <view class="premium-model-corner premium-model-corner--tl"></view>
+            <view class="premium-model-corner premium-model-corner--tr"></view>
+            <view class="premium-model-corner premium-model-corner--bl"></view>
+            <view class="premium-model-corner premium-model-corner--br"></view>
+            <block wx:if="{{item.modelLevel.level === 4}}">
+              <view class="premium-model-edge premium-model-edge--top"></view>
+              <view class="premium-model-edge premium-model-edge--bottom"></view>
+              <view class="premium-model-shine"></view>
+            </block>
+          </view>
           <view class="model-list-card-shine"></view>
           <view wx:if="{{item.modelLevel.level >= 4}}" class="model-list-premium-aura"></view>
           <view class="merchant-item-head">
@@ -179,6 +240,20 @@
           data-user-no="{{item.userNo}}"
           bindtap="goModelDetail"
         >
+          <view
+            wx:if="{{item.modelLevel.level >= 4}}"
+            class="premium-model-frame {{item.modelLevel.level === 5 ? 'premium-model-frame--sky premium-model-frame--sky-corners-only' : 'premium-model-frame--crown'}}"
+          >
+            <view class="premium-model-corner premium-model-corner--tl"></view>
+            <view class="premium-model-corner premium-model-corner--tr"></view>
+            <view class="premium-model-corner premium-model-corner--bl"></view>
+            <view class="premium-model-corner premium-model-corner--br"></view>
+            <block wx:if="{{item.modelLevel.level === 4}}">
+              <view class="premium-model-edge premium-model-edge--top"></view>
+              <view class="premium-model-edge premium-model-edge--bottom"></view>
+              <view class="premium-model-shine"></view>
+            </block>
+          </view>
           <view class="model-large-cover">
             <image wx:if="{{item.showCoverImage}}" class="model-large-cover-img" src="{{item.coverImageUrl}}" mode="aspectFill" />
             <view wx:else class="model-large-cover-fallback">{{item.avatarText}}</view>
@@ -202,8 +277,25 @@
           </view>
         </view>
       </view>
+      <view wx:if="{{filteredModelList.length > 0}}" class="model-list-load-more">
+        <text wx:if="{{loadingMore}}" class="model-list-load-more-text">加载中...</text>
+        <text wx:elif="{{hasMore}}" class="model-list-load-more-text">上滑加载更多</text>
+        <text wx:else class="model-list-load-more-text">已展示全部模特</text>
+      </view>
       </block>
-    </block>
+    </view>
+  </view>
+</view>
+
+<view wx:if="{{showRegisterBar}}" class="model-list-guest-bar">
+  <view class="model-list-guest-bar-inner">
+    <view
+      class="model-list-guest-register-btn"
+      hover-class="model-list-guest-register-btn--active"
+      bindtap="goRegister"
+    >
+      立即注册
+    </view>
   </view>
 </view>
 

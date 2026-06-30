@@ -22,6 +22,7 @@ import {
   patchAdminBrokerAccountStatus,
   patchAdminModelLevel,
   patchAdminModelPhotosDisabled,
+  patchAdminModelSortOrder,
   patchAdminMerchantBroker,
   postAdminModelContentReview,
   postAdminModelProfileAudit,
@@ -133,6 +134,7 @@ const agentOptionsLoading = ref(false);
 const modelAgentDraft = ref<number | null>(null);
 const modelAgentSaving = ref(false);
 const modelLevelSaving = ref(false);
+const modelSortOrderSaving = ref(false);
 const photosDisabledSaving = ref(false);
 const modelAccountStatusSaving = ref(false);
 const brokerAccountStatusSaving = ref(false);
@@ -644,6 +646,23 @@ async function onChangeModelLevelOverride(value: AdminModelLevelOverrideValue): 
     ElMessage.error(e instanceof Error ? e.message : "保存失败");
   } finally {
     modelLevelSaving.value = false;
+  }
+}
+
+async function onChangeModelSortOrder(value: number | undefined): Promise<void> {
+  const uid = detailBasicInfo.value?.userId;
+  if (!uid) return;
+  modelSortOrderSaving.value = true;
+  try {
+    const sortOrder = Number(value ?? 0);
+    await patchAdminModelSortOrder(uid, sortOrder);
+    ElMessage.success(`已更新排序号为 ${sortOrder}`);
+    detailBasicInfo.value = await fetchAdminModelDetail(uid);
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "保存失败");
+  } finally {
+    modelSortOrderSaving.value = false;
   }
 }
 
@@ -1504,6 +1523,11 @@ onUnmounted(() => {
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column v-if="isModelList" label="排序号" width="96" align="center">
+          <template #default="{ row }">
+            {{ row.sortOrder ?? 0 }}
+          </template>
+        </el-table-column>
         <el-table-column v-if="isModelList" label="模特等级" width="128">
           <template #default="{ row }">
             <el-tag
@@ -1943,6 +1967,20 @@ onUnmounted(() => {
                     <el-option :value="4" label="LV4 皇冠模特" />
                     <el-option :value="5" label="LV5 天幕模特" />
                   </el-select>
+                </el-descriptions-item>
+                <el-descriptions-item label="列表排序">
+                  <div class="model-photos-disabled-row">
+                    <el-input-number
+                      :model-value="detailBasicInfo.sortOrder ?? 0"
+                      :min="0"
+                      :max="999999"
+                      :step="1"
+                      :disabled="modelSortOrderSaving"
+                      controls-position="right"
+                      @change="onChangeModelSortOrder"
+                    />
+                    <span class="model-photos-disabled-hint">数值越大，小程序列表越靠前</span>
+                  </div>
                 </el-descriptions-item>
                 <el-descriptions-item label="账号状态">
                   <div v-if="canToggleModelAccountStatus(detailBasicInfo.status)" class="model-photos-disabled-row">

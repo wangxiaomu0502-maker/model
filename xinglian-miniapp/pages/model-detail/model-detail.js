@@ -1,4 +1,5 @@
 const HOUR_MAX = 8;
+const { extractModelUserNoFromEntry } = require("../../utils/model-promo-scan.js");
 
 function getSafeAreaBottomPx() {
   try {
@@ -260,11 +261,13 @@ Page({
   },
 
   onLoad(options) {
-    let userNo = options?.userNo || "";
-    try {
-      userNo = decodeURIComponent(userNo).trim();
-    } catch (_e) {
-      userNo = String(userNo).trim();
+    let userNo = extractModelUserNoFromEntry(options || {});
+    if (!userNo && options?.userNo) {
+      try {
+        userNo = decodeURIComponent(String(options.userNo)).trim();
+      } catch (_e) {
+        userNo = String(options.userNo).trim();
+      }
     }
     this.setData({
       userNo,

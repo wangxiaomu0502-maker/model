@@ -5,14 +5,14 @@
   <view class="top-bar">
     <view class="top-bar-text">
       <text class="top-title">风格定位</text>
-      <text class="top-sub">上传能代表个人风格、气质和商业拍摄方向的图片，最多 100 张；支持调整顺序与删除，单张不能超过5M。</text>
+      <text class="top-sub">上传能代表个人风格、气质和商业拍摄方向的图片，最多 100 张；支持调整顺序与删除，单张不能超过10M。</text>
     </view>
     <view class="top-add-photo" bindtap="choosePhotos">+ 图片</view>
   </view>
 
   <view wx:if="{{!photos.length}}" class="empty-card">
     <text class="empty-title">还没有风格定位图片</text>
-    <text class="empty-desc">请上传 1-100 张图片，用于展示你的风格定位和拍摄方向；一次最多 9 张，单张不能超过5M。</text>
+    <text class="empty-desc">请上传 1-100 张图片，用于展示你的风格定位和拍摄方向；一次最多 9 张，单张不能超过10M。</text>
     <button class="empty-btn" bindtap="choosePhotos">上传第一批图片</button>
   </view>
 
@@ -57,6 +57,6 @@
   </view>
 
   <view class="bottom-tip">
-    建议上传风格统一、画面清晰的图片；支持 JPG / PNG，单张照片不能超过5M，一次最多 9 张。
+    建议上传风格统一、画面清晰的图片；支持 JPG / PNG，单张照片不能超过10M，一次最多 9 张。
   </view>
 </view>

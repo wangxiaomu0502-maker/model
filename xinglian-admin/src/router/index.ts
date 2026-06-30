@@ -96,6 +96,12 @@ const router = createRouter({
           meta: { title: "商拍中心", adminOnly: true }
         },
         {
+          path: "home-banners",
+          name: "home-banners",
+          component: () => import("@/views/HomeBannersView.vue"),
+          meta: { title: "首页 Banner", adminOnly: true }
+        },
+        {
           path: "model-registration-codes",
           name: "model-registration-codes",
           component: () => import("@/views/ModelRegistrationCodesView.vue"),
@@ -124,6 +130,12 @@ const router = createRouter({
           name: "system-settings",
           component: () => import("@/views/SystemSettingsView.vue"),
           meta: { title: "系统管理", adminOnly: true }
+        },
+        {
+          path: "platform-maintenance",
+          name: "platform-maintenance",
+          component: () => import("@/views/PlatformMaintenanceView.vue"),
+          meta: { title: "平台维护", adminOnly: true }
         }
       ]
     }

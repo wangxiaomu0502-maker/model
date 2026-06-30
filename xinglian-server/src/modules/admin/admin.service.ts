@@ -18,6 +18,7 @@ import {
   updateBrokerAccountStatusForAdmin,
   updateModelLevelOverrideForAdmin,
   updateModelPhotosDisabledForAdmin,
+  updateModelSortOrderForAdmin,
   updateMerchantReferrerIdForAdmin,
   findMerchantBasicDetailForAdminByUserId,
   findBrokerBasicDetailForAdminByUserId,
@@ -144,6 +145,8 @@ export async function listUsersForAdminByRole(
     /** 模特列表：用户端是否禁用模卡/作品集/形象定位 */
     photosDisabled?: boolean | null;
     modelLevelOverride?: ReturnType<typeof parseAdminModelLevelOverride>;
+    /** 模特列表：展示排序，越大越靠前 */
+    sortOrder?: number | null;
     /** 模特列表：自动计算等级 */
     modelLevel?: ModelLevelInfo | null;
     /** 模特列表：模卡/作品集/风格定位待审图片数 */
@@ -243,6 +246,10 @@ export async function listUsersForAdminByRole(
           : null,
       modelLevelOverride:
         Number(row.role) === 1 ? parseAdminModelLevelOverride(row.model_level_override) : null,
+      sortOrder:
+        Number(row.role) === 1 && row.model_sort_order != null
+          ? Number(row.model_sort_order ?? 0)
+          : null,
       modelLevel:
         Number(row.role) === 1
           ? buildModelLevel({
@@ -662,6 +669,30 @@ export async function setModelLevelOverrideForAdmin(
   return { modelLevelOverride: levelOverride };
 }
 
+export async function setModelSortOrderForAdmin(
+  modelUserId: number,
+  sortOrder: number
+): Promise<{ sortOrder: number }> {
+  const model = await findModelBasicDetailForAdminByUserId(modelUserId);
+  if (!model) {
+    throw new AppError("模特用户不存在或已删除", 404, ErrorCodes.NOT_FOUND);
+  }
+  if (!(await hasModelProfilesColumn("sort_order"))) {
+    throw new AppError(
+      "模特排序字段未就绪，请在数据库执行 sql/alter-model-profiles-sort-order.sql",
+      500,
+      ErrorCodes.INTERNAL_ERROR
+    );
+  }
+  await ensureModelProfile(modelUserId);
+  const safeSortOrder = Math.max(0, Math.min(999999, Math.floor(Number(sortOrder) || 0)));
+  const ok = await updateModelSortOrderForAdmin(modelUserId, safeSortOrder);
+  if (!ok) {
+    throw new AppError("更新模特排序失败，请检查 model_profiles 数据", 500, ErrorCodes.INTERNAL_ERROR);
+  }
+  return { sortOrder: safeSortOrder };
+}
+
 export async function setMerchantBrokerForAdmin(
   merchantUserId: number,
   brokerUserId: number | null
@@ -755,6 +786,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
   isPlatformFeatured: boolean;
   photosDisabled: boolean;
   modelLevelOverride: ReturnType<typeof parseAdminModelLevelOverride>;
+  sortOrder: number;
   modelLevel: ModelLevelInfo;
   contentReview: ModelContentReviewState;
 }> {
@@ -877,6 +909,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     isPlatformFeatured,
     photosDisabled,
     modelLevelOverride,
+    sortOrder: Number(row.sort_order ?? 0),
     modelLevel: buildModelLevel({
       card,
       portfolio,

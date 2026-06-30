@@ -67,6 +67,12 @@ Component({
       return [home, modelList, mine];
     },
 
+    shouldShowTabBar(app) {
+      const role = Number(app.globalData.role || wx.getStorageSync("selectedRole") || 0);
+      const token = String(app.globalData.token || wx.getStorageSync("authToken") || "").trim();
+      return Boolean(token) && role > 0;
+    },
+
     indexForRoute(list, route) {
       const normalized = this.normalizeRoute(route);
       const idx = list.findIndex((item) => this.normalizeRoute(item.pagePath) === normalized);
@@ -75,6 +81,10 @@ Component({
 
     refresh() {
       const app = getApp();
+      if (!this.shouldShowTabBar(app)) {
+        this.setData({ list: [], selected: 0 });
+        return;
+      }
       const role = Number(app.globalData.role || wx.getStorageSync("selectedRole") || 0);
       const list = this.buildList(role);
       const pages = getCurrentPages();

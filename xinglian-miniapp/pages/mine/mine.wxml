@@ -22,7 +22,7 @@
           <text class="center-desc">{{headerSubtitle}}</text>
         </view>
       </view>
-      <text class="avatar-upload-tip">点击头像可更换，单张照片不能超过5M</text>
+      <text class="avatar-upload-tip">点击头像可更换，单张照片不能超过10M</text>
 
       <view wx:if="{{showAuditStatus}}" class="hero-meta-strip hero-meta-strip-accent">
         <text class="hero-meta-k">平台资料审核</text>

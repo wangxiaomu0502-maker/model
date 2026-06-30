@@ -8,11 +8,15 @@ import {
   HOME_STAT_MERCHANT_OFFSET_KEY,
   HOME_STAT_MODEL_OFFSET_KEY,
   MERCHANT_ORDER_ENABLED_KEY,
+  PLATFORM_MAINTENANCE_ENABLED_KEY,
+  PLATFORM_MAINTENANCE_MESSAGE_KEY,
   SystemSettingRow,
   upsertSystemSetting
 } from "./system-settings.repository";
 
 const DEFAULT_MERCHANT_ORDER_ENABLED = true;
+const DEFAULT_PLATFORM_MAINTENANCE_ENABLED = false;
+const DEFAULT_PLATFORM_MAINTENANCE_MESSAGE = "系统维护中，请稍后再试";
 const DEFAULT_HOME_STAT_OFFSET = 0;
 
 export type HomeStatOffsets = {
@@ -25,9 +29,14 @@ function boolToSettingValue(enabled: boolean): string {
   return enabled ? "1" : "0";
 }
 
-function settingValueToBool(value: unknown): boolean {
-  if (value == null) return DEFAULT_MERCHANT_ORDER_ENABLED;
+function settingValueToBool(value: unknown, defaultValue = DEFAULT_MERCHANT_ORDER_ENABLED): boolean {
+  if (value == null) return defaultValue;
   return String(value) !== "0";
+}
+
+function settingValueToMessage(value: unknown): string {
+  const text = String(value ?? "").trim();
+  return text || DEFAULT_PLATFORM_MAINTENANCE_MESSAGE;
 }
 
 function settingValueToInt(value: unknown): number {
@@ -66,6 +75,8 @@ function offsetSettingsToResponse(rows: Map<string, SystemSettingRow>): HomeStat
 
 export async function getSystemSettings(): Promise<{
   merchantOrderEnabled: boolean;
+  platformMaintenanceEnabled: boolean;
+  platformMaintenanceMessage: string;
   homeStatModelOffset: number;
   homeStatMerchantOffset: number;
   homeStatBrokerOffset: number;
@@ -73,14 +84,23 @@ export async function getSystemSettings(): Promise<{
 }> {
   const rows = await findSystemSettings([
     MERCHANT_ORDER_ENABLED_KEY,
+    PLATFORM_MAINTENANCE_ENABLED_KEY,
+    PLATFORM_MAINTENANCE_MESSAGE_KEY,
     HOME_STAT_MODEL_OFFSET_KEY,
     HOME_STAT_MERCHANT_OFFSET_KEY,
     HOME_STAT_BROKER_OFFSET_KEY
   ]);
   const merchantOrderRow = rows.get(MERCHANT_ORDER_ENABLED_KEY);
+  const maintenanceEnabledRow = rows.get(PLATFORM_MAINTENANCE_ENABLED_KEY);
+  const maintenanceMessageRow = rows.get(PLATFORM_MAINTENANCE_MESSAGE_KEY);
   const offsets = offsetSettingsToResponse(rows);
   return {
     merchantOrderEnabled: settingValueToBool(merchantOrderRow?.setting_value),
+    platformMaintenanceEnabled: settingValueToBool(
+      maintenanceEnabledRow?.setting_value,
+      DEFAULT_PLATFORM_MAINTENANCE_ENABLED
+    ),
+    platformMaintenanceMessage: settingValueToMessage(maintenanceMessageRow?.setting_value),
     homeStatModelOffset: offsets.model,
     homeStatMerchantOffset: offsets.merchant,
     homeStatBrokerOffset: offsets.broker,
@@ -90,18 +110,28 @@ export async function getSystemSettings(): Promise<{
 
 export async function updateSystemSettings(body: {
   merchantOrderEnabled: boolean;
+  platformMaintenanceEnabled: boolean;
+  platformMaintenanceMessage: string;
   homeStatModelOffset: number;
   homeStatMerchantOffset: number;
   homeStatBrokerOffset: number;
 }): Promise<{
   merchantOrderEnabled: boolean;
+  platformMaintenanceEnabled: boolean;
+  platformMaintenanceMessage: string;
   homeStatModelOffset: number;
   homeStatMerchantOffset: number;
   homeStatBrokerOffset: number;
   updatedAt: string;
 }> {
+  const message = String(body.platformMaintenanceMessage || "").trim() || DEFAULT_PLATFORM_MAINTENANCE_MESSAGE;
   const okList = await Promise.all([
     upsertSystemSetting(MERCHANT_ORDER_ENABLED_KEY, boolToSettingValue(body.merchantOrderEnabled)),
+    upsertSystemSetting(
+      PLATFORM_MAINTENANCE_ENABLED_KEY,
+      boolToSettingValue(body.platformMaintenanceEnabled)
+    ),
+    upsertSystemSetting(PLATFORM_MAINTENANCE_MESSAGE_KEY, message.slice(0, 255)),
     upsertSystemSetting(HOME_STAT_MODEL_OFFSET_KEY, String(Math.trunc(body.homeStatModelOffset))),
     upsertSystemSetting(HOME_STAT_MERCHANT_OFFSET_KEY, String(Math.trunc(body.homeStatMerchantOffset))),
     upsertSystemSetting(HOME_STAT_BROKER_OFFSET_KEY, String(Math.trunc(body.homeStatBrokerOffset)))
@@ -119,6 +149,23 @@ export async function getHomeStatOffsets(): Promise<HomeStatOffsets> {
     HOME_STAT_BROKER_OFFSET_KEY
   ]);
   return offsetSettingsToResponse(rows);
+}
+
+export async function getPlatformMaintenanceStatus(): Promise<{
+  maintenanceEnabled: boolean;
+  maintenanceMessage: string;
+}> {
+  const rows = await findSystemSettings([
+    PLATFORM_MAINTENANCE_ENABLED_KEY,
+    PLATFORM_MAINTENANCE_MESSAGE_KEY
+  ]);
+  return {
+    maintenanceEnabled: settingValueToBool(
+      rows.get(PLATFORM_MAINTENANCE_ENABLED_KEY)?.setting_value,
+      DEFAULT_PLATFORM_MAINTENANCE_ENABLED
+    ),
+    maintenanceMessage: settingValueToMessage(rows.get(PLATFORM_MAINTENANCE_MESSAGE_KEY)?.setting_value)
+  };
 }
 
 export async function assertMerchantOrderEnabled(): Promise<void> {

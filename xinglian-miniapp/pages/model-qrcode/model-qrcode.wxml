@@ -1,0 +1,63 @@
+<view class="page broker-page broker-qrcode-page">
+  <view class="broker-dash-hero">
+    <view class="broker-hero-blob broker-hero-blob-1"></view>
+    <view class="broker-hero-blob broker-hero-blob-2"></view>
+    <view class="broker-hero-grid"></view>
+    <view class="broker-dash-hero-inner">
+      <view class="broker-dash-hero-main">
+        <text class="broker-dash-eyebrow">个人推广</text>
+        <text class="broker-dash-title">我的小程序码</text>
+        <text class="broker-dash-desc">客户扫码后可直接进入你的模卡详情页</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="hint">加载中…</view>
+
+  <block wx:else>
+    <view class="card qr-card">
+      <text class="qr-card-title">星链模特 · 小程序码</text>
+      <text class="qr-card-sub">此二维码已绑定你的模特 ID，扫码后直达个人详情页</text>
+      <view class="qr-frame" bindtap="onPreviewQr">
+        <image
+          wx:if="{{qrImage}}"
+          class="qr-image"
+          src="{{qrImage}}"
+          mode="aspectFit"
+          show-menu-by-longpress="{{true}}"
+        />
+        <view wx:elif="{{qrcodeLoading}}" class="qr-placeholder">二维码生成中…</view>
+        <view wx:else class="qr-placeholder">{{qrErrorText || '暂无二维码'}}</view>
+      </view>
+      <view class="qr-actions">
+        <button class="qr-btn qr-btn--ghost" bindtap="onPreviewQr" disabled="{{!qrImage}}">预览大图</button>
+        <button class="qr-btn qr-btn--primary" bindtap="onSaveQr" disabled="{{!qrImage}}">保存到相册</button>
+      </view>
+    </view>
+
+    <view class="card id-card">
+      <view class="id-head">
+        <text class="id-title">我的模特 ID</text>
+        <text class="id-desc">二维码会携带下方 ID，用于打开你的详情页</text>
+      </view>
+      <view class="id-row">
+        <text class="id-label">我的昵称</text>
+        <text class="id-value">{{nickname || '—'}}</text>
+      </view>
+      <view class="id-row id-row--last">
+        <text class="id-label">模特 ID</text>
+        <text class="id-value id-mono" selectable>{{userNo || '—'}}</text>
+      </view>
+      <button class="id-copy-btn" bindtap="onCopyUserNo" disabled="{{!userNo}}">复制模特 ID</button>
+    </view>
+
+    <view class="tips card">
+      <text class="tips-title">使用说明</text>
+      <text class="tips-line">1. 保存或分享小程序码，客户扫码后可直接查看你的模卡。</text>
+      <text class="tips-line">2. 首页搜索栏右侧的扫码按钮，也可扫描此类模特小程序码。</text>
+      <text class="tips-line">3. 建议将二维码用于线下物料、社交分享或客户沟通场景。</text>
+    </view>
+  </block>
+
+  <view class="bottom-space"></view>
+</view>

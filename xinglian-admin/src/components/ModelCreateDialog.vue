@@ -31,6 +31,7 @@ import {
   type AdminModelCreateBody,
   type AdminUserRow
 } from "@/api/admin";
+import { MAX_UPLOAD_FILE_LABEL } from "@/utils/upload-file";
 
 const visible = defineModel<boolean>("visible", { default: false });
 
@@ -757,7 +758,7 @@ function onClose() {
                   <span>上传头像</span>
                 </div>
               </el-upload>
-              <p class="mc-hint">上传前会自动压缩，单张图片不能超过 5M</p>
+              <p class="mc-hint">上传前会自动压缩，单张图片不能超过 {{ MAX_UPLOAD_FILE_LABEL }}</p>
             </el-form-item>
             <el-form-item label="艺名/姓名" required>
               <el-input v-model="form.name" maxlength="50" placeholder="对应用户端基本信息" />
@@ -925,7 +926,7 @@ function onClose() {
         <el-tab-pane :label="tabLabels.card" name="card">
           <div class="mc-card-upload-head">
             <text class="mc-card-upload-tip">
-              选填，最多 {{ MODEL_CARD_MAX_PHOTOS }} 张，支持一次多选；上传前会自动压缩，单张图片不能超过 5M
+              选填，最多 {{ MODEL_CARD_MAX_PHOTOS }} 张，支持一次多选；上传前会自动压缩，单张图片不能超过 {{ MAX_UPLOAD_FILE_LABEL }}
             </text>
             <text class="mc-card-upload-count">{{ cardPhotoCount }} / {{ MODEL_CARD_MAX_PHOTOS }}</text>
           </div>
@@ -1012,7 +1013,7 @@ function onClose() {
         <el-tab-pane :label="tabLabels.style" name="style">
           <div class="mc-card-upload-head">
             <text class="mc-card-upload-tip">
-              选填，最多 {{ MODEL_STYLE_MAX_PHOTOS }} 张，支持一次多选；上传前会自动压缩，单张图片不能超过 5M
+              选填，最多 {{ MODEL_STYLE_MAX_PHOTOS }} 张，支持一次多选；上传前会自动压缩，单张图片不能超过 {{ MAX_UPLOAD_FILE_LABEL }}
             </text>
             <text class="mc-card-upload-count">{{ stylePhotoCount }} / {{ MODEL_STYLE_MAX_PHOTOS }}</text>
           </div>
@@ -1050,7 +1051,7 @@ function onClose() {
         <el-tab-pane :label="tabLabels.portfolio" name="portfolio">
           <div class="mc-card-upload-head">
             <text class="mc-card-upload-tip">
-              选填，共最多 {{ MODEL_PORTFOLIO_MAX_PHOTOS }} 张 / {{ MODEL_PORTFOLIO_MAX_FOLDERS }} 个文件夹，支持一次多选；上传前会自动压缩，单张图片不能超过 5M
+              选填，共最多 {{ MODEL_PORTFOLIO_MAX_PHOTOS }} 张 / {{ MODEL_PORTFOLIO_MAX_FOLDERS }} 个文件夹，支持一次多选；上传前会自动压缩，单张图片不能超过 {{ MAX_UPLOAD_FILE_LABEL }}
             </text>
             <text class="mc-card-upload-count">{{ portfolioPhotoCount }} / {{ MODEL_PORTFOLIO_MAX_PHOTOS }}</text>
           </div>

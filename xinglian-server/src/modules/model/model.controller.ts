@@ -35,6 +35,7 @@ import {
   listHonorsForModelUser,
   updateHonorForModelUser
 } from "./model-honor.service";
+import { createModelPromoWxacode } from "./model-promo.service";
 
 function getUserId(req: Request): number | null {
   return (req as AuthenticatedRequest).auth?.userId ?? null;
@@ -166,6 +167,28 @@ export async function getModelPublicDetailController(req: Request, res: Response
     return success(res, data as Record<string, unknown>);
   } catch (error) {
     return next(error);
+  }
+}
+
+export async function getModelPromoQrcodeController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const auth = (req as AuthenticatedRequest).auth;
+    const userId = auth?.userId;
+    if (!userId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const payload = await createModelPromoWxacode(userId, Number(auth.role));
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.setHeader("X-Model-User-No", payload.userNo);
+    res.send(payload.buffer);
+  } catch (error) {
+    next(error);
   }
 }
 

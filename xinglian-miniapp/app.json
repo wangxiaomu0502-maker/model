@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/loading/loading",
+    "pages/platform-maintenance/platform-maintenance",
     "pages/launch-intro/launch-intro",
     "pages/home/home",
     "pages/home-intro/home-intro",
@@ -26,6 +27,7 @@
     "pages/model-order/model-order",
     "pages/broker-info/broker-info",
     "pages/broker-qrcode/broker-qrcode",
+    "pages/model-qrcode/model-qrcode",
     "pages/broker-link-promo/broker-link-promo",
     "pages/broker-intro/broker-intro",
     "pages/broker-detail/broker-detail",

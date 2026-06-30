@@ -39,6 +39,7 @@ export type AdminUserListRow = RowDataPacket & {
   model_is_platform_featured?: number | string | null;
   model_photos_disabled?: number | string | null;
   model_level_override?: number | string | null;
+  model_sort_order?: number | string | null;
   model_card_json?: string | null;
   model_portfolio_json?: string | null;
   model_style_position_json?: string | null;
@@ -91,6 +92,7 @@ export type AdminModelBasicDetailRow = RowDataPacket & {
   is_platform_featured: number | string | null;
   photos_disabled: number | string | null;
   model_level_override: number | string | null;
+  sort_order: number | string | null;
   card_json: string | null;
   portfolio_json: string | null;
   style_position_json: string | null;
@@ -199,6 +201,8 @@ export async function findUsersPageForAdminByRole(
   const platformFeaturedSelect = `${await mpColumnExpr("is_platform_featured", "0")} AS model_is_platform_featured`;
   const photosDisabledSelect = `${await mpColumnExpr("photos_disabled", "0")} AS model_photos_disabled`;
   const levelOverrideSelect = `${await mpColumnExpr("model_level_override", "NULL")} AS model_level_override`;
+  const sortOrderSelect = `${await mpColumnExpr("sort_order", "0")} AS model_sort_order`;
+  const hasSortOrder = role === 1 && (await hasModelProfilesColumn("sort_order"));
   const levelOverrideExpr = await mpColumnExpr("model_level_override", "NULL");
   const cardReviewSelect = `${await mexColumnExpr("card_review_status", "2")} AS card_review_status`;
   const portfolioReviewSelect = `${await mexColumnExpr("portfolio_review_status", "2")} AS portfolio_review_status`;
@@ -238,6 +242,7 @@ export async function findUsersPageForAdminByRole(
             ${platformFeaturedSelect},
             ${photosDisabledSelect},
             ${levelOverrideSelect},
+            ${sortOrderSelect},
             mex.card_json AS model_card_json,
             mex.portfolio_json AS model_portfolio_json,
             mex.style_position_json AS model_style_position_json,
@@ -253,7 +258,7 @@ export async function findUsersPageForAdminByRole(
      LEFT JOIN users ag ON ag.id = u.agent_user_id AND ag.deleted_at IS NULL AND ag.role = 4
      LEFT JOIN agent_profiles ap ON ap.user_id = ag.id
      WHERE ${where.join("\n       AND ")}
-     ORDER BY u.id DESC
+     ORDER BY ${hasSortOrder ? "mp.sort_order DESC, " : ""}u.id DESC
      LIMIT ? OFFSET ?`,
     [...params, safeLimit, safeOffset]
   );
@@ -266,6 +271,7 @@ export async function findModelBasicDetailForAdminByUserId(
   const platformFeaturedExpr = await mpColumnExpr("is_platform_featured", "0");
   const photosDisabledExpr = await mpColumnExpr("photos_disabled", "0");
   const levelOverrideExpr = await mpColumnExpr("model_level_override", "NULL");
+  const sortOrderSelect = `${await mpColumnExpr("sort_order", "0")} AS sort_order`;
   const cardReviewExpr = await mexColumnExpr("card_review_status", "2");
   const portfolioReviewExpr = await mexColumnExpr("portfolio_review_status", "2");
   const styleReviewExpr = await mexColumnExpr("style_position_review_status", "2");
@@ -288,6 +294,7 @@ export async function findModelBasicDetailForAdminByUserId(
             mp.is_admin_created, ${platformFeaturedExpr} AS is_platform_featured,
             ${photosDisabledExpr} AS photos_disabled,
             ${levelOverrideExpr} AS model_level_override,
+            ${sortOrderSelect},
             mex.card_json, mex.portfolio_json, mex.style_position_json, mex.schedule_json, mex.order_settings_json,
             ${cardReviewExpr} AS card_review_status,
             ${cardReviewReasonExpr} AS card_review_reject_reason,
@@ -440,6 +447,25 @@ export async function updateModelLevelOverrideForAdmin(
          mp.updated_at = CURRENT_TIMESTAMP
      WHERE mp.user_id = ? AND u.role = 1 AND u.deleted_at IS NULL`,
     [levelOverride, id]
+  );
+  return result.affectedRows > 0;
+}
+
+export async function updateModelSortOrderForAdmin(
+  modelUserId: number,
+  sortOrder: number
+): Promise<boolean> {
+  const id = Math.floor(Number(modelUserId));
+  if (!Number.isFinite(id) || id <= 0) return false;
+  if (!(await hasModelProfilesColumn("sort_order"))) return false;
+  const safeSortOrder = Math.max(0, Math.min(999999, Math.floor(Number(sortOrder) || 0)));
+  const [result] = await dbPool.query<ResultSetHeader>(
+    `UPDATE model_profiles mp
+     INNER JOIN users u ON u.id = mp.user_id
+     SET mp.sort_order = ?,
+         mp.updated_at = CURRENT_TIMESTAMP
+     WHERE mp.user_id = ? AND u.role = 1 AND u.deleted_at IS NULL`,
+    [safeSortOrder, id]
   );
   return result.affectedRows > 0;
 }

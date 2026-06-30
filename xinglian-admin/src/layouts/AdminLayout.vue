@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   Key,
+  Picture,
   Connection,
   Document,
   Headset,
@@ -13,6 +14,7 @@ import {
   Setting,
   Shop,
   SwitchButton,
+  Tools,
   UploadFilled,
   UserFilled
 } from "@element-plus/icons-vue";
@@ -30,9 +32,11 @@ const activeMenu = computed(() => {
   if (p === "/pending-orders" || p.startsWith("/pending-orders")) return "/pending-orders";
   if (p === "/cs-users" || p.startsWith("/cs-users")) return "/cs-users";
   if (p === "/commercial-shoot-center" || p.startsWith("/commercial-shoot-center")) return "/commercial-shoot-center";
+  if (p === "/home-banners" || p.startsWith("/home-banners")) return "/home-banners";
   if (p === "/model-registration-codes" || p.startsWith("/model-registration-codes")) return "/model-registration-codes";
   if (p === "/image-upload" || p.startsWith("/image-upload")) return "/image-upload";
   if (p === "/system-settings" || p.startsWith("/system-settings")) return "/system-settings";
+  if (p === "/platform-maintenance" || p.startsWith("/platform-maintenance")) return "/platform-maintenance";
   return p;
 });
 
@@ -142,6 +146,10 @@ function logout(): void {
                 <el-icon><Shop /></el-icon>
                 <span>商拍中心</span>
               </el-menu-item>
+              <el-menu-item index="/home-banners">
+                <el-icon><Picture /></el-icon>
+                <span>首页 Banner</span>
+              </el-menu-item>
               <el-menu-item index="/model-registration-codes">
                 <el-icon><Key /></el-icon>
                 <span>授权码管理</span>
@@ -157,6 +165,10 @@ function logout(): void {
               <el-menu-item index="/pending-orders">
                 <el-icon><List /></el-icon>
                 <span>待客服处理订单</span>
+              </el-menu-item>
+              <el-menu-item index="/platform-maintenance">
+                <el-icon><Tools /></el-icon>
+                <span>平台维护</span>
               </el-menu-item>
               <el-menu-item index="/system-settings">
                 <el-icon><Setting /></el-icon>

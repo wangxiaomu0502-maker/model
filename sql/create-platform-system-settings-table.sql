@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS platform_system_settings (
 INSERT INTO platform_system_settings (setting_key, setting_value)
 VALUES
   ('merchant_order_enabled', '1'),
+  ('platform_maintenance_enabled', '0'),
+  ('platform_maintenance_message', '系统维护中，请稍后再试'),
   ('home_stat_model_offset', '0'),
   ('home_stat_merchant_offset', '0'),
   ('home_stat_broker_offset', '0')

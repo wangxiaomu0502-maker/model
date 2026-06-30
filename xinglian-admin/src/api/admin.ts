@@ -457,6 +457,130 @@ export async function deleteCommercialShootPackage(shootId: number, packageId: n
   }
 }
 
+export type HomeBannerRow = {
+  id: number;
+  type: "image" | "video";
+  sortOrder: number;
+  imageUrl: string | null;
+  coverUrl: string | null;
+  videoUrl: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type HomeBannerListResponse = {
+  ok?: boolean;
+  list?: HomeBannerRow[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  message?: string;
+  code?: string;
+};
+
+export type HomeBannerFormBody =
+  | {
+      type: "image";
+      sortOrder: number;
+      enabled: boolean;
+      coverUrl: string;
+      imageUrl: string;
+    }
+  | {
+      type: "video";
+      sortOrder: number;
+      enabled: boolean;
+      coverUrl: string;
+      videoUrl: string;
+    };
+
+export async function fetchHomeBanners(params: {
+  page: number;
+  pageSize: number;
+}): Promise<{ list: HomeBannerRow[]; total: number; page: number; pageSize: number }> {
+  const token = getAdminToken();
+  const qs = new URLSearchParams({
+    page: String(params.page),
+    pageSize: String(params.pageSize)
+  });
+  const res = await fetch(adminApiUrl(`/api/admin/home-banners?${qs}`), {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  });
+  const data = (await res.json()) as HomeBannerListResponse;
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `加载失败 (${res.status})`);
+  }
+  return {
+    list: data.list ?? [],
+    total: Number(data.total ?? 0),
+    page: Number(data.page ?? params.page),
+    pageSize: Number(data.pageSize ?? params.pageSize)
+  };
+}
+
+export async function createHomeBanner(body: HomeBannerFormBody): Promise<HomeBannerRow> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl("/api/admin/home-banners"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as HomeBannerRow & { ok?: boolean; message?: string; code?: string };
+  if (!res.ok || data.ok === false || !data.id) {
+    throw new Error(data.message || data.code || `创建失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function updateHomeBanner(id: number, body: HomeBannerFormBody): Promise<HomeBannerRow> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/home-banners/${id}`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const data = (await res.json()) as HomeBannerRow & { ok?: boolean; message?: string; code?: string };
+  if (!res.ok || data.ok === false || !data.id) {
+    throw new Error(data.message || data.code || `保存失败 (${res.status})`);
+  }
+  return data;
+}
+
+export async function deleteHomeBanner(id: number): Promise<void> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/home-banners/${id}`), {
+    method: "DELETE",
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  });
+  const data = (await res.json()) as { ok?: boolean; message?: string; code?: string };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `删除失败 (${res.status})`);
+  }
+}
+
+export async function uploadAdminHomeBannerVideo(file: File): Promise<string> {
+  const token = getAdminToken();
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(adminApiUrl("/api/admin/home-banners/video/upload"), {
+    method: "POST",
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: fd
+  });
+  const data = (await res.json()) as { ok?: boolean; url?: string; message?: string; code?: string };
+  if (!res.ok || data.ok === false || !data.url) {
+    throw new Error(data.message || data.code || `视频上传失败 (${res.status})`);
+  }
+  return data.url;
+}
+
 export type CsPendingOrderRow = {
   orderId: number;
   orderNo: string;
@@ -664,6 +788,8 @@ export type AdminUserRow = {
   photosDisabled?: boolean | null;
   /** 模特列表：管理员手动指定等级；null 表示自动计算 LV0-LV1 */
   modelLevelOverride?: AdminModelLevelOverrideValue;
+  /** 模特列表：展示排序，越大越靠前 */
+  sortOrder?: number | null;
   /** 模特列表：自动计算等级 */
   modelLevel?: ModelLevelInfo | null;
   /** 模特列表：模卡/作品集/风格定位待审图片数 */
@@ -872,6 +998,7 @@ export type AdminModelBasicInfo = {
   isPlatformFeatured?: boolean;
   photosDisabled?: boolean;
   modelLevelOverride?: AdminModelLevelOverrideValue;
+  sortOrder?: number;
   modelLevel?: ModelLevelInfo;
   contentReview?: ModelContentReviewState;
 };
@@ -1154,6 +1281,8 @@ export async function updateAdminSplitRules(body: AdminSplitRulesUpdateBody): Pr
 export type AdminSystemSettings = {
   ok?: boolean;
   merchantOrderEnabled: boolean;
+  platformMaintenanceEnabled: boolean;
+  platformMaintenanceMessage: string;
   homeStatModelOffset: number;
   homeStatMerchantOffset: number;
   homeStatBrokerOffset: number;
@@ -1176,6 +1305,8 @@ export async function fetchAdminSystemSettings(): Promise<AdminSystemSettings> {
 
 export async function updateAdminSystemSettings(body: {
   merchantOrderEnabled: boolean;
+  platformMaintenanceEnabled: boolean;
+  platformMaintenanceMessage: string;
   homeStatModelOffset: number;
   homeStatMerchantOffset: number;
   homeStatBrokerOffset: number;
@@ -2282,6 +2413,33 @@ export async function patchAdminModelLevel(
   }
   return {
     modelLevelOverride: parseAdminModelLevelOverride(data.modelLevelOverride)
+  };
+}
+
+export async function patchAdminModelSortOrder(
+  modelUserId: number,
+  sortOrder: number
+): Promise<{ sortOrder: number }> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/models/${modelUserId}/sort-order`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ sortOrder })
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    sortOrder?: number;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `保存失败 (${res.status})`);
+  }
+  return {
+    sortOrder: Number(data.sortOrder ?? sortOrder)
   };
 }
 

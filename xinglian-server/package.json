@@ -22,6 +22,8 @@
     "migrate:model-content-review": "tsx scripts/migrate-model-content-review.ts",
     "migrate:legacy-content-review-photos": "tsx scripts/migrate-legacy-content-review-photos.ts",
     "migrate:model-registration-codes": "tsx scripts/migrate-model-registration-codes.ts",
+    "migrate:home-banners": "tsx scripts/migrate-home-banners.ts",
+    "fix:home-banner-videos": "tsx scripts/fix-home-banner-videos.ts",
     "export:model-category-tree-doc": "tsx scripts/export-model-category-tree-doc.ts",
     "smoke:split-v2": "tsx scripts/smoke-split-v2.ts"
   },

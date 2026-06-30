@@ -106,10 +106,20 @@ function buildShowcaseSummary(list = BUSINESS_SHOWCASE_CASES) {
   };
 }
 
+function buildHomeBusinessTickerItems(list = BUSINESS_SHOWCASE_CASES) {
+  return buildShowcaseCases(list).map((item) => ({
+    id: item.id,
+    status: item.status,
+    statusClass: item.statusClass,
+    line: `${item.customer} · ${item.model} · ${item.budget} · ${item.content}`
+  }));
+}
+
 module.exports = {
   BUSINESS_SHOWCASE_CASES,
   INTRO_POINTS,
   FLOW_STEPS,
   buildShowcaseCases,
-  buildShowcaseSummary
+  buildShowcaseSummary,
+  buildHomeBusinessTickerItems
 };

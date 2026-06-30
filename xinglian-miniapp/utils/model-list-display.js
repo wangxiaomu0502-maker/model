@@ -171,13 +171,16 @@ function normalizeModelList(list) {
       name: String(name || "").trim()
     })).filter((category) => category.name);
     const modelLevel = normalizeModelLevel(item?.modelLevel);
+    const levelValue = Number(modelLevel.level) || 0;
     return {
       ...item,
       categoryIds,
       categoryItems,
       modelLevel,
       modelLevelText: `${modelLevel.code} ${modelLevel.name}`,
-      isPlatformFeatured: Number(modelLevel.level) === 5,
+      showSkyBadge: levelValue >= 5,
+      showCrownBadge: levelValue >= 4 && levelValue < 5,
+      isPlatformFeatured: levelValue === 5,
       genderLabel: normalizeGenderLabel(item?.gender),
       avatarText,
       showAvatarImg,
@@ -334,7 +337,7 @@ function countActiveModelFilters(state) {
   );
 }
 
-function buildModelFilterQuery(options, state) {
+function buildModelFilterQuery(options, state, pagination) {
   const opts = options || buildModelFilterOptions([]);
   const s = { ...defaultModelFilterState(), ...(state || {}) };
   const params = [];
@@ -342,14 +345,20 @@ function buildModelFilterQuery(options, state) {
   const gender = opts.genders && opts.genders[s.genderIndex];
   const levelValue = MODEL_LEVEL_VALUES[s.levelIndex] || "";
   const categoryIds = normalizeCategoryIds(s.categoryIds);
+  const categoryKeyword = String(s.categoryKeyword || "").trim();
   if (region.province) params.push(["province", region.province]);
   if (region.city) params.push(["city", region.city]);
   if (s.genderIndex > 0 && gender) params.push(["gender", gender]);
   if (categoryIds.length > 0) params.push(["categoryIds", categoryIds.join(",")]);
+  if (categoryKeyword) params.push(["category", categoryKeyword]);
   if (levelValue) params.push(["modelLevel", levelValue]);
   if (s.priceIndex === 1) params.push(["priceSort", "asc"]);
   if (s.priceIndex === 2) params.push(["priceSort", "desc"]);
   if (s.ratingIndex === 1) params.push(["ratingSort", "desc"]);
+  const limit = Number(pagination && pagination.limit);
+  const offset = Number(pagination && pagination.offset);
+  if (Number.isFinite(limit) && limit > 0) params.push(["limit", String(limit)]);
+  if (Number.isFinite(offset) && offset >= 0) params.push(["offset", String(offset)]);
   if (!params.length) return "";
   return `?${params.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&")}`;
 }

@@ -1,6 +1,6 @@
 import multer from "multer";
 
-const DEFAULT_IMAGE_UPLOAD_MAX_MB = 5;
+const DEFAULT_IMAGE_UPLOAD_MAX_MB = 10;
 
 function parsePositiveMb(value: string | undefined): number {
   if (!value) return DEFAULT_IMAGE_UPLOAD_MAX_MB;
