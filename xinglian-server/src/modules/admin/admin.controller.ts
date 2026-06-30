@@ -33,6 +33,7 @@ import {
   setModelLevelOverrideForAdmin,
   setModelPlatformFeaturedForAdmin,
   setModelPhotosDisabledForAdmin,
+  setModelActivatedForAdmin,
   setModelSortOrderForAdmin,
   setMerchantBrokerForAdmin
 } from "./admin.service";
@@ -43,6 +44,7 @@ import {
   AdminModelFeaturedBody,
   AdminModelLevelBody,
   AdminModelPhotosDisabledBody,
+  AdminModelActivatedBody,
   AdminModelSortOrderBody,
   AdminMerchantBrokerBody,
   AdminModelContentReviewBody,
@@ -476,6 +478,26 @@ export async function adminSetModelPhotosDisabledController(
     const { userId } = req.params as unknown as AdminUserIdParam;
     const body = req.body as AdminModelPhotosDisabledBody;
     const result = await setModelPhotosDisabledForAdmin(userId, body.photosDisabled);
+    success(res, result as Record<string, unknown>);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function adminSetModelActivatedController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const adminAuth = (req as AdminAuthenticatedRequest).adminAuth;
+    if (!adminAuth?.adminUserId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { userId } = req.params as unknown as AdminUserIdParam;
+    const body = req.body as AdminModelActivatedBody;
+    const result = await setModelActivatedForAdmin(userId, body.isActivated);
     success(res, result as Record<string, unknown>);
   } catch (error) {
     next(error);

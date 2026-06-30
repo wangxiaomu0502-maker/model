@@ -13,6 +13,7 @@ const MAX_PICK_COUNT = 9;
 const ACCEPT_EXT = [".jpg", ".jpeg", ".png"];
 
 Page({
+  behaviors: [require("../../behaviors/model-activation.js")],
   data: {
     photos: [],
     totalPhotos: 0,
@@ -73,6 +74,7 @@ Page({
   async onLoad() {
     try {
       const data = await this.requestWithAuth("/api/models/me", "GET");
+      this.syncActivationStatusFromMe(data);
       this.syncReviewBanner(data?.contentReview);
       const source = data?.stylePosition;
       const photos = Array.isArray(source?.photos)
@@ -89,6 +91,10 @@ Page({
         : [];
       this.patchPhotos(photos, true);
     } catch (_error) {}
+  },
+
+  onShow() {
+    this.refreshActivationStatus();
   },
 
   saveRemote() {
@@ -130,6 +136,9 @@ Page({
             body = {};
           }
           if (uploadRes.statusCode !== 200 || !body.ok || !body.url) {
+            if (this.isActivationRequiredError(uploadRes.statusCode, body.message)) {
+              this.openActivationModal(body.message);
+            }
             reject(new Error(body.message || `上传失败(${uploadRes.statusCode})`));
             return;
           }
@@ -141,6 +150,10 @@ Page({
   },
 
   choosePhotos() {
+    this.ensureActivatedBeforeUpload(() => this._choosePhotos());
+  },
+
+  _choosePhotos() {
     const remain = MAX_PHOTOS - this.data.photos.length;
     if (remain <= 0) {
       wx.showToast({ title: "已达100张上限", icon: "none" });

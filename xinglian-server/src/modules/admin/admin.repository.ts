@@ -36,6 +36,7 @@ export type AdminUserListRow = RowDataPacket & {
   broker_is_professional?: number | string | null;
   broker_license_url?: string | null;
   model_is_admin_created?: number | string | null;
+  model_is_activated?: number | string | null;
   model_is_platform_featured?: number | string | null;
   model_photos_disabled?: number | string | null;
   model_level_override?: number | string | null;
@@ -89,6 +90,7 @@ export type AdminModelBasicDetailRow = RowDataPacket & {
   only_local_orders: number;
   only_female_clients: number;
   is_admin_created: number | string | null;
+  is_activated: number | string | null;
   is_platform_featured: number | string | null;
   photos_disabled: number | string | null;
   model_level_override: number | string | null;
@@ -200,6 +202,7 @@ export async function findUsersPageForAdminByRole(
   }
   const platformFeaturedSelect = `${await mpColumnExpr("is_platform_featured", "0")} AS model_is_platform_featured`;
   const photosDisabledSelect = `${await mpColumnExpr("photos_disabled", "0")} AS model_photos_disabled`;
+  const isActivatedSelect = `${await mpColumnExpr("is_activated", "0")} AS model_is_activated`;
   const levelOverrideSelect = `${await mpColumnExpr("model_level_override", "NULL")} AS model_level_override`;
   const sortOrderSelect = `${await mpColumnExpr("sort_order", "0")} AS model_sort_order`;
   const hasSortOrder = role === 1 && (await hasModelProfilesColumn("sort_order"));
@@ -239,6 +242,7 @@ export async function findUsersPageForAdminByRole(
             bp_self.is_professional AS broker_is_professional,
             bp_self.broker_license_url AS broker_license_url,
             mp.is_admin_created AS model_is_admin_created,
+            ${isActivatedSelect},
             ${platformFeaturedSelect},
             ${photosDisabledSelect},
             ${levelOverrideSelect},
@@ -270,6 +274,7 @@ export async function findModelBasicDetailForAdminByUserId(
 ): Promise<AdminModelBasicDetailRow | null> {
   const platformFeaturedExpr = await mpColumnExpr("is_platform_featured", "0");
   const photosDisabledExpr = await mpColumnExpr("photos_disabled", "0");
+  const isActivatedExpr = await mpColumnExpr("is_activated", "0");
   const levelOverrideExpr = await mpColumnExpr("model_level_override", "NULL");
   const sortOrderSelect = `${await mpColumnExpr("sort_order", "0")} AS sort_order`;
   const cardReviewExpr = await mexColumnExpr("card_review_status", "2");
@@ -291,7 +296,7 @@ export async function findModelBasicDetailForAdminByUserId(
             mp.shoe_size, mp.hair_color, mp.skin_tone,
             mp.price_hour, mp.price_halfday, mp.price_allday,
             mp.is_available, mp.only_local_orders, mp.only_female_clients,
-            mp.is_admin_created, ${platformFeaturedExpr} AS is_platform_featured,
+            mp.is_admin_created, ${isActivatedExpr} AS is_activated, ${platformFeaturedExpr} AS is_platform_featured,
             ${photosDisabledExpr} AS photos_disabled,
             ${levelOverrideExpr} AS model_level_override,
             ${sortOrderSelect},
@@ -401,6 +406,24 @@ export async function updateModelPhotosDisabledForAdmin(
          mp.updated_at = CURRENT_TIMESTAMP
      WHERE mp.user_id = ? AND u.role = 1 AND u.deleted_at IS NULL`,
     [photosDisabled ? 1 : 0, id]
+  );
+  return result.affectedRows > 0;
+}
+
+export async function updateModelActivatedForAdmin(
+  modelUserId: number,
+  activated: boolean
+): Promise<boolean> {
+  const id = Math.floor(Number(modelUserId));
+  if (!Number.isFinite(id) || id <= 0) return false;
+  if (!(await hasModelProfilesColumn("is_activated"))) return false;
+  const [result] = await dbPool.query<ResultSetHeader>(
+    `UPDATE model_profiles mp
+     INNER JOIN users u ON u.id = mp.user_id
+     SET mp.is_activated = ?,
+         mp.updated_at = CURRENT_TIMESTAMP
+     WHERE mp.user_id = ? AND u.role = 1 AND u.deleted_at IS NULL`,
+    [activated ? 1 : 0, id]
   );
   return result.affectedRows > 0;
 }

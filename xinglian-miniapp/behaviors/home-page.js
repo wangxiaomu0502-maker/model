@@ -43,6 +43,12 @@ const HOME_BUSINESS_TICKER_LEADING_ICON =
 const HOME_BUSINESS_TICKER_MORE_ICON =
   "https://xinglian-1426391077.cos.ap-beijing.myqcloud.com/admin/assets/1/1782805152330-c0mfobf0.png";
 
+const HOME_FEATURED_MODELS_TITLE_IMG =
+  "https://xinglian-1426391077.cos.ap-beijing.myqcloud.com/admin/assets/1/1782814535332-2btd41hs.png";
+
+const HOME_MODEL_LOCATION_ICON =
+  "https://xinglian-1426391077.cos.ap-beijing.myqcloud.com/admin/assets/1/1782814610334-xv322yh4.png";
+
 module.exports = Behavior({
   data: {
     modelCount: "--",
@@ -55,6 +61,8 @@ module.exports = Behavior({
     homeSearchIconSrc: HOME_SEARCH_ICON,
     homeBusinessTickerLeadingIconSrc: HOME_BUSINESS_TICKER_LEADING_ICON,
     homeBusinessTickerMoreIconSrc: HOME_BUSINESS_TICKER_MORE_ICON,
+    homeFeaturedModelsTitleImgSrc: HOME_FEATURED_MODELS_TITLE_IMG,
+    homeModelLocationIconSrc: HOME_MODEL_LOCATION_ICON,
     homeModelSkyBadgeIconSrc: HOME_MODEL_SKY_BADGE_ICON,
     homeModelSkyNameBadgeIconSrc: HOME_MODEL_SKY_NAME_BADGE_ICON,
     scanIconLoadError: false,

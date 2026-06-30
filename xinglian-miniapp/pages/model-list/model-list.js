@@ -21,9 +21,6 @@ const {
   backToHomeIntro
 } = require("../../utils/model-list-navigation.js");
 
-const MODEL_LIST_HEADER_BG =
-  "https://xinglian-1426391077.cos.ap-beijing.myqcloud.com/admin/assets/1/1782725489204-bmzbcjkq.png";
-
 const MODEL_LIST_PAGE_SIZE = 20;
 
 function buildFilterPatch(modelList, filterState, filterOptions) {
@@ -70,8 +67,7 @@ Page({
     navPaddingTop: 20,
     homeScrolled: false,
     homeScrollShieldThreshold: 12,
-    showNavBack: false,
-    modelListHeaderBg: MODEL_LIST_HEADER_BG
+    showNavBack: false
   },
 
   onLoad() {

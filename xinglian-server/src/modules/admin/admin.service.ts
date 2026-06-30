@@ -18,6 +18,7 @@ import {
   updateBrokerAccountStatusForAdmin,
   updateModelLevelOverrideForAdmin,
   updateModelPhotosDisabledForAdmin,
+  updateModelActivatedForAdmin,
   updateModelSortOrderForAdmin,
   updateMerchantReferrerIdForAdmin,
   findMerchantBasicDetailForAdminByUserId,
@@ -144,6 +145,8 @@ export async function listUsersForAdminByRole(
     isPlatformFeatured?: boolean | null;
     /** 模特列表：用户端是否禁用模卡/作品集/形象定位 */
     photosDisabled?: boolean | null;
+    /** 模特列表：是否已激活（授权码） */
+    isActivated?: boolean | null;
     modelLevelOverride?: ReturnType<typeof parseAdminModelLevelOverride>;
     /** 模特列表：展示排序，越大越靠前 */
     sortOrder?: number | null;
@@ -243,6 +246,10 @@ export async function listUsersForAdminByRole(
       photosDisabled:
         Number(row.role) === 1 && row.model_photos_disabled != null
           ? Boolean(Number(row.model_photos_disabled))
+          : null,
+      isActivated:
+        Number(row.role) === 1
+          ? Boolean(Number(row.model_is_activated ?? 0))
           : null,
       modelLevelOverride:
         Number(row.role) === 1 ? parseAdminModelLevelOverride(row.model_level_override) : null,
@@ -644,6 +651,29 @@ export async function setModelPhotosDisabledForAdmin(
   return { photosDisabled };
 }
 
+export async function setModelActivatedForAdmin(
+  modelUserId: number,
+  activated: boolean
+): Promise<{ isActivated: boolean }> {
+  const model = await findModelBasicDetailForAdminByUserId(modelUserId);
+  if (!model) {
+    throw new AppError("model user not found", 404, ErrorCodes.NOT_FOUND);
+  }
+  if (!(await hasModelProfilesColumn("is_activated"))) {
+    throw new AppError(
+      "模特激活字段未就绪，请在数据库执行 sql/alter-model-profiles-is-activated.sql",
+      500,
+      ErrorCodes.INTERNAL_ERROR
+    );
+  }
+  await ensureModelProfile(modelUserId);
+  const ok = await updateModelActivatedForAdmin(modelUserId, activated);
+  if (!ok) {
+    throw new AppError("更新模特激活状态失败", 500, ErrorCodes.INTERNAL_ERROR);
+  }
+  return { isActivated: activated };
+}
+
 export async function setModelLevelOverrideForAdmin(
   modelUserId: number,
   levelOverride: ReturnType<typeof parseAdminModelLevelOverride>
@@ -783,6 +813,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     updatedAt: string;
   }>;
   isAdminCreated: boolean;
+  isActivated: boolean;
   isPlatformFeatured: boolean;
   photosDisabled: boolean;
   modelLevelOverride: ReturnType<typeof parseAdminModelLevelOverride>;
@@ -825,6 +856,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
   ) as AdminStylePositionPayload;
   const isPlatformFeatured = Boolean(Number(row.is_platform_featured ?? 0));
   const photosDisabled = Boolean(Number(row.photos_disabled ?? 0));
+  const isActivated = Boolean(Number(row.is_activated ?? 0));
   const modelLevelOverride = parseAdminModelLevelOverride(row.model_level_override);
   const schedule = parseScheduleJson(row.schedule_json);
   const orderSettings = parseOrderSettingsJson(row.order_settings_json, {
@@ -906,6 +938,7 @@ export async function getModelBasicDetailForAdmin(userId: number): Promise<{
     schedule,
     orderSettings,
     isAdminCreated: Boolean(Number(row.is_admin_created ?? 0)),
+    isActivated,
     isPlatformFeatured,
     photosDisabled,
     modelLevelOverride,

@@ -10,16 +10,16 @@
   background: #ffffff;
 }
 
+.model-list-page-root .home-status-bar-shield {
+  background: #ffffff;
+}
+
 .model-list-page-root .home-status-bar-shield--solid .model-list-shield-nav {
   pointer-events: auto;
 }
 
-.model-list-immersive-bg-wrap {
-  height: 320rpx;
-}
-
-.model-list-immersive-bg {
-  height: 320rpx;
+.model-list-immersive-head {
+  background: #ffffff;
 }
 
 .model-list-immersive-head .home-immersive-inner {

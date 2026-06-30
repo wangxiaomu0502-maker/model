@@ -6,7 +6,6 @@ const {
   ROLE_TO_KIND,
   KIND_TYPE_LABEL,
   PENDING_REGISTRATION_KEY,
-  MODEL_REGISTRATION_CODE_KEY,
   contractKindForRole
 } = require("../../utils/registration-contract.js");
 
@@ -507,7 +506,6 @@ Page({
 
         try {
           wx.removeStorageSync(PENDING_REGISTRATION_KEY);
-          wx.removeStorageSync(MODEL_REGISTRATION_CODE_KEY);
         } catch {
           /* ignore */
         }

@@ -1,4 +1,5 @@
 @import "../../styles/xl-theme.wxss";
+@import "../../styles/model-activation-modal.wxss";
 
 .section {
   margin-bottom: 24rpx;

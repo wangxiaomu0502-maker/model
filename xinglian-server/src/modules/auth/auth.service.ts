@@ -36,7 +36,6 @@ import {
 import { getWechatAccessToken, wechatFetch } from "../../integrations/wechat/client";
 import { assertEidVerified } from "../eid/eid.service";
 import { ensureModelExtra, ensureModelProfile } from "../model/model.repository";
-import { consumeModelRegistrationCodeForUser } from "../model-registration-code/model-registration-code.service";
 import {
   identityRoleMap,
   PLATFORM_MODEL_BIND_FAIL_MESSAGE,
@@ -370,8 +369,6 @@ export async function completeRegistration(input: {
   brokerUserNo?: string;
   isProfessional?: boolean;
   brokerLicenseUrl?: string;
-  /** 模特自行注册授权码 */
-  modelRegistrationCode?: string;
 }): Promise<{ role: number; verifiedStatus: number; profileAuditStatus: number }> {
   const {
     userId,
@@ -390,8 +387,7 @@ export async function completeRegistration(input: {
     idCardValidDate,
     brokerUserNo,
     isProfessional,
-    brokerLicenseUrl,
-    modelRegistrationCode
+    brokerLicenseUrl
   } = input;
 
   if (!faceVerified) {
@@ -449,10 +445,6 @@ export async function completeRegistration(input: {
     throw new AppError("account already registered", 409, ErrorCodes.CONFLICT);
   }
   assertRegistrationContractSigned(visitor, targetRole as RegistrationTargetRole);
-
-  if (targetRole === MODEL_ROLE) {
-    await consumeModelRegistrationCodeForUser(String(modelRegistrationCode ?? ""), userId);
-  }
 
   try {
     await completeRegistrationByUserId(

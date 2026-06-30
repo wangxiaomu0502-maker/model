@@ -1,0 +1,33 @@
+<template name="modelActivationModal">
+  <view
+    wx:if="{{showActivationModal}}"
+    class="ma-mask"
+    bindtap="closeActivationModal"
+    catchtouchmove="preventActivationModalBubble"
+  >
+    <view class="ma-panel" catchtap="preventActivationModalBubble">
+      <view class="ma-head">
+        <text class="ma-title">输入授权码</text>
+        <text class="ma-close" bindtap="closeActivationModal">关闭</text>
+      </view>
+      <text class="ma-desc">上传模卡、风格定位或作品集前，请先输入平台发放的 8 位授权码完成激活</text>
+      <input
+        class="ma-input"
+        type="text"
+        maxlength="8"
+        placeholder="请输入授权码"
+        value="{{activationCodeInput}}"
+        bindinput="onActivationCodeInput"
+      />
+      <button
+        class="ma-submit"
+        bindtap="onSubmitActivationCode"
+        loading="{{activationLoading}}"
+        disabled="{{activationLoading}}"
+      >
+        验证并激活
+      </button>
+      <text wx:if="{{activationError}}" class="ma-error">{{activationError}}</text>
+    </view>
+  </view>
+</template>

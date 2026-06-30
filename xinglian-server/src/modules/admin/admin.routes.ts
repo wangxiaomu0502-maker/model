@@ -30,6 +30,7 @@ import {
   adminSetModelLevelController,
   adminSetModelSortOrderController,
   adminSetModelPhotosDisabledController,
+  adminSetModelActivatedController,
   adminSetMerchantBrokerController,
   adminListOrdersController,
   adminListUsersWithRoleQueryController,
@@ -47,6 +48,7 @@ import {
   adminModelFeaturedBodySchema,
   adminModelLevelBodySchema,
   adminModelPhotosDisabledBodySchema,
+  adminModelActivatedBodySchema,
   adminModelSortOrderBodySchema,
   adminMerchantBrokerBodySchema,
   adminModelContentReviewBodySchema,
@@ -447,6 +449,13 @@ adminRouter.patch(
   validate(adminUserIdParamSchema, "params"),
   validate(adminModelPhotosDisabledBodySchema),
   adminSetModelPhotosDisabledController
+);
+adminRouter.patch(
+  "/models/:userId/activated",
+  requireAdminAuth,
+  validate(adminUserIdParamSchema, "params"),
+  validate(adminModelActivatedBodySchema),
+  adminSetModelActivatedController
 );
 adminRouter.patch(
   "/models/:userId/status",

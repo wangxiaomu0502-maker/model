@@ -127,3 +127,16 @@ export async function consumeModelRegistrationCode(
   );
   return Number(result.affectedRows ?? 0) > 0;
 }
+
+export async function findRegistrationCodeUsedByUserId(userId: number): Promise<boolean> {
+  const id = Math.floor(Number(userId));
+  if (!Number.isFinite(id) || id <= 0) return false;
+  const [rows] = await dbPool.query<CountRow[]>(
+    `SELECT COUNT(*) AS cnt
+     FROM model_registration_codes
+     WHERE used_by_user_id = ?
+     LIMIT 1`,
+    [id]
+  );
+  return Number(rows[0]?.cnt ?? 0) > 0;
+}

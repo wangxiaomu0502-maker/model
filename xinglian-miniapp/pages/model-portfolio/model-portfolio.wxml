@@ -2,6 +2,10 @@
   <view wx:if="{{reviewBannerText}}" class="content-review-banner content-review-banner--{{reviewBannerType}}">
     {{reviewBannerText}}
   </view>
+
+  <import src="../../templates/model-activation-banner.wxml" />
+  <template is="modelActivationBanner" data="{{isActivated: isActivated}}" />
+
   <view class="top-bar">
     <view class="top-bar-text">
       <text class="top-title">作品集</text>
@@ -82,4 +86,15 @@
   <view wx:if="{{folders.length}}" class="bottom-tip">
     共 {{totalPhotos}} / 100 张 · 单张照片不能超过10M · 每个文件夹可单独设封面（「···」），首页等列表优先展示文件夹封面
   </view>
+
+  <import src="../../templates/model-activation-modal.wxml" />
+  <template
+    is="modelActivationModal"
+    data="{{
+      showActivationModal: showActivationModal,
+      activationCodeInput: activationCodeInput,
+      activationError: activationError,
+      activationLoading: activationLoading
+    }}"
+  />
 </view>

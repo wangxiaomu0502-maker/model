@@ -11,6 +11,7 @@ import {
   getMyCategoriesController,
   getModelDashboardStatsController,
   getModelMeController,
+  activateModelWithCodeController,
   getProfileAuditReadinessController,
   submitProfileAuditController,
   saveBasicInfoController,
@@ -48,6 +49,7 @@ import {
   modelHonorIdParamSchema,
   modelHonorUpdateBodySchema
 } from "./model-honor.types";
+import { verifyModelRegistrationCodeSchema } from "../model-registration-code/model-registration-code.types";
 
 const modelRouter = Router();
 
@@ -59,6 +61,12 @@ modelRouter.get("/promo-qrcode", requireAuth, getModelPromoQrcodeController);
 modelRouter.get("/detail", optionalAuth, validate(modelDetailQuerySchema, "query"), getModelPublicDetailController);
 modelRouter.get("/categories", requireAuth, getMyCategoriesController);
 modelRouter.get("/me", requireAuth, getModelMeController);
+modelRouter.post(
+  "/activate-with-code",
+  requireAuth,
+  validate(verifyModelRegistrationCodeSchema),
+  activateModelWithCodeController
+);
 modelRouter.get("/profile-audit-readiness", requireAuth, getProfileAuditReadinessController);
 modelRouter.post("/profile-audit-submit", requireAuth, submitProfileAuditController);
 modelRouter.put("/basic-info", requireAuth, validate(basicInfoSchema), saveBasicInfoController);

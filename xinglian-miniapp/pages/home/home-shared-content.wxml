@@ -176,10 +176,11 @@
 <!-- 推荐模特 -->
 <view class="home-section home-models-section">
   <view class="home-section-head">
-    <view class="home-section-title-wrap">
-      <text class="home-section-title">推荐模特</text>
-      <text class="home-section-sub">精选资料完整、可预约的模特</text>
-    </view>
+    <image
+      class="home-section-title-img"
+      src="{{homeFeaturedModelsTitleImgSrc}}"
+      mode="scaleToFill"
+    />
     <view class="home-section-more" bindtap="goModelList">全部</view>
   </view>
 
@@ -227,6 +228,11 @@
             <text wx:else class="model-level-pill">{{item.modelLevelText}}</text>
           </view>
           <view class="home-model-location">
+            <image
+              class="home-model-location-icon"
+              src="{{homeModelLocationIconSrc}}"
+              mode="aspectFit"
+            />
             <text class="home-model-location-text">{{item.city || "城市待完善"}}</text>
           </view>
           <view class="home-model-price-text">

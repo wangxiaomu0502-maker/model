@@ -3,7 +3,7 @@ import { startEid } from "../../mp_ecard_sdk/main";
 const brokerPromo = require("../../utils/broker-promo.js");
 const { prepareImageForUpload } = require("../../utils/image-upload.js");
 const { homeTabUrlForRole } = require("../../utils/role-tab.js");
-const { PENDING_REGISTRATION_KEY, MODEL_REGISTRATION_CODE_KEY } = require("../../utils/registration-contract.js");
+const { PENDING_REGISTRATION_KEY } = require("../../utils/registration-contract.js");
 
 Page({
   data: {
@@ -900,20 +900,6 @@ Page({
       if (registrationData.isProfessional) {
         registrationData.brokerLicenseUrl = String(this.data.brokerLicenseStoredUrl || "").trim();
       }
-    }
-    if (Number(role) === 1) {
-      let modelRegistrationCode = "";
-      try {
-        modelRegistrationCode = String(wx.getStorageSync(MODEL_REGISTRATION_CODE_KEY) || "").trim();
-      } catch {
-        modelRegistrationCode = "";
-      }
-      if (!/^[0-9A-Za-z]{8}$/.test(modelRegistrationCode)) {
-        wx.showToast({ title: "授权码已失效，请重新选择身份", icon: "none" });
-        this.setData({ submitLoading: false });
-        return;
-      }
-      registrationData.modelRegistrationCode = modelRegistrationCode;
     }
 
     try {

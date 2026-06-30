@@ -3,6 +3,9 @@
     {{reviewBannerText}}
   </view>
 
+  <import src="../../templates/model-activation-banner.wxml" />
+  <template is="modelActivationBanner" data="{{isActivated: isActivated}}" />
+
   <view class="section">
     <view class="section-head">
       <view class="section-title-wrap">
@@ -235,4 +238,15 @@
   <view class="bottom-bar">
     <button class="save-btn" bindtap="saveModelCard">保存模卡</button>
   </view>
+
+  <import src="../../templates/model-activation-modal.wxml" />
+  <template
+    is="modelActivationModal"
+    data="{{
+      showActivationModal: showActivationModal,
+      activationCodeInput: activationCodeInput,
+      activationError: activationError,
+      activationLoading: activationLoading
+    }}"
+  />
 </view>

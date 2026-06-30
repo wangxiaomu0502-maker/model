@@ -23,12 +23,17 @@ import {
   updateUserPhone
 } from "./model.repository";
 import {
+  assertModelActivatedForContent,
+  resolveModelIsActivated
+} from "./model-activation.service";
+import {
   buildContentReviewState,
   deriveSectionReviewFromPhotos,
   extractSectionPhotos,
   materializeLegacyPhotoReviewsInPayload,
   mergeSectionPhotoReviewsOnSave,
-  stripSectionPhotosForPublic
+  stripSectionPhotosForPublic,
+  type ModelContentReviewSection
 } from "./model-content-review";
 import { ErrorCodes } from "../../core/constants/error-codes";
 import { AppError } from "../../core/errors/app-error";
@@ -691,6 +696,7 @@ export async function getModelData(userId: number): Promise<Record<string, unkno
       }
     };
   const honors = await listHonorsForPublicDisplay(userId);
+  const isActivated = await resolveModelIsActivated(userId);
 
   return {
     basicInfo: {
@@ -708,6 +714,7 @@ export async function getModelData(userId: number): Promise<Record<string, unkno
     },
     categories: { categoryIds },
     isPlatformFeatured,
+    isActivated,
     modelLevel: buildModelLevel({
       card,
       portfolio,
@@ -778,11 +785,24 @@ function parseStoredExtraPayload(raw: unknown): Record<string, unknown> {
   return {};
 }
 
+function sectionHasRemotePhotos(
+  section: ModelContentReviewSection,
+  payload: Record<string, unknown>
+): boolean {
+  return extractSectionPhotos(section, payload).some((photo) => {
+    const url = String(photo.url ?? "").trim();
+    return url.startsWith("http://") || url.startsWith("https://");
+  });
+}
+
 export async function saveCard(
   userId: number,
   payload: Record<string, unknown>,
   options?: SaveModelContentOptions
 ): Promise<void> {
+  if (!options?.allowClearAllPhotos && sectionHasRemotePhotos("card", payload)) {
+    await assertModelActivatedForContent(userId);
+  }
   await ensureModelProfile(userId);
   await ensureModelExtra(userId);
   const extra = await findModelExtra(userId);
@@ -813,9 +833,12 @@ export async function savePortfolio(
   payload: Record<string, unknown>,
   options?: SaveModelContentOptions
 ): Promise<void> {
+  const canonical = normalizePortfolioForPersist(payload);
+  if (!options?.allowClearAllPhotos && sectionHasRemotePhotos("portfolio", canonical)) {
+    await assertModelActivatedForContent(userId);
+  }
   await ensureModelExtra(userId);
   const extra = await findModelExtra(userId);
-  const canonical = normalizePortfolioForPersist(payload);
   const oldPayload = parseStoredExtraPayload(extra?.portfolio_json);
   const merged = mergeSectionPhotoReviewsOnSave("portfolio", oldPayload, canonical, options);
   const derived = deriveSectionReviewFromPhotos(extractSectionPhotos("portfolio", merged));
@@ -833,9 +856,12 @@ export async function saveStylePosition(
   payload: Record<string, unknown>,
   options?: SaveModelContentOptions
 ): Promise<void> {
+  const canonical = normalizeStylePositionForPersist(payload);
+  if (!options?.allowClearAllPhotos && sectionHasRemotePhotos("stylePosition", canonical)) {
+    await assertModelActivatedForContent(userId);
+  }
   await ensureModelExtra(userId);
   const extra = await findModelExtra(userId);
-  const canonical = normalizeStylePositionForPersist(payload);
   const oldPayload = parseStoredExtraPayload(extra?.style_position_json);
   const merged = mergeSectionPhotoReviewsOnSave("stylePosition", oldPayload, canonical, options);
   const derived = deriveSectionReviewFromPhotos(extractSectionPhotos("stylePosition", merged));

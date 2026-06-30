@@ -786,6 +786,8 @@ export type AdminUserRow = {
   isPlatformFeatured?: boolean | null;
   /** 模特列表：用户端是否禁用模卡/作品集/形象定位 */
   photosDisabled?: boolean | null;
+  /** 模特列表：是否已激活（授权码） */
+  isActivated?: boolean | null;
   /** 模特列表：管理员手动指定等级；null 表示自动计算 LV0-LV1 */
   modelLevelOverride?: AdminModelLevelOverrideValue;
   /** 模特列表：展示排序，越大越靠前 */
@@ -995,6 +997,7 @@ export type AdminModelBasicInfo = {
     onlyFemale: boolean;
   };
   isAdminCreated?: boolean;
+  isActivated?: boolean;
   isPlatformFeatured?: boolean;
   photosDisabled?: boolean;
   modelLevelOverride?: AdminModelLevelOverrideValue;
@@ -2332,6 +2335,33 @@ export async function patchAdminModelPhotosDisabled(
   }
   return {
     photosDisabled: Boolean(data.photosDisabled)
+  };
+}
+
+export async function patchAdminModelActivated(
+  modelUserId: number,
+  isActivated: boolean
+): Promise<{ isActivated: boolean }> {
+  const token = getAdminToken();
+  const res = await fetch(adminApiUrl(`/api/admin/models/${modelUserId}/activated`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ isActivated })
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    isActivated?: boolean;
+    message?: string;
+    code?: string;
+  };
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || data.code || `保存失败 (${res.status})`);
+  }
+  return {
+    isActivated: Boolean(data.isActivated)
   };
 }
 

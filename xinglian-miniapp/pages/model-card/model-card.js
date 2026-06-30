@@ -119,6 +119,7 @@ const MEASURE_OPTIONS = buildMeasureOptions();
 const INITIAL_MEASUREMENTS = applyMeasurementDefaults({});
 
 Page({
+  behaviors: [require("../../behaviors/model-activation.js")],
   data: {
     photoAngles: buildDefaultPhotoAngles(),
     galleryMax: GALLERY_MAX,
@@ -181,6 +182,7 @@ Page({
   async onLoad() {
     try {
       const data = await this.requestWithAuth("/api/models/me", "GET");
+      this.syncActivationStatusFromMe(data);
       if (!data?.ok || !data.card) return;
       const card = data.card;
       const photos = card.photoAngles || [];
@@ -212,6 +214,10 @@ Page({
     } catch (_error) {
       wx.showToast({ title: "加载失败，请稍后重试", icon: "none" });
     }
+  },
+
+  onShow() {
+    this.refreshActivationStatus();
   },
 
   onMeasurePick(e) {
@@ -264,6 +270,9 @@ Page({
             body = {};
           }
           if (status !== 200 || !body.ok || !body.url) {
+            if (this.isActivationRequiredError(status, body.message)) {
+              this.openActivationModal(body.message);
+            }
             reject(new Error(body.message || `上传失败(${status})`));
             return;
           }
@@ -316,6 +325,10 @@ Page({
   },
 
   chooseGalleryBatchPhotos() {
+    this.ensureActivatedBeforeUpload(() => this._chooseGalleryBatchPhotos());
+  },
+
+  _chooseGalleryBatchPhotos() {
     const firstEmpty = (this.data.photoAngles || []).find((item) => isGallerySlot(item) && !item.url);
     if (!firstEmpty) {
       wx.showToast({ title: "身材比例卡单片展示已满", icon: "none" });
@@ -411,6 +424,11 @@ Page({
 
   choosePhotoByKey(key) {
     if (!key) return;
+    this.ensureActivatedBeforeUpload(() => this._choosePhotoByKey(key));
+  },
+
+  _choosePhotoByKey(key) {
+    if (!key) return;
     const current = this.data.photoAngles || [];
     const startItem = current.find((item) => item.key === key);
     const startIndex = current.findIndex((item) => item.key === key);
@@ -504,6 +522,10 @@ Page({
       return;
     }
 
+    this.ensureActivatedBeforeUpload(() => this._persistModelCard());
+  },
+
+  async _persistModelCard() {
     try {
       const measurements = {};
       MEASUREMENT_FIELDS.forEach((field) => {
@@ -530,6 +552,9 @@ Page({
         skinColor: String(this.data.skinColor || "").trim()
       });
       if (!data?.ok) {
+        if (this.isActivationRequiredError(403, data?.message)) {
+          this.openActivationModal(data.message);
+        }
         wx.showToast({ title: data?.message || "保存失败", icon: "none" });
         return;
       }

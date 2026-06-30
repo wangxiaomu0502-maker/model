@@ -22,6 +22,7 @@ import {
   patchAdminBrokerAccountStatus,
   patchAdminModelLevel,
   patchAdminModelPhotosDisabled,
+  patchAdminModelActivated,
   patchAdminModelSortOrder,
   patchAdminMerchantBroker,
   postAdminModelContentReview,
@@ -140,6 +141,8 @@ const modelAccountStatusSaving = ref(false);
 const brokerAccountStatusSaving = ref(false);
 const listAccountStatusSavingUserId = ref<number | null>(null);
 const listPhotosDisabledSavingUserId = ref<number | null>(null);
+const listActivatedSavingUserId = ref<number | null>(null);
+const activatedSaving = ref(false);
 const listLevelDialogVisible = ref(false);
 const listLevelModelRow = ref<AdminUserRow | null>(null);
 const listLevelDraft = ref<AdminModelLevelOverrideValue>(null);
@@ -797,6 +800,23 @@ async function onChangeModelPhotosDisabled(value: boolean): Promise<void> {
   }
 }
 
+async function onChangeModelActivated(value: boolean): Promise<void> {
+  const uid = detailBasicInfo.value?.userId;
+  if (!uid) return;
+  activatedSaving.value = true;
+  try {
+    await patchAdminModelActivated(uid, value);
+    ElMessage.success(value ? "已激活模特账号" : "已取消模特激活");
+    detailBasicInfo.value = await fetchAdminModelDetail(uid);
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "保存失败");
+    detailBasicInfo.value = await fetchAdminModelDetail(uid);
+  } finally {
+    activatedSaving.value = false;
+  }
+}
+
 async function onToggleListPhotosDisabled(row: AdminUserRow): Promise<void> {
   const next = !row.photosDisabled;
   const action = next ? "禁用" : "恢复展示";
@@ -825,6 +845,37 @@ async function onToggleListPhotosDisabled(row: AdminUserRow): Promise<void> {
     ElMessage.error(e instanceof Error ? e.message : "操作失败");
   } finally {
     listPhotosDisabledSavingUserId.value = null;
+  }
+}
+
+async function onToggleListActivated(row: AdminUserRow): Promise<void> {
+  const next = !row.isActivated;
+  const action = next ? "激活" : "取消激活";
+  try {
+    await ElMessageBox.confirm(
+      `确定${action}模特「${displayCellName(row.nickname)}」（${row.userNo}）吗？未激活时无法上传模卡、风格定位与作品集。`,
+      `${action}模特`,
+      {
+        type: next ? "info" : "warning",
+        confirmButtonText: "确定",
+        cancelButtonText: "取消"
+      }
+    );
+  } catch {
+    return;
+  }
+  listActivatedSavingUserId.value = row.userId;
+  try {
+    await patchAdminModelActivated(row.userId, next);
+    ElMessage.success(next ? "已激活模特账号" : "已取消模特激活");
+    if (detailBasicInfo.value?.userId === row.userId) {
+      detailBasicInfo.value = await fetchAdminModelDetail(row.userId);
+    }
+    await loadList();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "操作失败");
+  } finally {
+    listActivatedSavingUserId.value = null;
   }
 }
 
@@ -1569,6 +1620,13 @@ onUnmounted(() => {
             <span v-else>—</span>
           </template>
         </el-table-column>
+        <el-table-column v-if="isModelList" label="激活" width="96">
+          <template #default="{ row }">
+            <el-tag :type="row.isActivated ? 'success' : 'info'" size="small" effect="light" round>
+              {{ row.isActivated ? "已激活" : "未激活" }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column v-if="isModelList" label="微信绑定" width="100">
           <template #default="{ row }">
             <el-tag :type="wechatBindTagType(row)" size="small" effect="light" round>
@@ -1738,6 +1796,16 @@ onUnmounted(() => {
                 @click="onToggleListPhotosDisabled(row)"
               >
                 {{ row.photosDisabled ? "启用照片" : "禁用照片" }}
+              </el-button>
+              <el-button
+                :type="row.isActivated ? 'warning' : 'success'"
+                plain
+                size="small"
+                round
+                :loading="listActivatedSavingUserId === row.userId"
+                @click="onToggleListActivated(row)"
+              >
+                {{ row.isActivated ? "取消激活" : "激活" }}
               </el-button>
               <el-button
                 v-if="row.isAdminCreated === true"
@@ -2012,6 +2080,21 @@ onUnmounted(() => {
                     />
                     <span class="model-photos-disabled-hint">
                       禁用后用户端不展示模卡、作品集与形象定位
+                    </span>
+                  </div>
+                </el-descriptions-item>
+                <el-descriptions-item label="账号激活">
+                  <div class="model-photos-disabled-row">
+                    <el-switch
+                      :model-value="Boolean(detailBasicInfo.isActivated)"
+                      :loading="activatedSaving"
+                      inline-prompt
+                      active-text="已激活"
+                      inactive-text="未激活"
+                      @change="onChangeModelActivated"
+                    />
+                    <span class="model-photos-disabled-hint">
+                      未激活时小程序无法上传模卡、风格定位与作品集；后管创建账号默认未激活
                     </span>
                   </div>
                 </el-descriptions-item>

@@ -75,6 +75,13 @@ export const adminModelPhotosDisabledBodySchema = z.object({
 
 export type AdminModelPhotosDisabledBody = z.infer<typeof adminModelPhotosDisabledBodySchema>;
 
+/** 后台设置模特是否已激活（授权码） */
+export const adminModelActivatedBodySchema = z.object({
+  isActivated: z.boolean()
+});
+
+export type AdminModelActivatedBody = z.infer<typeof adminModelActivatedBodySchema>;
+
 /** 后台禁用/启用模特账号（禁用后不在小程序展示） */
 export const adminModelAccountStatusBodySchema = z.object({
   status: z.coerce

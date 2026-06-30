@@ -21,10 +21,6 @@
     </view>
   </view>
 
-  <view class="home-immersive-bg-wrap model-list-immersive-bg-wrap">
-    <image class="home-immersive-bg model-list-immersive-bg" src="{{modelListHeaderBg}}" mode="scaleToFill" />
-  </view>
-
   <view class="home-immersive-head model-list-immersive-head">
     <view class="home-immersive-inner">
       <view class="home-custom-nav" style="height: {{navBarHeight}}px; padding-top: {{navPaddingTop}}px;">
@@ -283,7 +279,8 @@
         <text wx:else class="model-list-load-more-text">已展示全部模特</text>
       </view>
       </block>
-    </view>
+    </block>
+  </view>
   </view>
 </view>
 

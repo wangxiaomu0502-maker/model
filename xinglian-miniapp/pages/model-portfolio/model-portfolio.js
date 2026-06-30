@@ -13,6 +13,7 @@ const MAX_PHOTOS = 100;
 const ACCEPT_EXT = [".jpg", ".jpeg", ".png"];
 
 Page({
+  behaviors: [require("../../behaviors/model-activation.js")],
   data: {
     folders: [],
     photos: [],
@@ -117,6 +118,7 @@ Page({
   async onLoad() {
     try {
       const data = await this.requestWithAuth("/api/models/me", "GET");
+      this.syncActivationStatusFromMe(data);
       this.syncReviewBanner(data?.contentReview);
       if (!data?.ok || !data.portfolio) return;
       const pf = data.portfolio;
@@ -167,6 +169,10 @@ Page({
       });
       this.patchPortfolio(folders, photos, true);
     } catch (_error) {}
+  },
+
+  onShow() {
+    this.refreshActivationStatus();
   },
 
   saveRemote() {
@@ -268,6 +274,9 @@ Page({
             body = {};
           }
           if (uploadRes.statusCode !== 200 || !body.ok || !body.url) {
+            if (this.isActivationRequiredError(uploadRes.statusCode, body.message)) {
+              this.openActivationModal(body.message);
+            }
             reject(new Error(body.message || `上传失败(${uploadRes.statusCode})`));
             return;
           }
@@ -279,6 +288,10 @@ Page({
   },
 
   choosePhotosForFolder(e) {
+    this.ensureActivatedBeforeUpload(() => this._choosePhotosForFolder(e));
+  },
+
+  _choosePhotosForFolder(e) {
     const folderId = e.currentTarget.dataset.folderId;
     const folders = this.data.folders || [];
     const folder = folders.find((f) => f.id === folderId);

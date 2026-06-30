@@ -35,6 +35,10 @@ import {
   listHonorsForModelUser,
   updateHonorForModelUser
 } from "./model-honor.service";
+import {
+  activateModelWithRegistrationCode,
+  assertModelActivatedForContent
+} from "./model-activation.service";
 import { createModelPromoWxacode } from "./model-promo.service";
 
 function getUserId(req: Request): number | null {
@@ -51,6 +55,25 @@ export async function getModelMeController(req: Request, res: Response, next: Ne
     return success(res, data as Record<string, unknown>);
   } catch (error) {
     return next(error);
+  }
+}
+
+export async function activateModelWithCodeController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
+      return;
+    }
+    const { code } = req.body as { code: string };
+    const data = await activateModelWithRegistrationCode(userId, code);
+    success(res, data);
+  } catch (error) {
+    next(error);
   }
 }
 
@@ -218,6 +241,7 @@ export async function uploadModelPortfolioImageController(
     if (!userId) {
       return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
     }
+    await assertModelActivatedForContent(userId);
     const file = (req as AuthenticatedRequest & { file?: Express.Multer.File }).file;
     if (!file || !PORTFOLIO_IMAGE_MIME.has(file.mimetype)) {
       throw new AppError("invalid portfolio image", 400, ErrorCodes.VALIDATION_ERROR);
@@ -244,6 +268,7 @@ export async function uploadModelStylePositionImageController(
     if (!userId) {
       return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
     }
+    await assertModelActivatedForContent(userId);
     const file = (req as AuthenticatedRequest & { file?: Express.Multer.File }).file;
     if (!file || !STYLE_POSITION_IMAGE_MIME.has(file.mimetype)) {
       throw new AppError("invalid style position image", 400, ErrorCodes.VALIDATION_ERROR);
@@ -270,6 +295,7 @@ export async function uploadModelCardImageController(
     if (!userId) {
       return fail(req, res, 401, { code: ErrorCodes.UNAUTHORIZED, message: "unauthorized" });
     }
+    await assertModelActivatedForContent(userId);
     const file = (req as AuthenticatedRequest & { file?: Express.Multer.File }).file;
     if (!file || !CARD_IMAGE_MIME.has(file.mimetype)) {
       throw new AppError("invalid model card image", 400, ErrorCodes.VALIDATION_ERROR);

@@ -2,6 +2,10 @@
   <view wx:if="{{reviewBannerText}}" class="content-review-banner content-review-banner--{{reviewBannerType}}">
     {{reviewBannerText}}
   </view>
+
+  <import src="../../templates/model-activation-banner.wxml" />
+  <template is="modelActivationBanner" data="{{isActivated: isActivated}}" />
+
   <view class="top-bar">
     <view class="top-bar-text">
       <text class="top-title">风格定位</text>
@@ -59,4 +63,15 @@
   <view class="bottom-tip">
     建议上传风格统一、画面清晰的图片；支持 JPG / PNG，单张照片不能超过10M，一次最多 9 张。
   </view>
+
+  <import src="../../templates/model-activation-modal.wxml" />
+  <template
+    is="modelActivationModal"
+    data="{{
+      showActivationModal: showActivationModal,
+      activationCodeInput: activationCodeInput,
+      activationError: activationError,
+      activationLoading: activationLoading
+    }}"
+  />
 </view>

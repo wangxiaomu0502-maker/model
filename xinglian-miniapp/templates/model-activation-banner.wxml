@@ -1,0 +1,6 @@
+<template name="modelActivationBanner">
+  <view wx:if="{{!isActivated}}" class="ma-banner" bindtap="openActivationModal">
+    <text class="ma-banner-text">账号未激活，暂不可上传模卡、风格定位与作品集</text>
+    <text class="ma-banner-action">输入授权码</text>
+  </view>
+</template>

@@ -40,6 +40,8 @@ type ModelProfileRow = RowDataPacket & {
   is_platform_featured: number | string | null;
   photos_disabled: number | string | null;
   model_level_override: number | string | null;
+  is_admin_created?: number | string | null;
+  is_activated?: number | string | null;
 };
 
 type ModelExtraRow = RowDataPacket & {
@@ -284,6 +286,19 @@ export async function findModelProfile(userId: number): Promise<ModelProfileRow 
     [userId]
   );
   return rows[0] ?? null;
+}
+
+export async function updateModelActivated(userId: number, activated: boolean): Promise<boolean> {
+  const id = Math.floor(Number(userId));
+  if (!Number.isFinite(id) || id <= 0) return false;
+  if (!(await hasModelProfilesColumn("is_activated"))) return false;
+  const [result] = await dbPool.query<ResultSetHeader>(
+    `UPDATE model_profiles
+     SET is_activated = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE user_id = ?`,
+    [activated ? 1 : 0, id]
+  );
+  return Number(result.affectedRows ?? 0) > 0;
 }
 
 export async function ensureModelExtra(userId: number): Promise<void> {
